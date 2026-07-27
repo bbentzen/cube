@@ -51,8 +51,7 @@ let rec compile global lopen filename lvl next_location = function
                      "'\nName already exists in the environment (try 'print " ^ id ^ "' for more information)")
                 else
                   begin
-                    (* let e'' = eval e' in  *)
-                    let res = Synthesize.init global ctx' lvl e' ty' in
+                    let res = Synthesize.init global ctx' lvl (eval e') ty' in
                     match res with 
                     | Ok (e1, ty1) ->
                       let e1' = normalize_expr e1 in

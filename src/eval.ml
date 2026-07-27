@@ -52,21 +52,22 @@ let rec has_reduction = function
     begin
       let (i', bi) = has_reduction i in
       let (j', bj) = has_reduction j in
+      let (e2', b2) = has_reduction e2 in
       if i' = j' then
-        e2, true
+        e2', true
       else
         match e1 with
         | Ast.Abs(k, e) ->
           if has_var k e then
             let (e1', b1) = has_reduction e1 in
-            let (e2', b2) = has_reduction e2 in
+            (* let (e2', b2) = has_reduction e2 in *)
             Ast.Coe (i', j', e1', e2'), 
             bi || bj || b1 || b2
           else
-            e2, true  (* coercion regularity *)
+            e2', true  (* coercion regularity *)
         | _ ->
           let (e1', b1) = has_reduction e1 in
-          let (e2', b2) = has_reduction e2 in
+          (* let (e2', b2) = has_reduction e2 in *)
           Ast.Coe (i', j', e1', e2'), 
           bi || bj || b1 || b2
     end
