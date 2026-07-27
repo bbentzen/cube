@@ -36,7 +36,7 @@ let rec compile global lopen filename lvl next_location = function
         let ctx = normalize_ctx (Local.create_ctx l) in
         let (h1, h2) = 
           Ctx.check global ctx lvl, 
-          Type.check global ctx lvl (reduce hty)
+          Type.check global ctx lvl (eval hty)
         in
         begin 
           match h1, h2 with

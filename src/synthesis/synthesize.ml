@@ -12,7 +12,7 @@ open Checker
 (* Iterated synthesization attempts *)
 
 let rec check global ctx lvl sl e ty max =
-  let e' = Debruijn.normalize_expr (Eval.reduce e) in
+  let e' = Debruijn.normalize_expr (Eval.eval e) in
   let ty' = Debruijn.normalize_expr (Eval.eval ty) in
   let elab = Elab.elaborate global ctx lvl sl ty' 0 0 e' in
   begin

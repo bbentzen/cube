@@ -131,11 +131,12 @@ let rec elaborate global ctx lvl sl ty ph vars = function
     in
 
     (* this is needed if we don't evaluate before calling the elaborator *)
-    if snd (has_reduction (App (e1, e2))) then
-      elaborate global ctx lvl sl ty (ph+1) (vars+1) (reduce (App (e1, e2)))
+    (* if snd (has_reduction (App (e1, e2))) then
+      elaborate global ctx lvl sl ty (ph+1) (vars+1) (reduce (App (e1, e2))) *)
     (*  *)
 
-    else if e2_is_subgoal then
+    (* else  *)
+      if e2_is_subgoal then
 
       let h1 = Placeholder.generate ty ph [] in
       let elab1 = elaborate global ctx lvl sl h1 (ph+1) (vars+1) e1 in
