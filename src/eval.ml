@@ -74,7 +74,7 @@ let rec eval = function
       match e' with
       | Ast.App (e1 , e2) ->
         if e2 = Ast.Id x && not (has_var x e1) then 
-          eval e1
+          e1
         else
           Ast.Abs (x, e')
       | _ ->
@@ -86,10 +86,10 @@ let rec eval = function
       let e1' = eval e1 in
       match e1' with
       | Ast.Abs (x , e) ->
-        if Placeholder.has_underscore e then
+        (* if Placeholder.has_underscore e then
           let e2' = eval e2 in
           Ast.App (e1', e2')
-        else
+        else *)
           eval (subst x e2 e)
       | _ ->
         let e2' = eval e2 in
@@ -103,7 +103,7 @@ let rec eval = function
       match e1', e2' with
       | Ast.Fst e11, Ast.Snd e22 ->
         if e11 = e22 then
-          eval e11
+          e11
         else
           Ast.Pair (e1', e2')
       | _ ->
@@ -114,7 +114,7 @@ let rec eval = function
     begin
       let e' = eval e in
       match e' with
-      | Ast.Pair (e1 , _) -> eval e1
+      | Ast.Pair (e1 , _) -> e1
       | _ -> 
         Ast.Fst e'
     end
@@ -123,7 +123,7 @@ let rec eval = function
     begin
       let e' = eval e in
       match e' with
-      | Ast.Pair (_ , e2) -> eval e2
+      | Ast.Pair (_ , e2) -> e2
       | _ -> 
         Ast.Snd e'
     end
@@ -192,7 +192,7 @@ let rec eval = function
       match e' with
       | Ast.At (e1 , e2) ->
         if e2 = Ast.Id x && not (free_var x e1) then 
-          eval e1
+          e1
         else
           Ast.Pabs (x, e')
       | _ ->
@@ -204,11 +204,11 @@ let rec eval = function
       let e1' = eval e1 in
       match e1' with
       | Ast.Pabs (x , e) ->
-        if Placeholder.has_underscore e then
+        (* if Placeholder.has_underscore e then
           let e2' = eval e2 in
           Ast.At (e1', e2')
-        else
-          subst x e2 (eval e)
+        else *)
+          eval (subst x e2 e)
       | _ ->
         let e2' = eval e2 in
         Ast.At (e1', e2')
