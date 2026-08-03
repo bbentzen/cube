@@ -6,18 +6,18 @@
 
 open Basis
 open Context
-open Eval 
+open Eval
 
 let check global ctx lvl =
   let rec helper l = 
     match l with
   | [] -> Ok []
   | (x, ty, b) :: ctx' ->
-    begin match Global.unfold_all global 0 ty with
+    begin match Env.unfold_all global 0 ty with
     | Ok ty' ->
       begin match Type.check global ctx' lvl ty', helper ctx' with
       | Ok elab, Ok ctx'' -> 
-        if Global.is_declared x global then
+        if Env.is_declared x global then
           Error ("Naming conflict with the identifier '" ^ x ^ 
             "'\nIt occurs as a definition/theorem name but is declared as a local variable")
         else

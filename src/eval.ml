@@ -6,35 +6,47 @@
  *       but not ε-reduction (i0/i1 endpoints) for dependent paths.
  **)
 
-open Substitution
+open Debruijn
+
+(* Beta reduction without index shifting *)
+
+let beta body arg =
+  Debruijn.open_var 0 arg body
+
+(* Eager evaluation with locally nameless representation *)
 
 let rec eval = function
+  | Core_ast.Coe (i, j, Core_ast.Abs(k, Pi(x, ty1, ty2)), e) ->  
+    let v1 = (create_fresh [Pi(x, ty1, ty2); e] 1).(0) in
+    let i' = shift 0 1 (eval i) in
+    let j' = shift 0 1 (eval j) in
+    Core_ast.Abs(v1, Core_ast.Coe (i', j', Core_ast.Abs(k, 
+    (shift 2 1 (eval (Debruijn.open_var 0
+    (Core_ast.Coe (j', Local 0, Core_ast.Abs(k, shift 1 1 ty1), Local 1)) ty2)))),
+    (eval (Core_ast.App(shift 0 1 e, Coe (j', i', Core_ast.Abs(k, shift 1 1 ty1), Local 0))))))
 
-  | Ast.Coe (i, j, Ast.Abs(k, Pi(x, ty1, ty2)), e) ->  
-    let v1 = fresh_var (Pi(x, ty1, ty2)) e 2 in
+  | Core_ast.Coe (i, j, Core_ast.Abs(k, Sigma(_, ty1, ty2)), e) ->
     let i' = eval i in
     let j' = eval j in
-    let c x = Ast.Coe (j', x, Ast.Abs(k, ty1), Id v1) in
-    Ast.Abs(v1, Ast.Coe (i', j', Ast.Abs(k, eval (subst x (c (Id k)) ty2)), eval (Ast.App(e, c i'))))
-  
-  | Ast.Coe (i, j, Ast.Abs(k, Sigma(x, ty1, ty2)), e) ->
-    let i' = eval i in
-    let j' = eval j in
-    let c x = Ast.Coe (i', x, Ast.Abs(k, ty1), Ast.Fst e) in
-    Ast.Pair(c j', Ast.Coe (i', j', Ast.Abs(k, eval (subst x (c (Id k)) ty2)), Ast.Snd (eval e)))
+    (* let c x = Coe (i', x, Abs(k, ty1), Fst e) in *)
+    Pair(Coe (i', j', Abs(k, ty1), Fst e), 
+    Coe (i', j', Abs(k, 
+    eval (Debruijn.open_var 0 (shift 1 1 (Coe (i', Local 0, Abs(k, ty1), Fst e))) ty2)),
+    Snd (eval e)))
 
-  | Ast.Coe (i, j, Ast.Abs(k, Pathd(ty, e1, e2)), e) ->
-      let v1 = fresh_var (Ast.App(e1, e2)) e 2 in
-      let v2 = fresh_var (Ast.App(e1, e2)) e 3 in
-      let i' = eval i in
-      let j' = eval j in
-      Ast.Pabs(v1, Ast.App(Ast.App (Ast.Hfill(
-      Ast.Abs(v1, Ast.Coe (i', j', (Ast.Abs(k, (eval (Ast.App(ty, Id v1))))), eval (Ast.At(e, Ast.Id v1)))), 
-      Ast.Abs(v2, Ast.Coe (Id v2, j', (Ast.Abs(k, (eval (Ast.App(ty, I0()))))), eval (subst k (Id v2) e1))),
-      Ast.Abs(v2, Ast.Coe (Id v2, j', (Ast.Abs(k, (eval (Ast.App(ty, I1()))))), eval (subst k (Id v2) e2)))),
-      I1()), Id v1))
+  | Core_ast.Coe (i, j, Core_ast.Abs(k, Pathd(ty, e1, e2)), e) ->
+      let v = create_fresh [ty; e1; e2; e] 3 in
+      let v1 = v.(0) and v2 = v.(1) and v3 = v.(2) in
+      let i' = shift 0 2 (eval i) in
+      let j' = shift 0 2 (eval j) in
+      let ty' = shift 1 2 ty and e' = shift 0 2 e in
+      Pabs(v1, App(App (Hfill(
+      Abs(v2, Coe (i', j', (Abs(k, (eval (App(ty', Local 1))))), eval (At(e', Local 0)))), 
+      Abs(v3, Coe (Local 0, j', (Abs(k, (eval (App(ty', I0()))))), eval (shift 1 1 e1))),
+      Abs(v3, Coe (Local 0, j', (Abs(k, (eval (App(ty', I1()))))), eval (shift 1 1 e2)))),
+      I1()), Local 0))
 
-  | Ast.Coe (i, j, e1, e2) ->
+  | Core_ast.Coe (i, j, e1, e2) ->
     begin
       let i' = eval i in
       let j' = eval j in
@@ -44,198 +56,200 @@ let rec eval = function
       else
         let e1' = eval e1 in
         match e1' with
-        | Ast.Abs(k, e) ->
-          if has_var k e then
-            Ast.Coe (i', j', e1', e2')
+        | Core_ast.Abs(_, e) ->
+          if occurs_index 0 0 e then
+            Core_ast.Coe (i', j', e1', e2')
           else
             e2'  (* coercion regularity *)
         | _ ->
-          Ast.Coe (i', j', e1', e2')
+          Core_ast.Coe (i', j', e1', e2')
     end
   
-  | Ast.Hfill (e, e1, e2) ->
+  | Core_ast.Hfill (e, e1, e2) ->
     let e' = eval e in
     let e1' = eval e1 in
     let e2' = eval e2 in
-    Ast.Hfill (e', e1', e2')
+    Core_ast.Hfill (e', e1', e2')
   
-  | Ast.App (Ast.Hfill (e, _, _), Ast.I0()) -> 
+  | Core_ast.App (Core_ast.Hfill (e, _, _), Core_ast.I0()) -> 
     eval e
 
-  | Ast.App (Ast.App (Ast.Hfill (_, e1, _), i), Ast.I0()) -> 
-    eval (Ast.App(e1, i))
+  | Core_ast.App (Core_ast.App (Core_ast.Hfill (_, e1, _), i), Core_ast.I0()) -> 
+    eval (Core_ast.App(e1, i))
 
-  | Ast.App (Ast.App (Ast.Hfill (_, _, e2), i), Ast.I1()) -> 
-    eval (Ast.App(e2, i))
-
-  | Ast.Abs (x, e) -> 
+  | Core_ast.App (Core_ast.App (Core_ast.Hfill (_, _, e2), i), Core_ast.I1()) -> 
+    eval (Core_ast.App(e2, i))
+  
+  | Core_ast.Abs (x, e) -> 
     begin
       let e' = eval e in
       match e' with
-      | Ast.App (e1 , e2) ->
-        if e2 = Ast.Id x && not (has_var x e1) then 
-          e1
-        else
-          Ast.Abs (x, e')
+      | Core_ast.App (e1 , e2) ->
+          begin
+          match e2 with 
+          | Local 0 ->
+            if not (occurs_index 0 0 e1) then
+              shift 0 (-1) e1 (* eta reduction *)
+            else
+              Core_ast.Abs (x, e')
+          | _ -> Core_ast.Abs (x, e')
+          end
       | _ ->
-        Ast.Abs (x, e')
+        Core_ast.Abs (x, e')
     end
 
-  | Ast.App (e1, e2) -> 
+  | Core_ast.App (e1, e2) -> 
     begin
       let e1' = eval e1 in
       match e1' with
-      | Ast.Abs (x , e) ->
-        (* if Placeholder.has_underscore e then
-          let e2' = eval e2 in
-          Ast.App (e1', e2')
-        else *)
-          eval (subst x e2 e)
+      | Core_ast.Abs (_, e) ->
+          eval (beta e e2)
       | _ ->
         let e2' = eval e2 in
-        Ast.App (e1', e2')
+        Core_ast.App (e1', e2')
     end
 
-  | Ast.Pair (e1, e2) ->
+  | Core_ast.Pair (e1, e2) ->
     begin
       let e1' = eval e1 in
       let e2' = eval e2 in
       match e1', e2' with
-      | Ast.Fst e11, Ast.Snd e22 ->
+      | Core_ast.Fst e11, Core_ast.Snd e22 ->
         if e11 = e22 then
           e11
         else
-          Ast.Pair (e1', e2')
+          Core_ast.Pair (e1', e2')
       | _ ->
-        Ast.Pair (e1', e2')
+        Core_ast.Pair (e1', e2')
     end
 
-  | Ast.Fst e ->
+  | Core_ast.Fst e ->
     begin
       let e' = eval e in
       match e' with
-      | Ast.Pair (e1 , _) -> e1
+      | Core_ast.Pair (e1 , _) -> e1
       | _ -> 
-        Ast.Fst e'
+        Core_ast.Fst e'
     end
 
-  | Ast.Snd e -> 
+  | Core_ast.Snd e -> 
     begin
       let e' = eval e in
       match e' with
-      | Ast.Pair (_ , e2) -> e2
+      | Core_ast.Pair (_ , e2) -> e2
       | _ -> 
-        Ast.Snd e'
+        Core_ast.Snd e'
     end
 
-  | Ast.Inl e ->
+  | Core_ast.Inl e ->
     let e' = eval e in
-    Ast.Inl e'
+    Core_ast.Inl e'
 
-  | Ast.Inr e -> 
+  | Core_ast.Inr e -> 
     let e' = eval e in
-    Ast.Inr e'
+    Core_ast.Inr e'
 
-  | Ast.Case (e, e1, e2) -> 
+  | Core_ast.Case (e, e1, e2) -> 
     begin
       let e' = eval e in
       match e' with
-      | Ast.Inl a -> eval (Ast.App (e1,a))
-      | Ast.Inr b -> eval (Ast.App (e2,b))
+      | Core_ast.Inl a -> eval (Core_ast.App (e1,a))
+      | Core_ast.Inr b -> eval (Core_ast.App (e2,b))
       | _ ->
         let e1' = eval e1 in
         let e2' = eval e2 in
-        Ast.Case (e', e1', e2')
+        Core_ast.Case (e', e1', e2')
     end
 
-  | Ast.Succ e ->
+  | Core_ast.Succ e ->
     let e' = eval e in
-    Ast.Succ e'
+    Core_ast.Succ e'
 
-  | Ast.Natrec (e, e1, e2) -> 
+  | Core_ast.Natrec (e, e1, e2) -> 
     begin
       let e' = eval e in 
       match e' with
-      | Ast.Zero() -> eval e1
-      | Ast.Succ k -> eval (Ast.App (Ast.App (e2,k),Ast.Natrec(k,e1,e2)))
+      | Core_ast.Zero() -> eval e1
+      | Core_ast.Succ k -> eval (Core_ast.App (Core_ast.App (e2,k),Core_ast.Natrec(k,e1,e2)))
       | _ -> 
         let e1' = eval e1 in
         let e2' = eval e2 in
-        Ast.Natrec (e', e1', e2')
+        Core_ast.Natrec (e', e1', e2')
     end
 
-  | Ast.If (e, e1, e2) -> 
+  | Core_ast.If (e, e1, e2) -> 
     begin
       let e' = eval e in
       match e' with
-      | Ast.True() -> eval e1
-      | Ast.False() -> eval e2
+      | Core_ast.True() -> eval e1
+      | Core_ast.False() -> eval e2
       | _ ->
         let e1' = eval e1 in
         let e2' = eval e2 in
-        Ast.If (e', e1', e2')
+        Core_ast.If (e', e1', e2')
     end
 
-  | Ast.Let (e, e1) -> 
+  | Core_ast.Let (e, e1) -> 
     begin
       let e' = eval e in
       match e' with
-      | Ast.Star() -> eval e1
+      | Core_ast.Star() -> eval e1
       | _ -> 
         let e1' = eval e1 in
-        Ast.Let (e', e1')
+        Core_ast.Let (e', e1')
     end
 
-  | Ast.Pabs (x, e) -> 
+  | Core_ast.Pabs (x, e) -> 
     begin
       let e' = eval e in
       match e' with
-      | Ast.At (e1 , e2) ->
-        if e2 = Ast.Id x && not (free_var x e1) then 
-          e1
-        else
-          Ast.Pabs (x, e')
+      | Core_ast.At (e1 , e2) ->
+        begin
+        match e2 with 
+          | Local 0 ->
+            if not (occurs_index 0 0 e1) then 
+              shift 0 (-1) e1 (* eta reduction *)
+            else
+              Core_ast.Pabs (x, e')
+          | _ -> Core_ast.Pabs (x, e')
+          end
       | _ ->
-        Ast.Pabs (x, e')
+        Core_ast.Pabs (x, e')
     end
 
-  | Ast.At (e1, e2) -> 
+  | Core_ast.At (e1, e2) -> 
     begin
       let e1' = eval e1 in
       match e1' with
-      | Ast.Pabs (x , e) ->
-        (* if Placeholder.has_underscore e then
-          let e2' = eval e2 in
-          Ast.At (e1', e2')
-        else *)
-          eval (subst x e2 e)
+      | Core_ast.Pabs (_ , e) ->
+          eval (beta e e2)
       | _ ->
         let e2' = eval e2 in
-        Ast.At (e1', e2')
+        Core_ast.At (e1', e2')
     end
-  
-  | Ast.Pi (x, e1, e2) ->
+
+  | Core_ast.Pi (x, e1, e2) ->
     let e1' = eval e1 in
     let e2' = eval e2 in
-    Ast.Pi (x, e1', e2')
+    Core_ast.Pi (x, e1', e2')
 
-  | Ast.Sigma (x, e1, e2) ->
+  | Core_ast.Sigma (x, e1, e2) ->
     let e1' = eval e1 in
     let e2' = eval e2 in
-    Ast.Sigma (x, e1', e2')
+    Core_ast.Sigma (x, e1', e2')
 
-  | Ast.Sum (e1, e2) ->
+  | Core_ast.Sum (e1, e2) ->
     let e1' = eval e1 in
     let e2' = eval e2 in
-    Ast.Sum (e1', e2')
+    Core_ast.Sum (e1', e2')
 
-  | Ast.Pathd (e, e1, e2) -> 
+  | Core_ast.Pathd (e, e1, e2) -> 
     let e' = eval e in
     let e1' = eval e1 in
     let e2' = eval e2 in
-    Ast.Pathd (e', e1', e2')
+    Core_ast.Pathd (e', e1', e2')
 
-  | Ast.Type l ->
-    Ast.Type (Universe.eval l)
+  | Core_ast.Type l ->
+    Core_ast.Type (Core_ast.unieval l)
     
   | e -> e

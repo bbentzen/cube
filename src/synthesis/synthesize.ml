@@ -7,13 +7,16 @@
  **)
 
 open Basis
+open Eval
 open Checker
 
 (* Iterated synthesization attempts *)
 
 let rec check global ctx lvl sl e ty max =
-  let e' = Debruijn.normalize_expr (Eval.eval e) in
-  let ty' = Debruijn.normalize_expr (Eval.eval ty) in
+  (* let e' = Debruijn.normalize_expr (Eval.eval e) in
+  let ty' = Debruijn.normalize_expr (Eval.eval ty) in *)
+  let e' = eval e in
+  let ty' = eval ty in
   let elab = Elab.elaborate global ctx lvl sl ty' 0 0 e' in
   begin
     match elab with
@@ -23,8 +26,8 @@ let rec check global ctx lvl sl e ty max =
         Ok (e', ty')
       else
 
-        let e'' = Debruijn.normalize_expr e' in
-        let ty'' = Debruijn.normalize_expr ty' in
+        let e'' = eval e' in
+        let ty'' = eval ty' in
         let relab = Elab.elaborate global ctx lvl sl ty'' 0 0 e'' in
         begin
           match relab with
@@ -53,7 +56,7 @@ and iter sl' msg global ctx lvl e ty max =
       begin match Stack.find_index n (snd sl') with 
       | Ok _ -> 
 
-        let e' = Substitution.prefull (Wild n) (Id id) e in
+        let e' = Debruijn.fullsubst 0 (Wild n) (Global id) true e in
         let w = check global ctx lvl ([], snd sl') e' ty max in
         begin 
           match w with

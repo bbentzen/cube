@@ -6,13 +6,16 @@
  **)
 
 open Basis
-open Ast
+open Core_ast
+open Debruijn
+open Eval
 
 let check global ctx lvl ty =
   match ty with
   | Hole _ -> Ok (Hole ("0",[]), ty)
   | _ ->
-    let ty' = Debruijn.normalize_expr (Eval.eval ty) in
+    (* let ty' = Debruijn.normalize_expr (Eval.eval ty) in *)
+    let ty' = eval ty in
     let elab = Elab.elaborate global ctx lvl ([], []) (Hole ("0",[])) 1 0 ty' in
     match elab with
     | Ok (ty', tTy, _) ->
@@ -23,7 +26,7 @@ let check global ctx lvl ty =
         | Hole _ -> (* Hole _ has been added for tests*)
           Ok (ty', tTy)
         | _ -> 
-          Error ("Failed to prove that \n  " ^ Pretty.print (Eval.eval ty) ^ "\nis a type")
+          Error ("Failed to prove that \n  " ^ Pretty.print (to_raw_expr ty') ^ "\nis a type")
       end
     | Error (_, msg) -> 
       Error msg

@@ -128,7 +128,7 @@ theorem dnatrec {C : nat → type l} (c0 : C 0) (cs : Π (n : nat) C n → C (su
 ⊢ Π (n : nat) C n :=
 λ n, natrec n c0 cs
  
-/* Function lication and extensionality */
+/* Function aplication and extensionality */
  
 def ap {A B : type l} (f : A → B) {a b : A} 
 ⊢ path A a b → path B (f a) (f b) :=

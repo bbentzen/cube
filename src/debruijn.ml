@@ -2,17 +2,22 @@
  * (c) Copyright 2026 Bruno Bentzen. All rights reserved.
  * Released under Apache 2.0 license as described in the file LICENSE.
  * Desc: Translation between user raw AST and internal de Bruijn AST.
- *       Free identifiers remain globals and bound identifiers become local indices.
+ *       Free identifiers remain globals and bound identifiers become local indices. 
+ *       This also file handles operations on local variables, objects 
+ *       "Local <index>" of type "expr" of core expressions, which 
+ *       are identified as indices in pure de Bruijn form.
  **)
+
+open Core_ast
 
 let rec index_of x = function
   | [] -> None
   | y :: env -> if x = y then Some 0 else Option.map (fun n -> n + 1) (index_of x env)
 
-let rec name_at n hint = function
-  | [] -> hint
+let rec name_at n = function
+  | [] -> "(ERROR: dangling local variable " ^ string_of_int n ^ ")" (* failwith "name_at: empty environment" *)
   | x :: _ when n = 0 -> x
-  | _ :: env -> name_at (n - 1) hint env
+  | _ :: env -> name_at (n - 1) env
 
 let rec level_of_raw = function
   | Ast.Num n -> Core_ast.Num n
@@ -20,17 +25,17 @@ let rec level_of_raw = function
   | Ast.Suc l -> Core_ast.Suc (level_of_raw l)
   | Ast.Max (l1, l2) -> Core_ast.Max (level_of_raw l1, level_of_raw l2)
 
-let rec level_to_raw = function
+let rec to_raw_level = function
   | Core_ast.Num n -> Ast.Num n
   | Core_ast.Var x -> Ast.Var x
-  | Core_ast.Suc l -> Ast.Suc (level_to_raw l)
-  | Core_ast.Max (l1, l2) -> Ast.Max (level_to_raw l1, level_to_raw l2)
+  | Core_ast.Suc l -> Ast.Suc (to_raw_level l)
+  | Core_ast.Max (l1, l2) -> Ast.Max (to_raw_level l1, to_raw_level l2)
 
 let rec of_raw_expr_with_env env = function
   | Ast.Id x ->
     begin
       match index_of x env with
-      | Some index -> Core_ast.Local { hint = x; index }
+      | Some index -> Core_ast.Local index
       | None -> Core_ast.Global x
     end
   | Ast.Int () -> Core_ast.Int ()
@@ -88,7 +93,7 @@ let rec of_raw_expr_with_env env = function
 let of_raw_expr e = of_raw_expr_with_env [] e
 
 let rec to_raw_expr_with_env env = function
-  | Core_ast.Local { hint; index } -> Ast.Id (name_at index hint env)
+  | Core_ast.Local index -> Ast.Id (name_at index env)
   | Core_ast.Global x -> Ast.Id x
   | Core_ast.Int () -> Ast.Int ()
   | Core_ast.I1 () -> Ast.I1 ()
@@ -137,17 +142,23 @@ let rec to_raw_expr_with_env env = function
   | Core_ast.At (e1, e2) -> Ast.At (to_raw_expr_with_env env e1, to_raw_expr_with_env env e2)
   | Core_ast.Pathd (e, e1, e2) ->
     Ast.Pathd (to_raw_expr_with_env env e, to_raw_expr_with_env env e1, to_raw_expr_with_env env e2)
-  | Core_ast.Type l -> Ast.Type (level_to_raw l)
+  | Core_ast.Type l -> Ast.Type (to_raw_level l)
   | Core_ast.Hole (n, l) -> Ast.Hole (n, List.map (to_raw_expr_with_env env) l)
   | Core_ast.Wild n -> Ast.Wild n
   | Core_ast.Subgoal() -> Ast.Subgoal()
 
 let to_raw_expr e = to_raw_expr_with_env [] e
 
-let normalize_expr e =
-  e
-  |> of_raw_expr
-  |> to_raw_expr
+let normalize_expr e =  to_raw_expr (of_raw_expr e)
+
+let to_raw_ctx ctx =
+  let rec helper acc = function
+    | [] -> List.rev acc
+    | (x, ty, b) :: ctx' ->
+      let ty' = to_raw_expr ty in
+      helper ((x, ty', b) :: acc) ctx'
+  in
+  helper [] ctx
 
 let normalize_ctx ctx =
   let rec helper env acc = function
@@ -177,3 +188,192 @@ let rec normalize_command = function
   | Ast.Eval (cmd, e) -> Ast.Eval (normalize_command cmd, normalize_expr e)
   | Ast.Level (cmd, l) -> Ast.Level (normalize_command cmd, l)
   | Ast.Eof () -> Ast.Eof ()
+
+let rec shift cutoff amount = function
+  | Local index ->
+    if index >= cutoff then Local (index + amount)
+    else Local index
+  | Global _ | Int _ | I1 _ | I0 _ | Star _ | Unit _ | True _ | False _
+  | Bool _ | Zero _ | Nat _ | Void _ | Type _ | Wild _ | Subgoal _ as e -> e
+  | Coe (i, j, e1, e2) ->
+    Coe (shift cutoff amount i, shift cutoff amount j, shift cutoff amount e1, shift cutoff amount e2)
+  | Hfill (e, e1, e2) ->
+    Hfill (shift cutoff amount e, shift cutoff amount e1, shift cutoff amount e2)
+  | Abs (x, e) -> Abs (x, shift (cutoff + 1) amount e)
+  | App (e1, e2) -> App (shift cutoff amount e1, shift cutoff amount e2)
+  | Pi (x, e1, e2) -> Pi (x, shift cutoff amount e1, shift (cutoff + 1) amount e2)
+  | Pair (e1, e2) -> Pair (shift cutoff amount e1, shift cutoff amount e2)
+  | Fst e -> Fst (shift cutoff amount e)
+  | Snd e -> Snd (shift cutoff amount e)
+  | Sigma (x, e1, e2) -> Sigma (x, shift cutoff amount e1, shift (cutoff + 1) amount e2)
+  | Inl e -> Inl (shift cutoff amount e)
+  | Inr e -> Inr (shift cutoff amount e)
+  | Case (e, e1, e2) ->
+    Case (shift cutoff amount e, shift cutoff amount e1, shift cutoff amount e2)
+  | Sum (e1, e2) -> Sum (shift cutoff amount e1, shift cutoff amount e2)
+  | Let (e1, e2) -> Let (shift cutoff amount e1, shift cutoff amount e2)
+  | If (e, e1, e2) ->
+    If (shift cutoff amount e, shift cutoff amount e1, shift cutoff amount e2)
+  | Succ e -> Succ (shift cutoff amount e)
+  | Natrec (e, e1, e2) ->
+    Natrec (shift cutoff amount e, shift cutoff amount e1, shift cutoff amount e2)
+  | Abort e -> Abort (shift cutoff amount e)
+  | Pabs (x, e) -> Pabs (x, shift (cutoff + 1) amount e)
+  | At (e1, e2) -> At (shift cutoff amount e1, shift cutoff amount e2)
+  | Pathd (e, e1, e2) ->
+    Pathd (shift cutoff amount e, shift cutoff amount e1, shift cutoff amount e2)
+  | Hole (n, l) -> Hole (n, List.map (shift cutoff amount) l)
+
+  (* Additional functions *)
+
+let rec open_var k replacement = function
+  | Local index ->
+    if index = k then shift 0 k replacement
+    else if index > k then Local (index - 1)
+    else Local index
+  | Global _ | Int _ | I1 _ | I0 _ | Star _ | Unit _ | True _ | False _
+  | Bool _ | Zero _ | Nat _ | Void _ | Type _ | Wild _ | Subgoal _ as e -> e
+  | Coe (i, j, e1, e2) ->
+    Coe (open_var k replacement i, open_var k replacement j, open_var k replacement e1, open_var k replacement e2)
+  | Hfill (e, e1, e2) ->
+    Hfill (open_var k replacement e, open_var k replacement e1, open_var k replacement e2)
+  | Abs (x, e) -> Abs (x, open_var (k + 1) replacement e)
+  | App (e1, e2) -> App (open_var k replacement e1, open_var k replacement e2)
+  | Pi (x, e1, e2) -> Pi (x, open_var k replacement e1, open_var (k + 1) replacement e2)
+  | Pair (e1, e2) -> Pair (open_var k replacement e1, open_var k replacement e2)
+  | Fst e -> Fst (open_var k replacement e)
+  | Snd e -> Snd (open_var k replacement e)
+  | Sigma (x, e1, e2) -> Sigma (x, open_var k replacement e1, open_var (k + 1) replacement e2)
+  | Inl e -> Inl (open_var k replacement e)
+  | Inr e -> Inr (open_var k replacement e)
+  | Case (e, e1, e2) ->
+    Case (open_var k replacement e, open_var k replacement e1, open_var k replacement e2)
+  | Sum (e1, e2) -> Sum (open_var k replacement e1, open_var k replacement e2)
+  | Let (e1, e2) -> Let (open_var k replacement e1, open_var k replacement e2)
+  | If (e, e1, e2) ->
+    If (open_var k replacement e, open_var k replacement e1, open_var k replacement e2)
+  | Succ e -> Succ (open_var k replacement e)
+  | Natrec (e, e1, e2) ->
+    Natrec (open_var k replacement e, open_var k replacement e1, open_var k replacement e2)
+  | Abort e -> Abort (open_var k replacement e)
+  | Pabs (x, e) -> Pabs (x, open_var (k + 1) replacement e)
+  | At (e1, e2) -> At (open_var k replacement e1, open_var k replacement e2)
+  | Pathd (e, e1, e2) ->
+    Pathd (open_var k replacement e, open_var k replacement e1, open_var k replacement e2)
+  | Hole (n, l) -> Hole (n, List.map (open_var k replacement) l)
+
+let rec close_var k x = function
+  | Global y when x = y -> Local k
+  | Global _ as e -> e | Local _ as e -> e | Int _ as e -> e 
+  | I1 _ as e -> e | I0 _ as e -> e
+  | Coe (i, j, e1, e2) -> Coe (close_var k x i, close_var k x j, close_var k x e1, close_var k x e2)
+  | Hfill (e, e1, e2) -> Hfill (close_var k x e, close_var k x e1, close_var k x e2)
+  | Abs (y, e) -> Abs (y, close_var (k + 1) x e)
+  | App (e1, e2) -> App (close_var k x e1, close_var k x e2)
+  | Pi (y, e1, e2) -> Pi (y, close_var k x e1, close_var (k + 1) x e2)
+  | Pair (e1, e2) -> Pair (close_var k x e1, close_var k x e2)
+  | Fst e -> Fst (close_var k x e)
+  | Snd e -> Snd (close_var k x e)
+  | Sigma (y, e1, e2) -> Sigma (y, close_var k x e1, close_var (k + 1) x e2)
+  | Inl e -> Inl (close_var k x e)
+  | Inr e -> Inr (close_var k x e)
+  | Case (e, e1, e2) -> Case (close_var k x e, close_var k x e1, close_var k x e2)
+  | Sum (e1, e2) -> Sum (close_var k x e1, close_var k x e2)
+  | Star _ as e -> e
+  | Let (e1, e2) -> Let (close_var k x e1, close_var k x e2)
+  | Unit _ as e -> e
+  | True _ as e -> e
+  | False _ as e -> e
+  | If (e, e1, e2) -> If (close_var k x e, close_var k x e1, close_var k x e2)
+  | Bool _ as e -> e
+  | Zero _ as e -> e
+  | Succ e -> Succ (close_var k x e)
+  | Natrec (e, e1, e2) -> Natrec (close_var k x e, close_var k x e1, close_var k x e2)
+  | Nat _ as e -> e
+  | Abort e -> Abort (close_var k x e)
+  | Void _ as e -> e
+  | Pabs (y, e) -> Pabs (y, close_var (k + 1) x e)
+  | At (e1, e2) -> At (close_var k x e1, close_var k x e2)
+  | Pathd (e, e1, e2) -> Pathd (close_var k x e, close_var k x e1, close_var k x e2)
+  | Type _ as e -> e
+  | Hole (n, l) -> Hole (n, List.map (close_var k x) l)
+  | Wild _ as e -> e
+  | Subgoal _ as e -> e
+
+(* Legacy substitution function *)
+
+let rec fullsubst k ex d b = function
+  | e when e = (shift 0 k ex) -> shift 0 k d
+  | Global _ | Local _ | Int _ | I1 _ | I0 _ | Star _ | Unit _ | True _ 
+  | False _ | Bool _ | Zero _ | Nat _ | Void _ | Type _ | Wild _ | Subgoal _ as e -> e
+  | Coe (i, j, e1, e2) -> Coe (fullsubst k ex d b i, fullsubst k ex d b j, fullsubst k ex d b e1, fullsubst k ex d b e2)
+  | Hfill (e, e1, e2) -> Hfill (fullsubst k ex d b e, fullsubst k ex d b e1, fullsubst k ex d b e2)
+  | Abs (y, e) -> Abs (y, fullsubst (k+1) ex d b e)
+  | App (e1, e2) -> App (fullsubst k ex d b e1, fullsubst k ex d b e2)
+  | Pi (y, e1, e2) -> Pi (y, fullsubst k ex d b e1, fullsubst (k+1) ex d b e2)
+  | Pair (e1, e2) -> Pair (fullsubst k ex d b e1, fullsubst k ex d b e2)
+  | Fst e -> Fst (fullsubst k ex d b e)
+  | Snd e -> Snd (fullsubst k ex d b e)
+  | Sigma (y, e1, e2) -> Sigma (y, fullsubst k ex d b e1, fullsubst (k+1) ex d b e2)
+  | Inl e -> Inl (fullsubst k ex d b e)
+  | Inr e -> Inr (fullsubst k ex d b e)
+  | Case (e, e1, e2) -> Case (fullsubst k ex d b e, fullsubst k ex d b e1, fullsubst k ex d b e2)
+  | Sum (e1, e2) -> Sum (fullsubst k ex d b e1, fullsubst k ex d b e2)
+  | Let (e1, e2) -> Let (fullsubst k ex d b e1, fullsubst k ex d b e2)
+  | If (e, e1, e2) -> If (fullsubst k ex d b e, fullsubst k ex d b e1, fullsubst k ex d b e2)
+  | Succ e -> Succ (fullsubst k ex d b e)
+  | Natrec (e, e1, e2) -> Natrec (fullsubst k ex d b e, fullsubst k ex d b e1, fullsubst k ex d b e2)
+  | Abort e -> Abort (fullsubst k ex d b e)
+  | Pabs (y, e) -> Pabs (y, fullsubst (k+1) ex d b e)
+  | At (e1, e2) -> At (fullsubst k ex d b e1, fullsubst k ex d b e2)
+  | Pathd (e, e1, e2) -> Pathd (fullsubst k ex d b e, fullsubst k ex d b e1, fullsubst k ex d b e2)
+  | Hole (n, l) -> if b then Hole (n, List.map (fun e -> fullsubst k ex d b e) l) else Hole (n, l)
+
+(* Occurrence of indices *)
+
+let rec occurs_index target cutoff = function
+  | Local index -> index = target + cutoff
+  | Global _ | Int _ | I1 _ | I0 _ | Star _ | Unit _ | True _ | False _ 
+  | Bool _ | Zero _ | Nat _ | Void _ | Type _ | Wild _ | Subgoal _ -> false
+  | Hole (_, l) -> List.exists (occurs_index target cutoff) l
+  | Coe (i, j, e1, e2) -> occurs_index target cutoff i || occurs_index target cutoff j || occurs_index target cutoff e1 || occurs_index target cutoff e2
+  | Hfill (e, e1, e2) -> occurs_index target cutoff e || occurs_index target cutoff e1 || occurs_index target cutoff e2
+  | Abs (_, e) | Pabs (_, e) -> occurs_index target (cutoff + 1) e
+  | App (e1, e2) | Pair (e1, e2) | Sum (e1, e2) | Let (e1, e2) | At (e1, e2) -> occurs_index target cutoff e1 || occurs_index target cutoff e2
+  | Pi (_, e1, e2) | Sigma (_, e1, e2) -> occurs_index target cutoff e1 || occurs_index target (cutoff + 1) e2
+  | Inl e | Inr e | Fst e | Snd e | Succ e | Abort e -> occurs_index target cutoff e
+  | Case (e, e1, e2) | Natrec (e, e1, e2) | If (e, e1, e2) | Pathd (e, e1, e2) ->
+    occurs_index target cutoff e || occurs_index target cutoff e1 || occurs_index target cutoff e2
+
+let rec occurs_name s hint = function
+  | Abs (x, e) | Pabs (x, e) -> x = hint || occurs_name x hint e
+  | Pi (x, e1, e2) | Sigma (x, e1, e2) -> x = hint || occurs_name x hint e1 || occurs_name x hint e2
+  | Local _ -> s = hint | Global t -> t = hint
+  | Int _ | I1 _ | I0 _ | Star _ | Unit _ | True _ | False _ | Bool _ | Zero _ | Nat _ | Void _ | Type _ | Wild _ | Subgoal _ -> false
+  | Hole (_, l) -> List.exists (occurs_name s hint) l
+  | Coe (i, j, e1, e2) -> occurs_name s hint i || occurs_name s hint j || occurs_name s hint e1 || occurs_name s hint e2
+  | Hfill (e, e1, e2) -> occurs_name s hint e || occurs_name s hint e1 || occurs_name s hint e2
+  | App (e1, e2) | Pair (e1, e2) | Sum (e1, e2) | Let (e1, e2) | At (e1, e2) -> occurs_name s hint e1 || occurs_name s hint e2
+  | Inl e | Inr e | Fst e | Snd e | Succ e | Abort e -> occurs_name s hint e
+  | Case (e, e1, e2) | Natrec (e, e1, e2) | If (e, e1, e2) | Pathd (e, e1, e2) ->
+    occurs_name s hint e || occurs_name s hint e1 || occurs_name s hint e2
+
+(* Converts a list of expressions into a single expression by application *)
+
+let rec list_to_expr l =
+  match l with
+  | [] -> Core_ast.Star ()
+  | e :: es -> App (e, list_to_expr es)
+
+(* Creates n-many fresh variables from a list es of expressions *)
+
+let create_fresh es n =
+  let rec helper i e n =
+    if occurs_name "v0" ("v" ^ string_of_int i) e then
+      helper (i+1) e n
+    else if n > 0 then
+      Array.append [| "v" ^ string_of_int i |] (helper (i+1) e (n-1))
+    else
+      [| |]
+  in  (* not free_var *)
+  helper 0 (list_to_expr es) n

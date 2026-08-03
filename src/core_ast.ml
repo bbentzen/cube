@@ -11,13 +11,17 @@ type level =
   | Suc of level
   | Max of level * level
 
-type var = {
+(* type var = {
   hint : string;
   index : int;
-}
+} *)
+
+(* let next v =
+  match v with { hint; index} -> 
+    { hint = hint ^ "'"; index = index + 1 } *)
 
 type expr =
-  | Local of var
+  | Local of int
   | Global of string
   | Int of unit
   | I1 of unit
@@ -58,3 +62,50 @@ type expr =
 
 type proof =
   | Prf of string * (((string list * expr) * bool) list) * expr * expr
+
+let rec leq = function
+  | Num 0, _ -> 
+    true
+
+  | Num n, Num m -> 
+    n <= m
+
+  | Var n, Var m -> 
+    n = m
+
+  | Max (n, n'), Max (m, m') -> 
+    leq (Max (n, n'), m) || leq (Max (n, n'), m')
+
+  | Max (n, n'), m ->
+    leq (n, m) && leq (n', m)
+
+  | n, Max (m, m') ->
+    leq (n, m) || leq (n, m')
+
+  | Suc n, Suc m -> 
+    leq (n, m)
+  
+  | Num n, Suc m -> 
+    leq (Num (n-1), m)
+
+  | n, Suc m -> 
+    leq (n, m)
+
+  | Suc _, _ | Num _, Var _ | Var _, Num _ -> 
+    false
+
+let rec unieval = function
+  | Suc n -> Suc (unieval n)
+
+  | Max (Suc n, m) | Max (m, Suc n) -> 
+    Suc (unieval (Max (n, m)))
+
+  | Max (n, m) ->
+    if leq(n, m) then
+      unieval m
+    else if leq(m, n) then
+      unieval n
+    else
+      Max (unieval n, unieval m)
+    
+  | l -> l

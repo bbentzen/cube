@@ -175,5 +175,130 @@ and print_level = function
   | Max (n, Num m) | Max (Num m, n) -> print_level n ^ " + " ^ string_of_int m
   | Max (n, m) -> "max(" ^ print_level n ^ "," ^ print_level m ^ ")"
 
-let print_core e =
-  print (Debruijn.to_raw_expr e)
+(* Translates expressions back to raw syntax and prints them *)
+
+let printf e = print (Debruijn.to_raw_expr e)
+
+(* A core-syntax printer for debugging *)
+
+let rec printc = function  
+  | Core_ast.Coe (i, j, e1, e2) -> 
+    String.concat "" ["coe "; parc i; parc j; parc e1; parc e2]
+  
+  | Hfill (e, e1, e2) -> 
+    String.concat "" ["\n  hfill "; parc e; 
+    "\n    | i0 → "; printc e1; 
+    "\n    | i1 → "; printc e2]
+    
+  | Abs (y, e) ->  
+    let rec iter = function
+      | Core_ast.Abs (y', e') ->
+        " " ^ y' ^ iter e'
+      | e' ->
+        ", " ^ printc e'
+    in
+    "λ " ^ y ^ iter e
+
+  | Core_ast.Pi (x, e1, e2) ->
+
+      let rec diter = function
+        | Core_ast.Pi (x', e1', e2') ->
+            String.concat "" ["("; x'; " : "; printc e1'; ") "; diter e2']
+        | e' ->
+          printc e'
+      in
+      "Π (" ^ x ^ " : " ^ printc e1 ^ ") " ^ diter e2
+
+  | Core_ast.Sigma (x, e1, e2) ->
+    
+
+      let rec diter = function
+        | Core_ast.Sigma (x', e1', e2') ->
+            String.concat "" ["("; x'; " : "; printc e1'; ") "; diter e2']
+        | e' ->
+          printc e'
+      in
+      "Σ (" ^ x ^ " : " ^ printc e1 ^ ") " ^ diter e2
+
+
+  | Pathd (e, e1, e2) ->
+    begin
+      match e with
+      | Core_ast.Abs (i, ty) ->
+          "pathd (" ^ printc (Core_ast.Abs (i, ty)) ^ ") " ^ parc e1 ^ parc e2
+      | _ ->
+        "pathd " ^ parc e ^ parc e1 ^ parc e2
+    end
+
+  | Core_ast.App (e1, e2) ->
+      let rec iter = function
+      | Core_ast.App (e3, e4) -> "(" ^ iter e3 ^ parc e4 ^ ")"
+      | e -> "(" ^ parc e ^ ")"
+    in
+    iter e1 ^ parc e2
+
+  | Type l -> 
+    "type " ^ printc_level l ^ " "
+
+  | Core_ast.Pair (e1, e2) -> "(" ^ parc e1 ^ ", " ^ parc e2 ^ ") "
+  | Core_ast.Fst e -> "fst " ^ parc e
+  | Core_ast.Snd e -> "snd " ^ parc e
+  | Core_ast.Case (e, e1, e2) -> String.concat "" ["case "; parc e; parc e1; parc e2]
+  | Core_ast.Sum (e1, e2) -> String.concat "" ["( "; parc e1; "+ "; parc e2; ") "]
+  | Core_ast.Succ e -> String.concat "" ["succ "; parc e]
+  | Core_ast.Natrec (e, e1, e2) -> String.concat "" ["natrec "; parc e; parc e1; parc e2]
+  | Core_ast.If (e, e1, e2) -> String.concat "" ["if "; parc e; parc e1; parc e2]
+  | Core_ast.Let (e1, e2) -> String.concat "" ["let "; parc e1; parc e2]
+  | Core_ast.Abort e -> String.concat "" ["abort "; parc e]
+  | Core_ast.Pabs (y, e) -> String.concat "" ["<"; y; "> "; printc e]
+  | Core_ast.At (e1, e2) -> String.concat "" [parc e1; "@ "; parc e2]
+  | Hole (n, _) -> "?" ^ n ^ "? "
+  | Global y -> y ^ " "
+  | Local index -> string_of_int index ^ " "
+  | I0() -> "i0 "
+  | I1() -> "i1 "
+  | Int() -> "I " 
+  | Zero() -> "0 "
+  | Nat() -> "nat "
+  | True() -> "true "
+  | False() -> "false "
+  | Bool() -> "bool "
+  | Star() -> "() "
+  | Unit() -> "unit "
+  | Void() -> "void "
+  | Inl e -> "inl " ^ parc e
+  | Inr e -> "inr " ^ parc e
+  | Wild n -> "?0" ^ string_of_int n ^ "? "
+  | Subgoal() -> "?"
+
+and parc e = 
+  let helper = function
+    | Core_ast.Abs _ | Pabs _ | Pi _ | Sigma _ | Fst _ | Snd _ 
+    | Inl _ | Inr _ | Succ _ | Abort _ | App _ | Pair _ 
+    | Sum _ | Let _ | At _ | Case _ | Natrec _ | If _ 
+    | Pathd _ | Coe _ -> 
+      true
+    | _ -> false
+  in
+  if helper e then
+    "(" ^ printc e ^ ") "
+  else
+    printc e
+
+and tparc e = 
+let helper = function
+  | Core_ast.Pi _ | Sigma _ | Sum _  | Pathd _ | Hfill _ | Coe _ -> 
+    true
+  | _ -> false
+in
+if helper e then
+  "(" ^ printc e ^ ") "
+else
+  printc e
+
+and printc_level = function
+  | Num n -> string_of_int n
+  | Suc n -> printc_level n ^ "+ 1"
+  | Var l -> l
+  | Max (n, Num m) | Max (Num m, n) -> printc_level n ^ " + " ^ string_of_int m
+  | Max (n, m) -> "max(" ^ printc_level n ^ "," ^ printc_level m ^ ")"

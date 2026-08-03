@@ -12,10 +12,6 @@ open Eval
 open File
 open Context
 
-let normalize_expr = Debruijn.normalize_expr
-
-let normalize_ctx = Debruijn.normalize_ctx
-
 let format_location location =
   Printf.sprintf "Line %d, characters %d-%d:\n"
     location.line location.col_start location.col_end
@@ -26,14 +22,14 @@ let failwith_at location msg =
   | None -> failwith msg
 
 let rec compile global lopen filename lvl next_location = function
-  | Ast.Thm (cmd, Prf (id, l, ty, e)) ->
+  | Ast.Thm (cmd, Prf (id, l, ty_raw, e_raw)) ->
     let location = next_location () in
     begin
-      let ty_raw = normalize_expr (Implicit.convert ty) in
-      let e_raw = normalize_expr (Implicit.convert e) in
-      match Global.unfold_all global 0 ty_raw with
+      let ty = Debruijn.of_raw_expr ty_raw in
+      let e = Debruijn.of_raw_expr e_raw in
+      match Env.unfold_all global 0 (Implicit.convert ty) with
       | Ok hty ->
-        let ctx = normalize_ctx (Local.create_ctx l) in
+        let ctx = Global.create_ctx l in
         let (h1, h2) = 
           Ctx.check global ctx lvl, 
           Type.check global ctx lvl (eval hty)
@@ -43,9 +39,9 @@ let rec compile global lopen filename lvl next_location = function
           | Ok ctx, Ok (ty', _) -> 
             let ctx' = List.rev ctx in
             begin 
-              match Global.unfold_all global 0 e_raw with
+              match Env.unfold_all global 0 (Implicit.convert e) with
               | Ok e' ->
-                if Global.is_declared id global then 
+                if Env.is_declared id global then 
                   failwith_at location
                     ("Naming conflict with the identifier '" ^ id ^
                      "'\nName already exists in the environment (try 'print " ^ id ^ "' for more information)")
@@ -54,9 +50,7 @@ let rec compile global lopen filename lvl next_location = function
                     let res = Synthesize.init global ctx' lvl (eval e') ty' in
                     match res with 
                     | Ok (e1, ty1) ->
-                      let e1' = normalize_expr e1 in
-                      let ty1' = normalize_expr ty1 in
-                      compile (Global.add_to_global_env global id ctx' (e1', ty1')) lopen filename lvl next_location cmd
+                      compile (Env.add global id ctx' (e1, ty1)) lopen filename lvl next_location cmd
                     | Error msg -> 
                       failwith_at location ("The following error was found at '" ^ id ^ "'\n" ^ msg)
                   end
@@ -75,13 +69,13 @@ let rec compile global lopen filename lvl next_location = function
   | Ast.Print (cmd, id) -> 
     let location = next_location () in
     begin 
-      match Global.check_def_id id global with
+      match Env.check_def_id id global with
       | Ok (e, ty) ->
         begin 
           match compile global lopen filename lvl next_location cmd with
           | Ok (global', (s, lopen)) -> 
-            Ok (global', (id ^ " := \n  " ^ Pretty.print e ^ ": \n  " ^ 
-            Pretty.print (Eval.eval ty) ^ "\n" ^ s, lopen))
+            Ok (global', (id ^ " := \n  " ^ Pretty.printf e ^ ": \n  " ^ 
+            Pretty.printf (eval ty) ^ "\n" ^ s, lopen))
           | Error msg ->
             failwith_at location msg
         end
@@ -91,19 +85,17 @@ let rec compile global lopen filename lvl next_location = function
 
   | Ast.Infer (cmd, e) ->
     let location = next_location () in
-    let e' = normalize_expr e in
+    let e' = Debruijn.of_raw_expr e in
     let h1 = Placeholder.generate e' 0 [] in
     let elab = Elab.elaborate global [] lvl ([], []) h1 0 0 e' in 
     begin 
       match elab with
       | Ok (e1, ty, _) ->
-        let e'' = normalize_expr e1 in
-        let ty' = normalize_expr ty in
         begin 
           match compile global lopen filename lvl next_location cmd with
           | Ok (global', (s, lopen)) -> 
-            Ok (global', ("infer := " ^ Pretty.print e'' ^ ": \n" ^
-              "         " ^ Pretty.print ty' ^ 
+            Ok (global', ("infer := " ^ Pretty.printf e1 ^ ": \n" ^
+              "         " ^ Pretty.printf ty ^ 
               "\n" ^ s, lopen))
           | Error msg -> failwith_at location msg
         end
@@ -111,13 +103,14 @@ let rec compile global lopen filename lvl next_location = function
         failwith_at location msg
     end
   
-  | Ast.Eval (_, e) ->
+  | Ast.Eval (_, e_raw) -> 
     let location = next_location () in
     begin
-      match (Global.unfold_all global 0 e) with
+      let e = Debruijn.of_raw_expr e_raw in
+      match (Env.unfold_all global 0 e) with
       | Ok e' ->
-        Ok (global, ("eval " ^ Pretty.print e ^ " := " ^ 
-        Pretty.print (Eval.eval e'), lopen))
+        Ok (global, ("eval " ^ Pretty.print e_raw ^ " := " ^ 
+        Pretty.printf (eval e'), lopen))
       | Error msg -> 
         failwith_at location msg
     end
@@ -142,8 +135,6 @@ let rec compile global lopen filename lvl next_location = function
 
   | Ast.Eof() -> 
     Ok (global, ("", lopen))
-  
-  
 
 and checkfile global lopen filename lvl =
   let cmd =

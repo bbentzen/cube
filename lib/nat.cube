@@ -69,10 +69,10 @@ def add_comm_succ (l n : ℕ)
 ⊢ path ℕ (succ (add l n)) (add (succ l) n) :=
 natrec n (<_> succ l) (λ _ ih, eq_to_succ ih)
 
-def add_comm (m n : ℕ)
+def add_comm (m n : ℕ) 
 ⊢ path ℕ (add m n) (add n m) :=
-natrec m (add_comm_zero n) (λ k ih, 
-  path_trans (eq_to_succ ih) (add_comm_succ k n) )
+natrec m (add_comm_zero n) (λ k' ih, /* k */
+  path_trans (eq_to_succ ih) (add_comm_succ k' n) )
 
 def add_num_left {m n : ℕ} (k : ℕ)
 ⊢ path ℕ m n → path ℕ (add k m) (add k n) :=
@@ -102,9 +102,9 @@ natrec k id (λ i ih p, ih (succ_to_eq p))
 ⊢ path ℕ (add m k) (add n l) → path ℕ m n :=
 λ q, add_num_inj (coe i1 i0 (λ i, path ℕ (add m k) (add n (p @ i))) q) */
 
-def add_comm2 (m n k : ℕ) 
-⊢ path ℕ (add (add m n) k) (add (add m k) n) :=
-(add_assoc m n k) · (add_num_left m (add_comm n k)) · (add_assoc m n k)⁻¹
+def add_comm2 (m n k' : ℕ) /* k */
+⊢ path ℕ (add (add m n) k') (add (add m k') n) :=
+(add_assoc m n k') · (add_num_left m (add_comm n k')) · (add_assoc m n k')⁻¹
 
 def add_pair_symm (m n : ℕ) {x y : ℕ} 
 ⊢ path ℕ (add (add m x) (add n y))  (add (add m n) (add x y)) :=
@@ -116,9 +116,9 @@ def leq (m n : ℕ)
 ⊢ type 1 :=
 Σ (i : ℕ) path ℕ (add m i) n
 
-def leq_add (m n k : ℕ)
-⊢ leq m n → leq (add m k) (add n k) :=
-λ p, (fst p, add_comm2 m (fst p) k · (<i> add ((snd p) @ i) k) )
+def leq_add (m n k' : ℕ) /* k */
+⊢ leq m n → leq (add m k') (add n k') :=
+λ p, (fst p, add_comm2 m (fst p) k' · (<i> add ((snd p) @ i) k') )
 
 /* Code-decode */
 

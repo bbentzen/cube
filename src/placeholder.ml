@@ -4,29 +4,27 @@
  * Desc: Operations involving placeholders
  **)
 
-open Ast
+open Core_ast
 
 (* Counts the number of placeholders in an expression, generates a new one *)
 
 let rec count = function
-  | Hole (_, _) -> 
-    1
-  | Abs (_, e) | Pabs (_, e) -> 
+  | Hole _ -> 1
+  | Fst e | Snd e | Inl e | Inr e 
+  | Succ e | Abort e| Abs (_, e) | Pabs (_, e) -> 
     count e 
-  | Pi (_, e1, e2) | Sigma (_, e1, e2) -> 
+  | App (e1, e2) | Pair (e1, e2) | Sum (e1, e2) 
+  | Let (e1, e2) | At(e1, e2) | Pi (_, e1, e2) | Sigma (_, e1, e2) -> 
     count e1 + count e2
-  | Fst e | Snd e | Inl e | Inr e | Succ e | Abort e -> 
-    count e
-  | App (e1, e2) | Pair (e1, e2) | Sum (e1, e2) | Let (e1, e2) | At(e1, e2) -> 
-    count e1 + count e2
-  | Case (e, e1, e2) | Natrec (e, e1, e2) | If (e, e1, e2) | Pathd (e, e1, e2) | Hfill (e, e1, e2) -> 
+  | Case (e, e1, e2) | Natrec (e, e1, e2) 
+  | If (e, e1, e2) | Pathd (e, e1, e2) | Hfill (e, e1, e2) -> 
     count e + count e1 + count e2
   | Coe (i, j, e1, e2) -> 
     count i + count j + count e1 + count e2
   | _ -> 0
 
   let generate e hole l = 
-    Hole ((string_of_int ((count e) + hole)), l)
+    Core_ast.Hole ((string_of_int ((count e) + hole)), l)
 
 (* Returns the type of a term variable when it has been declared *)
 
@@ -52,8 +50,7 @@ let is = function
   | _ -> false
 
 let rec has_placeholder = function
-  | Hole _ -> 
-    true
+  | Hole _ -> true
   | Abs (_, e) | Pabs (_, e) -> 
     has_placeholder e 
   | Pi (_, e1, e2) | Sigma (_, e1, e2) -> 
@@ -90,7 +87,8 @@ let rec has_underscore = function
 let rec preforget n e =
   let h n = Hole (string_of_int n, []) in
   match e with
-  | Id y -> Id y, n
+  | Global y -> Global y, n
+  | Local index -> Local index, n
   | Coe (_, _, _, _) ->
     Coe (h n, h (n+1), h (n+2), h (n+3)), n+4
   | Hfill (_, _, _) -> 

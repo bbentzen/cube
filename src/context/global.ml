@@ -1,302 +1,123 @@
 (**
  * (c) Copyright 2019 Bruno Bentzen. All rights reserved.
  * Released under Apache 2.0 license as described in the file LICENSE.
- * Desc: Typechecked definitions are appended to a list containing
- *       their identifiers, the whole term, and their type.
- *       This file handles operations on this 'global environment' list
+ * Desc: This file handles operations on the context and converts precontexts to actual contexts, 
+ *       which are lists (string * expr * bool) where the strings are global variables 
+ *       in the locally nameless representation style.     
  **)
 
 open Basis
-open Ast
+open Core_ast
+open Debruijn
 
-(* Determines whether a variable has been declared in the global context *)
+(* Replaces a global variable x with a given expression d *)
 
-let is_declared x global =
+let rec subst_global k d x = function
+  | Global y when x = y -> shift 0 k d
+  | Global _ | Local _ | Int _ | I1 _ | I0 _ | Star _ | Unit _ | True _ 
+  | False _ | Bool _ | Zero _ | Nat _ | Void _ | Type _ | Wild _ | Subgoal _ as e -> e
+  | Coe (i, j, e1, e2) -> Coe (subst_global k d x i, subst_global k d x j, subst_global k d x e1, subst_global k d x e2)
+  | Hfill (e, e1, e2) -> Hfill (subst_global k d x e, subst_global k d x e1, subst_global k d x e2)
+  | Abs (y, e) -> Abs (y, subst_global (k+1) d x e)
+  | App (e1, e2) -> App (subst_global k d x e1, subst_global k d x e2)
+  | Pi (y, e1, e2) -> Pi (y, subst_global k d x e1, subst_global (k+1) d x e2)
+  | Pair (e1, e2) -> Pair (subst_global k d x e1, subst_global k d x e2)
+  | Fst e -> Fst (subst_global k d x e)
+  | Snd e -> Snd (subst_global k d x e)
+  | Sigma (y, e1, e2) -> Sigma (y, subst_global k d x e1, subst_global (k+1) d x e2)
+  | Inl e -> Inl (subst_global k d x e)
+  | Inr e -> Inr (subst_global k d x e)
+  | Case (e, e1, e2) -> Case (subst_global k d x e, subst_global k d x e1, subst_global k d x e2)
+  | Sum (e1, e2) -> Sum (subst_global k d x e1, subst_global k d x e2)
+  | Let (e1, e2) -> Let (subst_global k d x e1, subst_global k d x e2)
+  | If (e, e1, e2) -> If (subst_global k d x e, subst_global k d x e1, subst_global k d x e2)
+  | Succ e -> Succ (subst_global k d x e)
+  | Natrec (e, e1, e2) -> Natrec (subst_global k d x e, subst_global k d x e1, subst_global k d x e2)
+  | Abort e -> Abort (subst_global k d x e)
+  | Pabs (y, e) -> Pabs (y, subst_global (k+1) d x e)
+  | At (e1, e2) -> At (subst_global k d x e1, subst_global k d x e2)
+  | Pathd (e, e1, e2) -> Pathd (subst_global k d x e, subst_global k d x e1, subst_global k d x e2)
+  | Hole (n, l) -> Hole (n, List.map (subst_global k d x) l)
+
+(* Creates a context (a list (string * expr * bool)) from a list (string list * raw expr * bool) *)
+
+let rec create_ctx = function
+  | [] -> []
+  | ((ids, ty), b) :: l ->
+    begin match ids with
+      | [] -> []
+      | e :: ids' ->
+        let ty' = Debruijn.of_raw_expr ty in
+        (e, ty', b) :: create_ctx ([((ids', ty), b)]) @ create_ctx l 
+        (* this can be optimized since you don't want to translate the same type 
+        over and over again when parsing identifiers of the same type*)
+    end
+
+(* Determines whether a variable has been declared *)
+
+let is_declared x ctx =
   let rec helper x = function
     | [] -> false
-    | (id, (_, _)) :: global -> 
-      if x = id then 
+    | (y, _, _) :: ctx -> 
+      if x = y then
         true
-      else 
-        helper x global
+      else
+        helper x ctx
   in
-  helper x (List.rev global)
+  helper x (List.rev ctx)
 
-(* Generates a triple id * term * type from a successfully elaborated triple id * ctx * elab *)
-
-let function_of_def id ctx (e, ty) hole =
-  let rec helper h' = function
-    | [] -> e, ty
-    | (x, ty, true) :: ctx ->  
-      Abs (x, fst (helper h' ctx )), 
-      Pi (x, ty, snd (helper h' ctx))
-    | (x, _, false) :: ctx ->  
-      let h = Placeholder.generate (fst (helper (h'+1) ctx)) h' [] in
-      Substitution.subst x h (fst (helper (h'+1) ctx)), 
-      Substitution.subst x h (snd (helper (h'+1) ctx )) 
-  in
-  id, helper hole ctx
-
-let rec check_def_id id = function
-  | [] -> 
-    Error ("No definition or theorem found for the identifier '" ^ id ^ "'") 
-  | (id', body) :: global -> 
-    if id = id'
-    then Ok body
-    else check_def_id id global
-
-(* Appends a triple id * term * type to the global context *)
-
-let add_to_global_env global id ctx elab =
-  match check_def_id id global with
-  | Ok _ -> global
-  | Error _ -> function_of_def id ctx elab 0 :: global
-
-(* Returns the body of a definition when given a declared global constant *)
-
-let rec unfold id = function
-  | [] -> 
-    Error ("No declaration found for identifier '" ^ id ^ "'")
-  | (id', (body , ty)) :: global -> 
-    if id = id' then 
-      Ok (body, ty)
+let rec var_type x ctx =
+  match (List.rev ctx) with
+  | [] -> Error()
+  | (y, ty, _) :: ctx' -> 
+    if x = y then 
+      Ok ty
     else 
-      unfold id global
+      var_type x ctx'
 
-(* Uniformly lifts all indices of implicit arguments in a global variable *)
+(* Determines whether a given typed variable occurs in the context *)
 
-let rec lift n = function
-  | Wild m ->
-    Wild (m+n)
-  | Id y -> Id y
-  | Coe (i, j, e1, e2) -> 
-    Coe (lift n i, lift n j, 
-    lift n e1, lift n e2)
-  | Hfill (e, e1, e2) -> 
-    Hfill (lift n e, lift n e1, lift n e2)
-  | Abs (y, e) -> 
-    Abs (y, lift n e)
-  | App (e1, e2) -> App (lift n e1, lift n e2)
-  | Pi (y, e1, e2) -> 
-    Pi (y, lift n e1, lift n e2)
-  | Pair (e1, e2) -> 
-    Pair (lift n e1, lift n e2)
-  | Fst e -> Fst (lift n e)
-  | Snd e -> Snd (lift n e)
-  | Sigma (y, e1, e2) ->
-    Sigma (y, lift n e1, lift n e2)
-  | Inl e -> Inl (lift n e)
-  | Inr e -> Inr (lift n e)
-  | Case (e, e1, e2) -> 
-    Case (lift n e, lift n e1, lift n e2)
-  | Sum (e1, e2) -> 
-    Sum (lift n e1, lift n e2)
-  | Succ e -> Succ (lift n e)
-  | Natrec (e, e1, e2) -> 
-    Natrec (lift n e, lift n e1, lift n e2)
-  | If (e, e1, e2) -> 
-    If (lift n e, lift n e1, lift n e2)
-  | Let (e, e1) -> Let (lift n e, lift n e1)
-  | Abort e -> Abort (lift n e)
-  | Pabs (y, e) -> 
-    Pabs (y, lift n e)
-  | At (e1, e2) -> 
-    At (lift n e1, lift n e2)
-  | Pathd (e, e1, e2) -> 
-    Pathd (lift n e, lift n e1, lift n e2)
-  | e -> 
-    e
-
-(* Unfolds all declared global constants and checks for naming conflicts *)
-
-let rec unfold_all global vars = function
-  | Id x -> 
-    begin 
-      match unfold x global with
-      | Ok (body, _) -> Ok body
-      | _ -> Ok (Id x)
-    end
-
-  | Abs (x, e) ->
-    if is_declared x global then
-      Error ("Naming conflict with the name '" ^ x ^ 
-        "'\nIt occurs as definition/theorem identifier but is used as a variable name ")
+let rec check_var_ty x ty ctx =
+  match (List.rev ctx) with
+  | [] -> false 
+  | (y, ty', _) :: ctx -> 
+    if x = y && ty' = ty then 
+      true
     else
-      begin match unfold_all global vars e with
-      | Ok e' -> 
-        Ok (Abs (x, e'))
-      | Error msg -> Error msg
-      end
+      check_var_ty x ty ctx
 
-  | Pabs (x, e) -> 
-    if is_declared x global then
-      Error ("Naming conflict with the name '" ^ x ^ 
-        "'\nIt occurs as definition/theorem identifier but is used as a variable name ")
-    else
-      begin match unfold_all global vars e with
-      | Ok e' -> 
-        Ok (Pabs (x, e'))
-      | Error msg -> Error msg
-      end
+(* Finds a variable of a given type in the context when it exists *)
 
-  | App (e1, e2) ->
-    let u1 = unfold_all global vars e1 in
-    let u2 = unfold_all global vars e2 in
-    begin match u1, u2 with
-      | Ok e1', Ok e2' -> Ok (App (e1', e2'))
-      | Error msg, _ | _, Error msg -> Error msg
-    end
-    
-  | Pair (e1, e2) ->
-    let u1 = unfold_all global vars e1 in
-    let u2 = unfold_all global vars e2 in
-    begin match u1, u2 with
-      | Ok e1', Ok e2' -> Ok (Pair (e1', e2'))
-      | Error msg, _ | _, Error msg -> Error msg
-    end
+let find_ty ty ctx =
+  let rec helper ty = function
+    | [] -> Error () 
+    | (y, ty', _) :: ctx -> 
+      if ty' = ty then 
+        Ok y
+      else 
+        helper ty ctx
+  in
+  helper ty (List.rev ctx)
 
-  | At (e1, e2) ->
-    let u1 = unfold_all global vars e1 in
-    let u2 = unfold_all global vars e2 in
-    begin match u1, u2 with
-      | Ok e1', Ok e2' -> Ok (At (e1', e2'))
-      | Error msg, _ | _, Error msg -> Error msg
-    end
+let find_true ty ctx =
+  let rec helper ty = function
+    | [] -> Error () 
+    | (y, ty', b) :: ctx' -> 
+      if ty' = ty && b then 
+        Ok y
+      else 
+        helper ty ctx'
+  in
+  helper ty (List.rev ctx)
 
-  | Let (e1, e2) ->
-    let u1 = unfold_all global vars e1 in
-    let u2 = unfold_all global vars e2 in
-    begin match u1, u2 with
-      | Ok e1', Ok e2' -> Ok (Let (e1', e2'))
-      | Error msg, _ | _, Error msg -> Error msg
-    end
+(* Prints the context *)
 
-  | Fst e ->
-    begin match unfold_all global vars e with
-    | Ok e' -> 
-      Ok (Fst e')
-    | Error msg -> Error msg
-    end
+let print ctx = 
+  let rec printrev = function
+    | [] -> "" 
+    | (id, ty, _) :: ctx -> 
+      " " ^ id ^ " : " ^ Pretty.print ty ^ "\n" ^ printrev ctx
+  in
+  printrev (List.rev ctx)
 
-  | Snd e ->
-    begin match unfold_all global vars e with
-    | Ok e' -> 
-      Ok (Snd e')
-    | Error msg -> Error msg
-    end
-
-  | Inl e ->
-    begin match unfold_all global vars e with
-    | Ok e' -> 
-      Ok (Inl e')
-    | Error msg -> Error msg
-    end
-
-  | Inr e ->
-    begin match unfold_all global vars e with
-    | Ok e' -> 
-      Ok (Inr e')
-    | Error msg -> Error msg
-    end
-
-  | Succ e ->
-    begin match unfold_all global vars e with
-    | Ok e' -> 
-      Ok (Succ e')
-    | Error msg -> Error msg
-    end
-
-  | Abort e -> 
-    begin match unfold_all global vars e with
-    | Ok e' -> 
-      Ok (Abort e')
-    | Error msg -> Error msg
-    end
-
-  | Case (e, e1, e2) ->
-    let u = unfold_all global vars e in
-    let u1 = unfold_all global vars e1 in
-    let u2 = unfold_all global vars e2 in
-    begin match u, u1, u2 with
-      | Ok e', Ok e1', Ok e2' -> Ok (Case (e', e1', e2'))
-      | Error msg, _, _ | _, Error msg , _ | _, _, Error msg -> Error msg
-    end
-
-  | Natrec (e, e1, e2) ->
-    let u = unfold_all global vars e in
-    let u1 = unfold_all global vars e1 in
-    let u2 = unfold_all global vars e2 in
-    begin match u, u1, u2 with
-      | Ok e', Ok e1', Ok e2' -> Ok (Natrec (e', e1', e2'))
-      | Error msg, _, _ | _, Error msg , _ | _, _, Error msg -> Error msg
-    end
-
-  | If (e, e1, e2) ->
-    let u = unfold_all global vars e in
-    let u1 = unfold_all global vars e1 in
-    let u2 = unfold_all global vars e2 in
-    begin match u, u1, u2 with
-      | Ok e', Ok e1', Ok e2' -> Ok (If (e', e1', e2'))
-      | Error msg, _, _ | _, Error msg , _ | _, _, Error msg -> Error msg
-    end
-
-  | Pi (x, e1, e2) -> 
-    if is_declared x global then
-      Error ("Naming conflict with the name '" ^ x ^ "'\nIt occurs as definition/theorem identifier but is used as a variable name ")
-    else
-      let u1 = unfold_all global vars e1 in
-      let u2 = unfold_all global vars e2 in
-      begin match u1, u2 with
-      | Ok e1', Ok e2' -> Ok (Pi (x, e1', e2'))
-      | Error msg, _ | _, Error msg -> Error msg
-      end
-
-  | Sigma (x, e1, e2) -> 
-    if is_declared x global then
-      Error ("Naming conflict with the name '" ^ x ^ "'\nIt occurs as definition/theorem identifier but is used as a variable name ")
-    else
-      let u1 = unfold_all global vars e1 in
-      let u2 = unfold_all global vars e2 in
-      begin match u1, u2 with
-      | Ok e1', Ok e2' -> Ok (Sigma (x, e1', e2'))
-      | Error msg, _ | _, Error msg -> Error msg
-      end
-
-  | Sum (e1, e2) ->
-    let u1 = unfold_all global vars e1 in
-    let u2 = unfold_all global vars e2 in
-    begin match u1, u2 with
-      | Ok e1', Ok e2' -> Ok (Sum (e1', e2'))
-      | Error msg, _ | _, Error msg -> Error msg
-    end
-
-  | Pathd (e, e1, e2) -> 
-    let u = unfold_all global vars e in
-    let u1 = unfold_all global vars e1 in
-    let u2 = unfold_all global vars e2 in
-    begin match u, u1, u2 with
-      | Ok e', Ok e1', Ok e2' -> Ok (Pathd (e', e1', e2'))
-      | Error msg, _, _ | _, Error msg , _ | _, _, Error msg -> Error msg
-    end
-  
-  | Coe (i, j, e1, e2) ->
-    let ui = unfold_all global vars i in
-    let uj = unfold_all global vars j in
-    let u1 = unfold_all global vars e1 in
-    let u2 = unfold_all global vars e2 in
-    begin match ui, uj, u1, u2 with
-      | Ok i', Ok j', Ok e1', Ok e2' -> Ok (Coe (i', j', e1', e2'))
-      | Error msg, _, _, _ | _, Error msg , _, _ | _, _, Error msg, _ | _, _, _, Error msg -> 
-        Error msg
-    end
-  
-  | Hfill (e, e1, e2) -> 
-    let u = unfold_all global vars e in
-    let u1 = unfold_all global vars e1 in
-    let u2 = unfold_all global vars e2 in
-    begin match u, u1, u2 with
-      | Ok e', Ok e1', Ok e2' -> Ok (Hfill (e', e1', e2'))
-      | Error msg, _, _ | _, Error msg , _ | _, _, Error msg -> Error msg
-    end 
-
-  | e -> Ok e 
+let printf ctx = print (Debruijn.to_raw_ctx ctx)

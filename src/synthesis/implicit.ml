@@ -1,88 +1,102 @@
 (**
  * (c) Copyright 2019 Bruno Bentzen. All rights reserved.
  * Released under Apache 2.0 license as described in the file LICENSE.
- * Desc: Reads implicit arguments enumerating them
+ * Desc: Reads implicit arguments by enumerating them
  **)
 
 open Basis
+open Core_ast
 
 (* Replaces 0-indexed wildcards with uniquely assigned indices starting at n *)
 
 let rec read n = function
-  | Ast.Id y -> Ast.Id y, n
-  | Ast.Coe (i, j, e1, e2) ->
-    Ast.Coe (fst (read n i), 
-      fst (read (snd (read n i)) j), 
-      fst (read (snd (read (snd (read n i)) j)) e1), 
-      fst (read (snd (read (snd (read (snd (read n i)) j)) e1)) e2)),
-    snd (read (snd (read (snd (read (snd (read n i)) j)) e1)) e2)
-  | Ast.Hfill (e, e1, e2) -> 
-    Ast.Hfill (fst (read n e), 
-      fst (read (snd (read n e)) e1), 
-      fst (read (snd (read (snd (read n e)) e1)) e2)),
-    snd (read (snd (read (snd (read n e)) e1)) e2)
-  | Ast.Abs (y, e) -> 
-    Ast.Abs (y, fst (read n e)), snd (read n e)
-  | Ast.App (e1, e2) -> 
-    Ast.App (fst (read n e1), fst (read (snd (read n e1)) e2)),
-    snd (read (snd (read n e1)) e2)
-  | Ast.Pair (e1, e2) -> 
-    Ast.Pair (fst (read n e1), fst (read (snd (read n e1)) e2)),
-    snd (read (snd (read n e1)) e2)
-  | Ast.Fst e -> 
-    Ast.Fst (fst (read n e)), snd (read n e)
-  | Ast.Snd e -> 
-    Ast.Snd (fst (read n e)), snd (read n e)
-  | Ast.Pi (y, e1, e2) -> 
-    Ast.Pi (y, fst (read n e1), fst (read (snd (read n e1)) e2)), 
-    snd (read (snd (read n e1)) e2)
-  | Ast.Sigma (y, e1, e2) -> 
-    Ast.Sigma (y, fst (read n e1), fst (read (snd (read n e1)) e2)), 
-    snd (read (snd (read n e1)) e2)
-  | Ast.Inl e -> 
-    Ast.Inl (fst (read n e)), snd (read n e)
-  | Ast.Inr e -> 
-    Ast.Inr (fst (read n e)), snd (read n e)
-  | Ast.Case (e, e1, e2) -> 
-    Ast.Case (fst (read n e), 
-      fst (read (snd (read n e)) e1), 
-      fst (read (snd (read (snd (read n e)) e1)) e2)),
-    snd (read (snd (read (snd (read n e)) e1)) e2)
-  | Ast.Sum (e1, e2) -> 
-    Ast.Sum (fst (read n e1), fst (read (snd (read n e1)) e2)),
-    snd (read (snd (read n e1)) e2)
-  | Ast.Succ e -> 
-    Ast.Succ (fst (read n e)), snd (read n e)
-  | Ast.Natrec (e, e1, e2) -> 
-    Ast.Natrec (fst (read n e), 
-      fst (read (snd (read n e)) e1), 
-      fst (read (snd (read (snd (read n e)) e1)) e2)),
-    snd (read (snd (read (snd (read n e)) e1)) e2)
-  | Ast.If (e, e1, e2) -> 
-    Ast.If (fst (read n e), 
-      fst (read (snd (read n e)) e1), 
-      fst (read (snd (read (snd (read n e)) e1)) e2)),
-    snd (read (snd (read (snd (read n e)) e1)) e2)
-  | Ast.Let (e1, e2) -> 
-    Ast.Let (fst (read n e1), fst (read (snd (read n e1)) e2)),
-    snd (read (snd (read n e1)) e2)
-  | Ast.Abort e -> 
-    Ast.Abort (fst (read n e)), snd (read n e)
-  | Ast.Pabs (y, e) -> 
-    Ast.Pabs (y, fst (read n e)), snd (read n e)
-  | Ast.At (e1, e2) -> 
-    Ast.At (fst (read n e1), fst (read (snd (read n e1)) e2)),
-    snd (read (snd (read n e1)) e2)
-  | Ast.Pathd (e, e1, e2) -> 
-    Ast.Pathd (fst (read n e), 
-      fst (read (snd (read n e)) e1), 
-      fst (read (snd (read (snd (read n e)) e1)) e2)),
-    snd (read (snd (read (snd (read n e)) e1)) e2)
-  | Ast.Wild 0 -> 
-    Ast.Wild n, n+1
-  | Ast.Wild m -> 
-    Ast.Wild m, n+m
+  | Coe (i, j, e1, e2) ->
+    let r_i = read n i in
+    let r_j = read (snd r_i) j in
+    let r_e1 = read (snd r_j) e1 in
+    let r_e2 = read (snd r_e1) e2 in
+    Coe (fst r_i, fst r_j, fst r_e1, fst r_e2), snd r_e2
+  | Hfill (e, e1, e2) ->
+    let r_e = read n e in
+    let r_e1 = read (snd r_e) e1 in
+    let r_e2 = read (snd r_e1) e2 in
+    Hfill (fst r_e, fst r_e1, fst r_e2), snd r_e2
+  | Abs (y, e) ->
+    let r_e = read n e in
+    Abs (y, fst r_e), snd r_e
+  | App (e1, e2) ->
+    let r_e1 = read n e1 in
+    let r_e2 = read (snd r_e1) e2 in
+    App (fst r_e1, fst r_e2), snd r_e2
+  | Pair (e1, e2) ->
+    let r_e1 = read n e1 in
+    let r_e2 = read (snd r_e1) e2 in
+    Pair (fst r_e1, fst r_e2), snd r_e2
+  | Fst e -> 
+    let r_e = read n e in
+    Fst (fst r_e), snd r_e
+  | Snd e -> 
+    let r_e = read n e in
+    Snd (fst r_e), snd r_e
+  | Pi (y, e1, e2) ->
+    let r_e1 = read n e1 in
+    let r_e2 = read (snd r_e1) e2 in
+    Pi (y, fst r_e1, fst r_e2), snd r_e2
+  | Sigma (y, e1, e2) ->
+    let r_e1 = read n e1 in
+    let r_e2 = read (snd r_e1) e2 in
+    Sigma (y, fst r_e1, fst r_e2), snd r_e2
+  | Inl e -> 
+    let r_e = read n e in
+    Inl (fst r_e), snd r_e
+  | Inr e -> 
+    let r_e = read n e in
+    Inr (fst r_e), snd r_e
+  | Case (e, e1, e2) ->
+    let r_e = read n e in
+    let r_e1 = read (snd r_e) e1 in
+    let r_e2 = read (snd r_e1) e2 in
+    Case (fst r_e, fst r_e1, fst r_e2), snd r_e2
+  | Sum (e1, e2) ->
+    let r_e1 = read n e1 in
+    let r_e2 = read (snd r_e1) e2 in
+    Sum (fst r_e1, fst r_e2), snd r_e2
+  | Succ e ->
+    let r_e = read n e in
+    Succ (fst r_e), snd r_e
+  | Natrec (e, e1, e2) ->
+    let r_e = read n e in
+    let r_e1 = read (snd r_e) e1 in
+    let r_e2 = read (snd r_e1) e2 in
+    Natrec (fst r_e, fst r_e1, fst r_e2), snd r_e2
+  | If (e, e1, e2) ->
+    let r_e = read n e in
+    let r_e1 = read (snd r_e) e1 in
+    let r_e2 = read (snd r_e1) e2 in
+    If (fst r_e, fst r_e1, fst r_e2), snd r_e2
+  | Let (e1, e2) ->
+    let r_e1 = read n e1 in
+    let r_e2 = read (snd r_e1) e2 in
+    Let (fst r_e1, fst r_e2), snd r_e2
+  | Abort e ->
+    let r_e = read n e in
+    Abort (fst r_e), snd r_e
+  | Pabs (y, e) ->
+    let r_e = read n e in
+    Pabs (y, fst r_e), snd r_e
+  | At (e1, e2) ->
+    let r_e1 = read n e1 in
+    let r_e2 = read (snd r_e1) e2 in
+    At (fst r_e1, fst r_e2), snd r_e2
+  | Pathd (e, e1, e2) ->
+    let r_e = read n e in
+    let r_e1 = read (snd r_e) e1 in
+    let r_e2 = read (snd r_e1) e2 in
+    Pathd (fst r_e, fst r_e1, fst r_e2), snd r_e2
+  | Wild 0 -> 
+    Wild n, n+1
+  | Wild m -> 
+    Wild m, n+m
   | e -> e, n
 
-let convert e =
-  fst (read 1 e)
+let convert e = fst (read 1 e)

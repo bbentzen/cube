@@ -49,7 +49,7 @@ coe i1 i0 (λ i, C (p @ i)) c
  
 def pathrec {A : type l} {a : A} (C : Π (x : A) (path A a x → type l)) {b : A} (p : path A a b) (c : C a (<_> a)) 
 ⊢ C b p := 
-coe i0 i1 (λ i, C (p @ i) (meet p @ i)) c 
+coe i0 i1 (λ i, C (p @ i) (meet p @ i)) c
  
 /** Regularity **/
  
