@@ -1794,7 +1794,7 @@ and unify global ctx lvl sl ph vars x lift =
           Ok (Pathd (s, s1, s2))
 
         | Error msg, _, _ | _ , Error msg, _ | _, _ , Error msg -> 
-          Error (fst msg, "Don't know how to unify the pathd types \n" ^ Pretty.printf (Pathd (e, e1, e2)) ^ "\nand\n" ^ Pretty.printf (Pathd (e', e1', e2')) ^ " due to the following errors:\n " ^ snd msg)
+          Error (fst msg, "Don't know how to unify the pathd types \n  " ^ Pretty.printf (Pathd (e, e1, e2)) ^ "\nand\n  " ^ Pretty.printf (Pathd (e', e1', e2')) ^ " due to the following errors:\n " ^ snd msg)
         end
 
       | Abs (x, e), Abs (x', e'), Pi(_, ty1 , ty2) ->

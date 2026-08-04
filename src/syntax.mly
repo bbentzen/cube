@@ -43,7 +43,7 @@ let single_id = function
 %token <string list> IDSCOLON
 %token <string> FILENAME
 %token <string> NUMBER
-%token EVAL IMPORT UNIVERSE DEF PRINT INFER LBRACE RBRACE
+%token EVAL IMPORT IND UNIVERSE DEF PRINT INFER LBRACE RBRACE
 %token TYPE MAX NEXT COLON VDASH
 %token I0 I1 INTERVAL COE HCOM HFILL FILL COM BAR
 %token ABS APP RARROW LRARROW PI
@@ -88,6 +88,7 @@ let single_id = function
 
 command:  
   | decl command                                            {Thm($2, $1)}
+  | IND ID COLON expr COLONEQ constr command                {Ind($7, $2, $4, $6)}
   | IMPORT FILENAME command                                 {Import($3, $2)}
   | UNIVERSE ids command                                    {Level($3, $2)}
   | PRINT ID command                                        {Print($3, $2)}
@@ -98,9 +99,13 @@ decl:
   | DEF ID ctx expr COLONEQ expr                            {Prf($2, $3, $4, $6)}
   | INFER ctx expr                                          {Prf("", $2, Ast.Hole("0", []), $3)}
 
+constr: 
+  | BAR ID COLON expr                                       {[($2, $4)]}
+  | BAR ID COLON expr constr                                {(($2, $4) :: $5)}
+
 ctx: 
-  | LPAREN IDSCOLON expr RPAREN ctx                         {(($2, $3), true) :: $5}
-  | LBRACE IDSCOLON expr RBRACE ctx                         {(($2, $3), false) :: $5}
+  | LPAREN ids COLON expr RPAREN ctx                         {(($2, $4), true) :: $6}
+  | LBRACE ids COLON expr RBRACE ctx                         {(($2, $4), false) :: $6}
   | VDASH                                                   {([])}
 
 ids:
@@ -115,7 +120,7 @@ vars:
 
 blocks:
   | expr %prec PI                                          { ([], $1) }
-  | LPAREN IDSCOLON expr RPAREN blocks                     { (ids_to_bindings $2 $3 @ fst $5, snd $5) }
+  | LPAREN ids COLON expr RPAREN blocks                    { (ids_to_bindings $2 $4 @ fst $6, snd $6) }
 
 level:
   | ID                                                     { Var ($1) }
@@ -155,7 +160,7 @@ head_expr:
     BAR I0 RARROW face_expr
     BAR I1 RARROW face_expr %prec CASE                      { Hfill($2,$6,$10) }
   | ABS vars COMMA expr %prec PI                            { abs_of_list ($4) ($2) }
-  | ABS LPAREN IDSCOLON expr RPAREN COMMA expr %prec PI     { Abs(single_id $3,$7) }
+  | ABS LPAREN ids COLON expr RPAREN COMMA expr %prec PI   { Abs(single_id $3,$8) }
   | PI blocks                                               { pi_of_list (snd $2) (fst $2) }
   | FST head_expr                                           { Fst($2) }
   | SND head_expr                                           { Snd($2) }
@@ -202,7 +207,7 @@ face_head:
     BAR I0 RARROW face_expr
     BAR I1 RARROW face_expr %prec CASE                      { Hfill($2,$6,$10) }
   | ABS vars COMMA face_expr %prec PI                       { abs_of_list ($4) ($2) }
-  | ABS LPAREN IDSCOLON expr RPAREN COMMA face_expr %prec PI { Abs(single_id $3,$7) }
+  | ABS LPAREN ids COLON expr RPAREN COMMA face_expr %prec PI { Abs(single_id $3,$8) }
   | PI blocks                                               { pi_of_list (snd $2) (fst $2) }
   | FST face_head                                           { Fst($2) }
   | SND face_head                                           { Snd($2) }

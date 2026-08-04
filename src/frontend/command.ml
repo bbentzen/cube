@@ -117,6 +117,10 @@ let rec compile global lopen filename lvl next_location = function
     let _ = next_location () in
     compile global lopen filename (lvl @ lvl') next_location cmd
 
+  | Ast.Ind(_) -> 
+    Ok (global, ("", lopen))
+    (* (cmd, id, ty, constrs) *)
+
   | Ast.Eof() -> 
     Ok (global, ("", lopen))
 

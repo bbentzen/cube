@@ -6,26 +6,6 @@
  **)
 
 open Syntax
-
-let ids_of_idscolon str =
-  let buf = Buffer.create 16 in
-  let push acc =
-    if Buffer.length buf = 0 then acc
-    else
-      let id = Buffer.contents buf in
-      Buffer.clear buf;
-      id :: acc
-  in
-  let rec aux i acc =
-    if i >= String.length str then List.rev (push acc)
-    else
-      match str.[i] with
-      | ' ' | '\t' | ':' -> aux (i + 1) (push acc)
-      | c ->
-        Buffer.add_char buf c;
-        aux (i + 1) acc
-  in
-  aux 0 []
 }
 
 let identifier =
@@ -119,6 +99,7 @@ rule token = parse
   | "{"                { LBRACE }
   | "}"                { RBRACE }
   | "import"           { IMPORT }
+  | "inductive"        { IND }
   | "open"             { IMPORT }
   | "universe"         { UNIVERSE }
   | "definition"       { DEF }
@@ -130,9 +111,8 @@ rule token = parse
   | "print"            { PRINT }
   | "infer"            { INFER }
   | "eval"             { EVAL }
-  | idlistcolon        { IDSCOLON (ids_of_idscolon str) }
   | whitespace         { token lexbuf }
-  | end_of_line        { Lexing.new_line lexbuf; token lexbuf } (* needs fix later *)
+  | end_of_line        { Lexing.new_line lexbuf; token lexbuf } 
   | identifier         { ID(str) }
   | filename           { FILENAME(str) }
   | number             { NUMBER(str) }

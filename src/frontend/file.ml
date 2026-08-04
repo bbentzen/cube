@@ -97,7 +97,7 @@ let command_locations_of_file filename =
   command_locations_of_string (concat_string_list (read_file filename))
   
 let parse_file filename = 
-  Debruijn.normalize_command (parse_string (concat_string_list (read_file filename)))
+  parse_string (concat_string_list (read_file filename))
 
 (* Handles directories *)
 
