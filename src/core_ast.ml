@@ -11,15 +11,6 @@ type level =
   | Suc of level
   | Max of level * level
 
-(* type var = {
-  hint : string;
-  index : int;
-} *)
-
-(* let next v =
-  match v with { hint; index} -> 
-    { hint = hint ^ "'"; index = index + 1 } *)
-
 type expr =
   | Local of int
   | Global of string

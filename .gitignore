@@ -10,3 +10,5 @@
 
 /cubicle-vscode/node_modules
 /cubicle-vscode/out
+
+dune-workspace

@@ -56,7 +56,6 @@ type command =
     | Import of command * string
     | Thm of command * proof
     | Print of command * string
-    | Infer of command * expr
     | Eval of command * expr
     | Level of command * string list
     | Eof of unit

@@ -184,7 +184,6 @@ let rec normalize_command = function
   | Ast.Import (cmd, s) -> Ast.Import (normalize_command cmd, s)
   | Ast.Thm (cmd, prf) -> Ast.Thm (normalize_command cmd, normalize_proof prf)
   | Ast.Print (cmd, s) -> Ast.Print (normalize_command cmd, s)
-  | Ast.Infer (cmd, e) -> Ast.Infer (normalize_command cmd, normalize_expr e)
   | Ast.Eval (cmd, e) -> Ast.Eval (normalize_command cmd, normalize_expr e)
   | Ast.Level (cmd, l) -> Ast.Level (normalize_command cmd, l)
   | Ast.Eof () -> Ast.Eof ()

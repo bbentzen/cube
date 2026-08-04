@@ -109,13 +109,13 @@ let rec elaborate global ctx lvl sl ty ph vars = function
         end
       | false , false, false , false -> 
         begin match Env.unfold x global with
-        | Ok (body, ty') ->
+        | Ok (_, ty') ->
           let h1 = Placeholder.generate ty ph [] in
           begin match elaborate global ctx lvl sl h1 ph vars ty' with
           | Ok (_, tTy', sa) ->
             let u = unify global ctx lvl sl ph vars (eval ty', eval ty, tTy') true in
             begin match u with
-            | Ok s -> Ok (body, s, sl)
+            | Ok s -> Ok (Global x, s, sl) (* runs faster when not body *)
             | _ -> 
               Error (sa, x ^ " has type \n  " ^ Pretty.print (to_raw_expr ty') ^ "\nbut is expected to have type\n  " ^ Pretty.print (to_raw_expr ty))
             end
@@ -189,19 +189,14 @@ let rec elaborate global ctx lvl sl ty ph vars = function
       | Subgoal () -> true
       | _ -> false
     in
-    let e2_needs_expected_type =
+    (* let e2_needs_expected_type =
       match e2 with
       | Pabs (_, _) | Abs (_, _) -> true
       | _ -> false
-    in
-
-    (* this is needed if we don't evaluate before calling the elaborator *)
-    (* if snd (has_reduction (App (e1, e2))) then
-      elaborate global ctx lvl sl ty (ph+1) (vars+1) (reduce (App (e1, e2))) *)
-    (*  *)
-
-    (* else  *)
-      if e2_is_subgoal || e2_needs_expected_type then
+    in *)
+      if e2_is_subgoal 
+        (* || e2_needs_expected_type  *)
+        then
 
       let h1 = Placeholder.generate ty ph [] in
       let elab1 = elaborate global ctx lvl sl h1 (ph+1) (vars+1) e1 in
@@ -224,9 +219,9 @@ let rec elaborate global ctx lvl sl ty ph vars = function
         end
       | Ok (e1', _, sa1) ->
         Error (sa1,
-          "Failed application\n  " ^ Pretty.print (to_raw_expr (App (e1', e2))) ^
+          "Failed function application\n  " ^ Pretty.print (to_raw_expr (App (e1', e2))) ^
           "\nThe term\n  " ^ Pretty.print (to_raw_expr e1') ^
-          "\nis expected to have type\n  Π (v? : ?0?) ?1?")
+          "\nchecked against " ^ Pretty.print (to_raw_expr ty) ^ " is expected to have type\n  Π (v? : ?0?) ?1?")
       | Error (sa, msg) ->
         Error (sa, msg)
       end
@@ -265,7 +260,6 @@ let rec elaborate global ctx lvl sl ty ph vars = function
 
     else
       let h1 = Placeholder.generate ty ph [] in
-      (* let v1 = fresh_var (App(e1, e2)) ty vars in *)
       let v1 = (create_fresh [e1; e2; ty] 1).(0) in (* probably unnecessary? *)
       let elab2 = elaborate global ctx lvl sl h1 (ph+1) (vars+2) e2 in
       begin match elab2 with
@@ -513,8 +507,6 @@ let rec elaborate global ctx lvl sl ty ph vars = function
   | Natrec (e, e1, e2) ->
       let v = (create_fresh [e; e1; e2; ty] 2) in
       let v1 = v.(0) and v2 = v.(1) in
-      (* let v1 = fresh_var (Natrec(e, e1, e2)) ty vars in
-      let v2 = fresh_var (Id v1) (Id v1) (vars+1) in *)
       let elab = elaborate global ctx lvl sl (Nat()) ph (vars+2) e in
       begin match elab with
       | Ok (e', _, sa) ->  
@@ -550,8 +542,6 @@ let rec elaborate global ctx lvl sl ty ph vars = function
           end
         
         | _ -> 
-          (*let ee' = eval e' in*) (* this and the line below are also only needed if we don't evaluate before calling the elaborator*)
-          (* let ty' = eval ty in *)
           let elab1 = elaborate global ctx lvl sl ((fullsubst 0 e' (Zero()) true ty)) ph (vars+2) e1 in
           let tyx = (Pi(v1, Nat(), Pi(v2, fullsubst 0 (shift 1 0 e') (Local 0) true (shift 1 0 ty), fullsubst 0 (shift 2 0 e') (Succ (Local 1)) true (shift 2 0 ty)))) in
           let elab2 = elaborate global ctx lvl sl tyx ph (vars+2) e2 in
@@ -1094,7 +1084,7 @@ let rec elaborate global ctx lvl sl ty ph vars = function
         | Error msg, _ | _, Error msg -> Error msg
       end
     | Ok (ty', _, sa) -> 
-      Error (sa, "The expression\n  <" ^ i ^ "> " ^ Pretty.print (to_raw_expr e) ^ "\nis expected to have type\n  pathd ?0? ?1? ?2?\nbut has type\n  " ^ Pretty.print (to_raw_expr ty'))
+      Error (sa, "The expression\n  <" ^ i ^ "> " ^ Pretty.printf e ^ "\nchecked against type " ^ Pretty.printf ty ^ " is expected to have type\n  pathd ?0? ?1? ?2?\nbut has type\n  " ^ Pretty.printf ty')
     | Error (sa, msg) -> 
       Error (sa, "Failed to prove that\n  " ^ Pretty.print (to_raw_expr (eval ty)) ^ "\nis a type\n" ^ msg)
     end
@@ -1804,7 +1794,7 @@ and unify global ctx lvl sl ph vars x lift =
           Ok (Pathd (s, s1, s2))
 
         | Error msg, _, _ | _ , Error msg, _ | _, _ , Error msg -> 
-          Error (fst msg, "Don't know how to unify the pathd types due to the following errors:\n " ^ snd msg)
+          Error (fst msg, "Don't know how to unify the pathd types \n" ^ Pretty.printf (Pathd (e, e1, e2)) ^ "\nand\n" ^ Pretty.printf (Pathd (e', e1', e2')) ^ " due to the following errors:\n " ^ snd msg)
         end
 
       | Abs (x, e), Abs (x', e'), Pi(_, ty1 , ty2) ->

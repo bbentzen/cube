@@ -91,12 +91,12 @@ command:
   | IMPORT FILENAME command                                 {Import($3, $2)}
   | UNIVERSE ids command                                    {Level($3, $2)}
   | PRINT ID command                                        {Print($3, $2)}
-  | INFER expr command                                      {Infer($3, $2)}
   | EVAL expr command                                       {Eval($3, $2)}
   | EOF                                                     {Eof()}
 
 decl:
   | DEF ID ctx expr COLONEQ expr                            {Prf($2, $3, $4, $6)}
+  | INFER ctx expr                                          {Prf("", $2, Ast.Hole("0", []), $3)}
 
 ctx: 
   | LPAREN IDSCOLON expr RPAREN ctx                         {(($2, $3), true) :: $5}

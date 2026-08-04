@@ -23,8 +23,8 @@ let rec count = function
     count i + count j + count e1 + count e2
   | _ -> 0
 
-  let generate e hole l = 
-    Core_ast.Hole ((string_of_int ((count e) + hole)), l)
+let generate e hole l = 
+  Hole ((string_of_int ((count e) + hole)), l)
 
 (* Returns the type of a term variable when it has been declared *)
 

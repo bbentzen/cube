@@ -50,6 +50,9 @@ let rec compile global lopen filename lvl next_location = function
                     let res = Synthesize.init global ctx' lvl (eval e') ty' in
                     match res with 
                     | Ok (e1, ty1) ->
+                      if id = "" then
+                        Ok (global, ("infer := " ^ Pretty.printf e1 ^ ": \n" ^ "         " ^ Pretty.printf ty1 ^ "\n", lopen))
+                      else
                       compile (Env.add global id ctx' (e1, ty1)) lopen filename lvl next_location cmd
                     | Error msg -> 
                       failwith_at location ("The following error was found at '" ^ id ^ "'\n" ^ msg)
@@ -82,26 +85,6 @@ let rec compile global lopen filename lvl next_location = function
       | Error msg -> 
         failwith_at location msg
     end
-
-  | Ast.Infer (cmd, e) ->
-    let location = next_location () in
-    let e' = Debruijn.of_raw_expr e in
-    let h1 = Placeholder.generate e' 0 [] in
-    let elab = Elab.elaborate global [] lvl ([], []) h1 0 0 e' in 
-    begin 
-      match elab with
-      | Ok (e1, ty, _) ->
-        begin 
-          match compile global lopen filename lvl next_location cmd with
-          | Ok (global', (s, lopen)) -> 
-            Ok (global', ("infer := " ^ Pretty.printf e1 ^ ": \n" ^
-              "         " ^ Pretty.printf ty ^ 
-              "\n" ^ s, lopen))
-          | Error msg -> failwith_at location msg
-        end
-      | Error (_, msg) -> 
-        failwith_at location msg
-    end
   
   | Ast.Eval (_, e_raw) -> 
     let location = next_location () in
@@ -111,6 +94,7 @@ let rec compile global lopen filename lvl next_location = function
       | Ok e' ->
         Ok (global, ("eval " ^ Pretty.print e_raw ^ " := " ^ 
         Pretty.printf (eval e'), lopen))
+        (* ^ "\n\n Core syntax :=" ^ Pretty.printc (eval e'), lopen)) *)
       | Error msg -> 
         failwith_at location msg
     end
