@@ -75,7 +75,7 @@ def absurd {A : type l}
 λ x, abort x
 
 /* Dependent function type */
- 
+
 def dcombinator_s {A : type l} {B C : A → type l}
 ⊢ (Π (x : A) B x → C x) → (Π (x : A) B x) → (Π (x : A) C x) :=
 λ f g x, (f x) (g x)
