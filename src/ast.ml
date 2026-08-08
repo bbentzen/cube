@@ -58,7 +58,7 @@ type proof =
 type command = 
     | Import of command * string
     | Thm of command * proof
-    | Ind of command * string * expr * ((string * expr) list)
+    | Ind of command * string * (((string list * expr) * bool) list) * expr * ((string * expr) list)
     | Print of command * string
     | Eval of command * expr
     | Level of command * string list

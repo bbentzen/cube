@@ -180,13 +180,6 @@ let normalize_proof = function
   | Ast.Prf (id, l, ty, e) ->
     Ast.Prf (id, List.map normalize_decl l, normalize_expr ty, normalize_expr e)
 
-(* let rec normalize_command = function
-  | Ast.Import (cmd, s) -> Ast.Import (normalize_command cmd, s)
-  | Ast.Thm (cmd, prf) -> Ast.Thm (normalize_command cmd, normalize_proof prf)
-  | Ast.Print (cmd, s) -> Ast.Print (normalize_command cmd, s)
-  | Ast.Eval (cmd, e) -> Ast.Eval (normalize_command cmd, normalize_expr e)
-  | Ast.Level (cmd, l) -> Ast.Level (normalize_command cmd, l)
-  | Ast.Eof () -> Ast.Eof () *)
 
 let rec shift cutoff amount = function
   | Local index ->
@@ -366,13 +359,15 @@ let rec list_to_expr l =
 
 (* Creates n-many fresh variables from a list es of expressions *)
 
-let create_fresh es n =
+let create_fresh_char c es n =
   let rec helper i e n =
-    if occurs_name "v0" ("v" ^ string_of_int i) e then
+    if occurs_name (c ^ "0") (c ^ string_of_int i) e then
       helper (i+1) e n
     else if n > 0 then
-      Array.append [| "v" ^ string_of_int i |] (helper (i+1) e (n-1))
+      Array.append [| c ^ string_of_int i |] (helper (i+1) e (n-1))
     else
       [| |]
   in  (* not free_var *)
   helper 0 (list_to_expr es) n
+
+let create_fresh es n = create_fresh_char "v" es n

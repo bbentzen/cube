@@ -40,7 +40,6 @@ let single_id = function
 %}
 
 %token <string> ID
-%token <string list> IDSCOLON
 %token <string> FILENAME
 %token <string> NUMBER
 %token EVAL IMPORT IND UNIVERSE DEF PRINT INFER LBRACE RBRACE
@@ -88,7 +87,7 @@ let single_id = function
 
 command:  
   | decl command                                            {Thm($2, $1)}
-  | IND ID COLON expr COLONEQ constr command                {Ind($7, $2, $4, $6)}
+  | IND ID ctx expr COLONEQ constr command                  {Ind($7, $2, $3, $4, $6)}
   | IMPORT FILENAME command                                 {Import($3, $2)}
   | UNIVERSE ids command                                    {Level($3, $2)}
   | PRINT ID command                                        {Print($3, $2)}

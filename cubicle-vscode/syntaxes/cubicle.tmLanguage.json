@@ -7,7 +7,7 @@
   ],
   "repository": {
     "keywords": {
-      "match": "\\b(definition|def|theorem|thm|lemma|lem|import|infer|eval|print|universe)\\b",
+      "match": "\\b(definition|def|theorem|thm|lemma|lem|inductive|import|infer|eval|print|universe)\\b",
       "name": "keyword.control.cubicle"
     },
     "comments-block": {

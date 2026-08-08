@@ -21,7 +21,7 @@ let failwith_at location msg =
   | Some loc -> failwith (format_location loc ^ msg)
   | None -> failwith msg
 
-let rec compile global lopen filename lvl next_location = function
+let rec compile global ind lopen filename lvl next_location = function
   | Ast.Thm (cmd, Prf (id, l, ty_raw, e_raw)) ->
     let location = next_location () in
     begin
@@ -31,8 +31,9 @@ let rec compile global lopen filename lvl next_location = function
       | Ok hty ->
         let ctx = Global.create_ctx l in
         let (h1, h2) = 
-          Ctx.check global ctx lvl, 
-          Type.check global ctx lvl (eval hty)
+          Ctx.check global ctx lvl,
+          let ind_ctx = Inductive.add ind ctx in
+          Type.check global ind_ctx lvl (eval hty)
         in
         begin 
           match h1, h2 with
@@ -47,13 +48,15 @@ let rec compile global lopen filename lvl next_location = function
                      "'\nName already exists in the environment (try 'print " ^ id ^ "' for more information)")
                 else
                   begin
-                    let res = Synthesize.init global ctx' lvl (eval e') ty' in
+                    (* Temporarily adds inductive types to the context for type checking *)
+                    let ind_ctx = Inductive.add ind ctx' in
+                    let res = Synthesize.init global ind_ctx lvl (eval e') ty' in
                     match res with 
                     | Ok (e1, ty1) ->
                       if id = "" then
                         Ok (global, ("infer := " ^ Pretty.printf e1 ^ ": \n" ^ "         " ^ Pretty.printf ty1 ^ "\n", lopen))
                       else
-                      compile (Env.add global id ctx' (e1, ty1)) lopen filename lvl next_location cmd
+                        compile (Env.add global id ctx' (e1, ty1)) ind lopen filename lvl next_location cmd
                     | Error msg -> 
                       failwith_at location ("The following error was found at '" ^ id ^ "'\n" ^ msg)
                   end
@@ -67,15 +70,13 @@ let rec compile global lopen filename lvl next_location = function
         failwith_at location msg
     end
 
-  (* TODO: print function that evaluates expressions *)
-
   | Ast.Print (cmd, id) -> 
     let location = next_location () in
     begin 
       match Env.check_def_id id global with
       | Ok (e, ty) ->
         begin 
-          match compile global lopen filename lvl next_location cmd with
+          match compile global ind lopen filename lvl next_location cmd with
           | Ok (global', (s, lopen)) -> 
             Ok (global', (id ^ " := \n  " ^ Pretty.printf e ^ ": \n  " ^ 
             Pretty.printf (eval ty) ^ "\n" ^ s, lopen))
@@ -103,28 +104,120 @@ let rec compile global lopen filename lvl next_location = function
     let location = next_location () in
     let path' = File.resolve_path filename s in
     if List.mem path' lopen then
-      compile global lopen filename lvl next_location cmd
+      compile global ind lopen filename lvl next_location cmd
     else
       begin
-        match checkfile global lopen path' lvl with
+        match checkfile global ind lopen path' lvl with
         | Ok (global', (_, lopen')) ->
-          compile global' (path' :: lopen') filename lvl next_location cmd
+          compile global' ind (path' :: lopen') filename lvl next_location cmd
         | Error msg ->
           failwith_at location msg
       end
   
   | Ast.Level (cmd, lvl') ->
     let _ = next_location () in
-    compile global lopen filename (lvl @ lvl') next_location cmd
+    compile global ind lopen filename (lvl @ lvl') next_location cmd
 
-  | Ast.Ind(_) -> 
-    Ok (global, ("", lopen))
-    (* (cmd, id, ty, constrs) *)
+  | Ast.Ind (cmd, id, l, ty_raw, constrs_raw) ->
+    let location = next_location () in
+    begin
+      (* Checks naming conflicts for the inductive type name *)
+      if Env.is_declared id ind || Env.is_declared id global then
+        failwith_at location
+          ("Naming conflict with the inductive type identifier '" ^ id ^
+           "'\nName already exists in the environment.")
+      else
+        let ty = Debruijn.of_raw_expr ty_raw in
+        let ctx = Global.create_ctx l in
+        let (h1, h2) =
+          Ctx.check_with_universe global ctx lvl,
+          Type.check global ctx lvl (eval ty)
+        in
+        begin match h1, h2 with
+        | Ok (ctx_checked, ctx_univ), Ok (ty', _) ->
+            let ctx' = List.rev ctx_checked in
+            let ty_fam =  snd (snd (Env.function_of_def id ctx' (Core_ast.Global id, ty') 0)) in
+
+            (* Validates all constructors and stores the universes their types live in *)
+            let cons_checked ind' =
+              List.map (fun (c_name, c_ty_raw) ->
+                if Env.is_declared c_name ind' || Env.is_declared c_name global then
+                  failwith_at location
+                    ("Naming conflict with constructor '" ^ c_name ^ "'")
+                else
+                  let c_ty = Debruijn.of_raw_expr c_ty_raw in
+                  if not (Inductive.strictly_positive id c_ty) then
+                    failwith_at location
+                      ("Strict positivity check failed for constructor '" ^ c_name ^
+                       "' in inductive type '" ^ id ^ "'")
+                  else
+                    let ind' = Inductive.add [(id, ty_fam)] ctx' in
+                    begin match Type.check global ind' lvl (eval c_ty) with
+                    | Ok (c_ty', c_univ) -> 
+                      (c_name, c_ty'), (c_name, c_univ)
+                    | Error msg ->
+                      failwith_at location
+                        ("Type check failed for constructor '" ^ c_name ^
+                         "' in inductive type '" ^ id ^ "':\n" ^ msg)
+                    end
+              ) constrs_raw
+            in
+
+            (* Add inductive type to the type environment *)
+            let ind_ty = (id, ty_fam) :: ind in
+
+            (* Add each constructor to the type environment *)
+            let cons_checked' = List.map fst (cons_checked ind_ty) in
+            let ind_cons =
+              List.fold_left (fun l (c_name, c_ty) ->
+                (c_name, c_ty) :: l) ind_ty cons_checked' (* needs to turn into a list of exprs*)
+            in
+
+            (* Generate and register the eliminator (id ^ "rec") *)
+            let rec_name = id ^ "rec" in
+            if Env.is_declared rec_name ind_cons || Env.is_declared rec_name global then
+              failwith_at location
+                ("Naming conflict: generated eliminator '" ^ rec_name ^ "' already exists.")
+            else
+              let constrs = cons_checked' in
+              let rec_ty = Inductive.generate_recursor id ty' constrs ctx_checked ctx' in (* don't use ctx' because we want to print the ctx in order *)
+              let ind_all =
+                (rec_name, rec_ty) :: ind_cons
+              in
+
+              (* Validate the predicativity of the purported inductive type  *)
+              let c_univs = List.map snd (cons_checked ind_ty) in
+              begin match Inductive.extract_universe_level ty' with
+              | Some target_lvl ->
+                if Inductive.check_universe_levels ctx_univ c_univs (Suc target_lvl) then
+
+                  (* If predicative load output and continue compiling subsequent commands *)
+                  begin match compile global ind_all lopen filename lvl next_location cmd with
+                  | Ok (global_res, (s, lopen_res)) ->
+                      let log_str =
+                        "inductive " ^ id ^ " successfully checked and added with eliminator " ^
+                        rec_name ^ ".\n" ^ s
+                      in
+                      Ok (global_res, (log_str, lopen_res))
+                  | Error msg -> failwith_at location msg
+                  end
+                else
+                  failwith_at location
+                  ("Universe level error: Parameter level at '" ^ id ^ "' exceeds target universe level.")
+              | None ->
+                failwith_at location
+                ("Universe level error: Could not extract universe level from type of inductive '" ^ id ^ "'.")
+              end
+        | Error msg, _ | _, Error msg ->
+            failwith_at location 
+            ("Error in inductive declaration '" ^ id ^ "':\n" ^ msg)
+      end
+    end
 
   | Ast.Eof() -> 
     Ok (global, ("", lopen))
 
-and checkfile global lopen filename lvl =
+and checkfile global ind lopen filename lvl =
   let cmd =
     try
       parse_file filename
@@ -145,4 +238,4 @@ and checkfile global lopen filename lvl =
     | [] ->
         None
   in
-  compile global lopen filename lvl next_location cmd
+  compile global ind lopen filename lvl next_location cmd

@@ -15,7 +15,7 @@ open Core_ast
 let is_declared x env =
   let rec helper x = function
     | [] -> false
-    | (id, (_, _)) :: env -> 
+    | (id,_) :: env -> 
       if x = id then 
         true
       else 
