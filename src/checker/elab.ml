@@ -84,8 +84,8 @@ let rec elaborate global ctx lvl sl ty ph vars = function
     begin match Global.var_type x ctx with
     | Ok ty' ->
       let c = Global.check_var_ty x ty ctx in
-      let h = Placeholder.is ty in
-      let h' = Placeholder.is ty' in
+      let h = Placeholder.has_placeholder ty in
+      let h' = Placeholder.has_placeholder ty' in
       let d = Global.is_declared x ctx in
       begin match c, h, h', d with
       | true , _, _ , _ | _ , _, true , _ ->  

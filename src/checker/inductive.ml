@@ -180,11 +180,6 @@ let generate_recursor ind_name ind_ty constrs ctx ctx_rev = (*ind_ty *)
   | Pi (_, _, cod) -> extract_universe_level cod
   | _ -> None
 
-let extract_target_level = function 
-  | Type lvl -> Some (Suc lvl)
-  | Pi (_, _, cod) -> extract_universe_level cod
-  | _ -> None
-
 (* Checks that all parameter and constructor argument levels <= target level *)
 
 let check_universe_levels ctx_univ constrs_univs target_lvl =
