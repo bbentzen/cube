@@ -69,7 +69,7 @@ List.map (fun (id, ty) -> (id, ty, true)) ind @ ctx
 
 let rec abs_ctx_args e = function
 | [] -> e
-| ((x, ty, _) :: ctx) -> Pi (x, ty, abs_ctx_args e ctx)
+| ((x, ty, _) :: ctx) -> Pi (x, ty, Debruijn.close_var 0 x (abs_ctx_args e ctx))
 
 (* Closes a type family with applications matching its context *)
 
@@ -90,7 +90,8 @@ fun arity -> helper arity c_expr arity
 let rec abs_par_args e = function
   | Pi (x, dom, cod) ->
     if x = "v?" then
-      Pi ((Debruijn.create_fresh [e; dom; cod] 1).(0), dom, abs_par_args e cod) 
+      Pi ((Debruijn.create_fresh [e; dom; cod] 1).(0), dom, 
+      Debruijn.close_var 0 x (abs_par_args e cod)) 
     else
       Pi (x, dom, abs_par_args e cod)
   | _ -> e 
@@ -171,7 +172,7 @@ let generate_recursor ind_name ind_ty constrs ctx ctx_rev = (*ind_ty *)
   (* prefix the recursor with the index of the inductive type and its parameters *)
   let abs_params x = abs_par_args x ind_ty in
   let abs_indices x = abs_ctx_args x ctx_rev in
-  abs_indices (abs_params (Pi (motive_name, motive_ty, add_minor_premises constrs)))
+  abs_indices (abs_params (Pi (motive_name, motive_ty, Debruijn.close_var 0 motive_name (add_minor_premises constrs))))
 
 (* Extracts universe level l if expr is Type l *)
 
@@ -214,10 +215,7 @@ let print ctx =
   in
   printrev (List.rev ctx)
 
-
-
 (* Global registry of evaluated inductive definitions *)
-(* let ind_env : (string, ind_spec) Hashtbl.t = Hashtbl.create 16 *)
 
 let rec_name id_name = id_name ^ "rec"
 

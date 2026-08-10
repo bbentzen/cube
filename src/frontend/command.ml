@@ -50,9 +50,10 @@ let rec compile global ind_env ind lopen filename lvl next_location = function
                      "'\nName already exists in the environment (try 'print " ^ id ^ "' for more information)")
                 else
                   begin
-                    (* Temporarily adds inductive types to the context for type checking *)
+                    (* Evaluate expressions and temporarily add inductive types to the context for type checking *)
                     let ictx = Inductive.add ind ctx' in
-                    let res = Synthesize.init global ind_env ictx lvl (eval ind_env e') ty' in
+                    let e' = eval ind_env e' and ty' = eval ind_env ty' in
+                    let res = Synthesize.init global ind_env ictx lvl e' ty' in
                     match res with 
                     | Ok (e1, ty1) ->
                       if id = "" then
@@ -220,8 +221,7 @@ let rec compile global ind_env ind lopen filename lvl next_location = function
                   begin match compile global ind_env ind_all lopen filename lvl next_location cmd with
                   | Ok (global_res, (s, lopen_res)) ->
                       let log_str =
-                        "inductive " ^ id ^ " successfully checked and added with " ^
-                        Inductive.print_spec id (Hashtbl.find ind_env id) ^ ".\n" ^ s
+                        "inductive " ^ id ^ " successfully introduced.\n" ^ s
                       in
                       Ok (global_res, (log_str, lopen_res))
                   | Error msg -> failwith_at location msg

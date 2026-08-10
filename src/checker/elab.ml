@@ -84,8 +84,8 @@ let rec elaborate global ind_env ctx lvl sl ty ph vars = function
     begin match Global.var_type x ctx with
     | Ok ty' ->
       let c = Global.check_var_ty x ty ctx in
-      let h = Placeholder.has_placeholder ty in
-      let h' = Placeholder.has_placeholder ty' in
+      let h = Placeholder.is ty in (* has_placeholder is too aggresive *)
+      let h' = Placeholder.is ty' in (* has_placeholder is too aggresive *)
       let d = Global.is_declared x ctx in
       begin match c, h, h', d with
       | true , _, _ , _ | _ , _, true , _ ->  
@@ -119,11 +119,11 @@ let rec elaborate global ind_env ctx lvl sl ty ph vars = function
             | _ -> 
               Error (sa, x ^ " has type \n  " ^ Pretty.print (to_raw_expr ty') ^ "\nbut is expected to have type\n  " ^ Pretty.print (to_raw_expr ty))
             end
-          | Error msg -> (* This case is impossible *)
-            Error msg
+          | Error (sa, msg) -> (* This case is impossible *)
+            Error (sa, "Error with global variables: " ^ msg)
           end
         | Error msg -> 
-          Error (sl, msg)
+          Error (sl, "Error with global variables: " ^ msg)
         end
       end
     | Error _ -> 

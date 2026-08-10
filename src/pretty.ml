@@ -253,8 +253,8 @@ let rec printc = function
   | Core_ast.Pabs (y, e) -> String.concat "" ["<"; y; "> "; printc e]
   | Core_ast.At (e1, e2) -> String.concat "" [parc e1; "@ "; parc e2]
   | Hole (n, _) -> "?" ^ n ^ "? "
-  | Global y -> y ^ " "
-  | Local index -> string_of_int index ^ " "
+  | Global y -> " " ^ y ^ " "
+  | Local index -> "Local" ^ string_of_int index ^ " "
   | I0() -> "i0 "
   | I1() -> "i1 "
   | Int() -> "I " 
