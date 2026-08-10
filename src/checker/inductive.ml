@@ -213,3 +213,14 @@ let print ctx =
       " " ^ id ^ " : " ^ Pretty.printf ty ^ "\n" ^ printrev ctx
   in
   printrev (List.rev ctx)
+
+
+
+(* Global registry of evaluated inductive definitions *)
+(* let ind_env : (string, ind_spec) Hashtbl.t = Hashtbl.create 16 *)
+
+let rec_name id_name = id_name ^ "rec"
+
+let print_spec id ind = 
+  "\nType: " ^ id ^ "\nNum_indices: " ^ string_of_int ind.num_indices ^ "\nNum_params: " ^ string_of_int ind.num_params ^ "\nConstructors: " ^
+  String.concat "" (List.map (fun c -> "\nConstructor name: " ^ c.c_name ^ "\nConstructor Num_args: " ^ string_of_int c.c_num_args ^ "\nConstructor Rec_args: " ^ String.concat "" (List.map string_of_bool c.c_rec_args)) ind.constructors)

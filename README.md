@@ -8,7 +8,7 @@ To install and use Cubicle, you need OCaml version 4.14.2 or greater. We also re
 
 ```
 $ opam update && opam upgrade
-$ opam install menhir dune
+$ opam install menhir dune base
 ```
 
 Next, clone the repository and build the project using dune:

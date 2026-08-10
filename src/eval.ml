@@ -7,11 +7,94 @@
  **)
 
 open Debruijn
+open Core_ast
 
 (* Beta reduction without index shifting *)
 
 let beta body arg =
   Debruijn.open_var 0 arg body
+
+(* Break an application tree into head and argument list *)
+
+let rec break_args acc = function
+  | Core_ast.App (f, arg) -> break_args (arg :: acc) f
+  | head -> (head, acc)
+
+(* Rebuild application tree from head and argument list *)
+
+let build_app head args =
+  List.fold_left (fun acc arg -> Core_ast.App (acc, arg)) head args
+
+(* Return the position of the constructor with the given name *)
+
+let rec find_constructor_position c_name = function
+  | [] -> None
+  | c_spec :: rest ->
+      if c_spec.c_name = c_name then
+        Some 0
+      else
+        match find_constructor_position c_name rest with
+        | Some index -> Some (index + 1)
+        | None -> None
+
+(* Reduces a well-applied recursor of an inductive family *)
+
+let reduce_recursor rec_spec args =
+  let num_minors = List.length rec_spec.constructors in
+  let expected_args = rec_spec.num_params + 1 + num_minors + rec_spec.num_indices + 1 in
+
+  if List.length args < expected_args then
+    None (* Not fully applied yet *)
+  else
+    let indices, rest1 = Base.List.split_n args rec_spec.num_indices in
+    let motive, rest2 = (List.hd rest1, List.tl rest1) in
+    let minors, rest3 = Base.List.split_n rest2 num_minors in
+    let params, major_list = Base.List.split_n rest3 rec_spec.num_params in
+    let major = List.hd major_list in
+    let extra_args = List.tl major_list in
+
+    (* Breaks down the constructor head and arguments *)
+    let head, c_args = break_args [] major in
+
+    match head with
+    | Core_ast.Global c_name ->
+        (match List.find_opt (fun c -> c.c_name = c_name) rec_spec.constructors with
+        | Some c_spec ->
+            (* Strip constructor parameters *)
+            let actual_c_args =
+              if List.length c_args > rec_spec.num_params then
+                snd (Base.List.split_n c_args rec_spec.num_params)
+              else c_args
+            in
+            (* Return the position of the constructor corresponding to c_name *)
+            let ith = match find_constructor_position c_name rec_spec.constructors with
+              | Some index -> index
+              | None -> failwith "Constructor not found in rec_spec"
+            in
+            let minor_i = List.nth minors ith in
+            
+            (* Substitute constructor arguments and build IHs *)
+            let reduced_args =
+              List.fold_right2
+                (fun arg is_rec acc ->
+                  if is_rec then
+                    (* Generate recursive call: rec_name params motive minors indices arg *)
+                    let rec_call =
+                      build_app
+                        (Core_ast.Global (rec_spec.ind_name ^ "rec"))
+                        (indices @ [motive] @ minors @ params @ [arg])
+                    in
+                    arg :: rec_call :: acc
+                  else
+                    arg :: acc)
+                actual_c_args
+                c_spec.c_rec_args
+                []
+            in
+            let step = build_app minor_i reduced_args in
+            Some (build_app step extra_args)
+        | None -> None)
+    | _ -> None
 
 (* Eager evaluation with locally nameless representation *)
 
@@ -252,4 +335,24 @@ let rec eval = function
   | Core_ast.Type l ->
     Core_ast.Type (Core_ast.unieval l)
     
+  | e -> e
+
+(* Evaluation with recursors of inductive families *)
+
+let eval_only_rec ind_env = function
+  | App (e1, e2) ->
+    let e1' = eval e1 in
+    let e2' = eval e2 in
+        let full_app = Core_ast.App (e1', e2') in
+        let head, args = break_args [] full_app in
+        (match head with
+        | Core_ast.Global namerec ->
+            let name = String.sub namerec 0 (String.length namerec - 3) in 
+            (match Hashtbl.find_opt ind_env name with
+            | Some rec_spec ->
+                (match reduce_recursor rec_spec args with
+                | Some reduced -> reduced
+                | None -> full_app)
+            | None -> full_app)
+        | _ -> full_app)
   | e -> e

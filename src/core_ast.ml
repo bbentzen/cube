@@ -55,42 +55,24 @@ type proof =
   | Prf of string * (((string list * expr) * bool) list) * expr * expr
 
 let rec leq = function
-  | Num 0, _ -> 
-    true
-
-  | Num n, Num m -> 
-    n <= m
-
-  | Var n, Var m -> 
-    n = m
-
+  | Num 0, _ -> true
+  | Num n, Num m -> n <= m
+  | Var n, Var m -> n = m
   | Max (n, n'), Max (m, m') -> 
     leq (Max (n, n'), m) || leq (Max (n, n'), m')
-
   | Max (n, n'), m ->
     leq (n, m) && leq (n', m)
-
   | n, Max (m, m') ->
     leq (n, m) || leq (n, m')
-
-  | Suc n, Suc m -> 
-    leq (n, m)
-  
-  | Num n, Suc m -> 
-    leq (Num (n-1), m)
-
-  | n, Suc m -> 
-    leq (n, m)
-
-  | Suc _, _ | Num _, Var _ | Var _, Num _ -> 
-    false
+  | Suc n, Suc m -> leq (n, m)
+  | Num n, Suc m -> leq (Num (n-1), m)
+  | n, Suc m -> leq (n, m)
+  | Suc _, _ | Num _, Var _ | Var _, Num _ -> false
 
 let rec unieval = function
   | Suc n -> Suc (unieval n)
-
   | Max (Suc n, m) | Max (m, Suc n) -> 
     Suc (unieval (Max (n, m)))
-
   | Max (n, m) ->
     if leq(n, m) then
       unieval m
@@ -98,5 +80,19 @@ let rec unieval = function
       unieval n
     else
       Max (unieval n, unieval m)
-    
   | l -> l
+
+(* Hash table for tracking inductive type information *)
+
+type constr_spec = {
+  c_name : string;
+  c_num_args : int;
+  c_rec_args : bool list; (* true for recursive arguments requiring IH *)
+}
+
+type ind_spec = {
+  ind_name : string;
+  num_indices : int;
+  num_params : int;
+  constructors : constr_spec list;
+}

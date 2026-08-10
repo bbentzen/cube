@@ -6,6 +6,7 @@
 
 open Frontend
 open Command
+open Basis
 
 let () =
   let start = Sys.time() in
@@ -17,7 +18,9 @@ let () =
     exit 1
   )
   in
-  match checkfile [] [] [] filename [] with 
+  (* Initialize the hasthtable of inductive families and parse file *)
+  let ind_env : (string, Core_ast.ind_spec) Hashtbl.t = Hashtbl.create 16 in
+  match checkfile [] ind_env [] [] filename [] with 
   | Ok (env, (s, _)) ->
     let n = String.length s in
     let s' = 
