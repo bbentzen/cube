@@ -33,9 +33,9 @@ let rec compile global ind_env ind lopen filename lvl next_location = function
       | Ok hty ->
         let ctx = Global.create_ctx l in
         let (h1, h2) = 
-          Ctx.check global ctx lvl,
+          Ctx.check global ind_env ctx lvl,
           let ind_ctx = Inductive.add ind ctx in
-          Type.check global ind_ctx lvl (eval hty)
+          Type.check global ind_env ind_ctx lvl (eval ind_env hty)
         in
         begin 
           match h1, h2 with
@@ -51,8 +51,8 @@ let rec compile global ind_env ind lopen filename lvl next_location = function
                 else
                   begin
                     (* Temporarily adds inductive types to the context for type checking *)
-                    let ind_ctx = Inductive.add ind ctx' in
-                    let res = Synthesize.init global ind_ctx lvl (eval e') ty' in
+                    let ictx = Inductive.add ind ctx' in
+                    let res = Synthesize.init global ind_env ictx lvl (eval ind_env e') ty' in
                     match res with 
                     | Ok (e1, ty1) ->
                       if id = "" then
@@ -81,7 +81,7 @@ let rec compile global ind_env ind lopen filename lvl next_location = function
           match compile global ind_env ind lopen filename lvl next_location cmd with
           | Ok (global', (s, lopen)) -> 
             Ok (global', (id ^ " := \n  " ^ Pretty.printf e ^ ": \n  " ^ 
-            Pretty.printf (eval ty) ^ "\n" ^ s, lopen))
+            Pretty.printf (eval ind_env ty) ^ "\n" ^ s, lopen))
           | Error msg ->
             failwith_at location msg
         end
@@ -96,7 +96,7 @@ let rec compile global ind_env ind lopen filename lvl next_location = function
       match (Env.unfold_all global 0 e) with
       | Ok e' ->
         Ok (global, ("eval " ^ Pretty.print e_raw ^ " := " ^ 
-        Pretty.printf (eval e'), lopen))
+        Pretty.printf (eval ind_env e'), lopen))
       | Error msg -> 
         failwith_at location msg
     end
@@ -131,8 +131,8 @@ let rec compile global ind_env ind lopen filename lvl next_location = function
         let ty = Debruijn.of_raw_expr ty_raw in
         let ctx = Global.create_ctx l in
         let (h1, h2) =
-          Ctx.check_with_universe global ctx lvl,
-          Type.check global ctx lvl (eval ty)
+          Ctx.check_with_universe global ind_env ctx lvl,
+          Type.check global ind_env ctx lvl (eval ind_env ty)
         in
         begin match h1, h2 with
         | Ok (ctx_checked, ctx_univ), Ok (ty', _) ->
@@ -153,7 +153,7 @@ let rec compile global ind_env ind lopen filename lvl next_location = function
                        "' in inductive type '" ^ id ^ "'")
                   else
                     let ind' = Inductive.add [(id, ty_fam)] ctx' in
-                    begin match Type.check global ind' lvl (eval c_ty) with
+                    begin match Type.check global ind_env ind' lvl (eval ind_env c_ty) with
                     | Ok (c_ty', c_univ) -> 
                       (c_name, c_ty'), (c_name, c_univ)
                     | Error msg ->

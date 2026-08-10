@@ -98,46 +98,46 @@ let reduce_recursor rec_spec args =
 
 (* Eager evaluation with locally nameless representation *)
 
-let rec eval = function
+let rec eval ind_env = function
   | Core_ast.Coe (i, j, Core_ast.Abs(k, Pi(x, ty1, ty2)), e) ->  
     let v1 = (create_fresh [Pi(x, ty1, ty2); e] 1).(0) in
-    let i' = shift 0 1 (eval i) in
-    let j' = shift 0 1 (eval j) in
+    let i' = shift 0 1 (eval ind_env i) in
+    let j' = shift 0 1 (eval ind_env j) in
     Core_ast.Abs(v1, Core_ast.Coe (i', j', Core_ast.Abs(k, 
-    (shift 2 1 (eval (Debruijn.open_var 0
+    (shift 2 1 (eval ind_env (Debruijn.open_var 0
     (Core_ast.Coe (j', Local 0, Core_ast.Abs(k, shift 1 1 ty1), Local 1)) ty2)))),
-    (eval (Core_ast.App(shift 0 1 e, Coe (j', i', Core_ast.Abs(k, shift 1 1 ty1), Local 0))))))
+    (eval ind_env (Core_ast.App(shift 0 1 e, Coe (j', i', Core_ast.Abs(k, shift 1 1 ty1), Local 0))))))
 
   | Core_ast.Coe (i, j, Core_ast.Abs(k, Sigma(_, ty1, ty2)), e) ->
-    let i' = eval i in
-    let j' = eval j in
+    let i' = eval ind_env i in
+    let j' = eval ind_env j in
     (* let c x = Coe (i', x, Abs(k, ty1), Fst e) in *)
     Pair(Coe (i', j', Abs(k, ty1), Fst e), 
     Coe (i', j', Abs(k, 
-    eval (Debruijn.open_var 0 (shift 1 1 (Coe (i', Local 0, Abs(k, ty1), Fst e))) ty2)),
-    Snd (eval e)))
+    eval ind_env (Debruijn.open_var 0 (shift 1 1 (Coe (i', Local 0, Abs(k, ty1), Fst e))) ty2)),
+    Snd (eval ind_env e)))
 
   | Core_ast.Coe (i, j, Core_ast.Abs(k, Pathd(ty, e1, e2)), e) ->
       let v = create_fresh [ty; e1; e2; e] 3 in
       let v1 = v.(0) and v2 = v.(1) and v3 = v.(2) in
-      let i' = shift 0 2 (eval i) in
-      let j' = shift 0 2 (eval j) in
+      let i' = shift 0 2 (eval ind_env i) in
+      let j' = shift 0 2 (eval ind_env j) in
       let ty' = shift 1 2 ty and e' = shift 0 2 e in
       Pabs(v1, App(App (Hfill(
-      Abs(v2, Coe (i', j', (Abs(k, (eval (App(ty', Local 1))))), eval (At(e', Local 0)))), 
-      Abs(v3, Coe (Local 0, j', (Abs(k, (eval (App(ty', I0()))))), eval (shift 1 1 e1))),
-      Abs(v3, Coe (Local 0, j', (Abs(k, (eval (App(ty', I1()))))), eval (shift 1 1 e2)))),
+      Abs(v2, Coe (i', j', (Abs(k, (eval ind_env (App(ty', Local 1))))), eval ind_env (At(e', Local 0)))), 
+      Abs(v3, Coe (Local 0, j', (Abs(k, (eval ind_env (App(ty', I0()))))), eval ind_env (shift 1 1 e1))),
+      Abs(v3, Coe (Local 0, j', (Abs(k, (eval ind_env (App(ty', I1()))))), eval ind_env (shift 1 1 e2)))),
       I1()), Local 0))
 
   | Core_ast.Coe (i, j, e1, e2) ->
     begin
-      let i' = eval i in
-      let j' = eval j in
-      let e2' = eval e2 in
+      let i' = eval ind_env i in
+      let j' = eval ind_env j in
+      let e2' = eval ind_env e2 in
       if i' = j' then
         e2'
       else
-        let e1' = eval e1 in
+        let e1' = eval ind_env e1 in
         match e1' with
         | Core_ast.Abs(_, e) ->
           if occurs_index 0 0 e then
@@ -149,23 +149,23 @@ let rec eval = function
     end
   
   | Core_ast.Hfill (e, e1, e2) ->
-    let e' = eval e in
-    let e1' = eval e1 in
-    let e2' = eval e2 in
+    let e' = eval ind_env e in
+    let e1' = eval ind_env e1 in
+    let e2' = eval ind_env e2 in
     Core_ast.Hfill (e', e1', e2')
   
   | Core_ast.App (Core_ast.Hfill (e, _, _), Core_ast.I0()) -> 
-    eval e
+    eval ind_env e
 
   | Core_ast.App (Core_ast.App (Core_ast.Hfill (_, e1, _), i), Core_ast.I0()) -> 
-    eval (Core_ast.App(e1, i))
+    eval ind_env (Core_ast.App(e1, i))
 
   | Core_ast.App (Core_ast.App (Core_ast.Hfill (_, _, e2), i), Core_ast.I1()) -> 
-    eval (Core_ast.App(e2, i))
+    eval ind_env (Core_ast.App(e2, i))
   
   | Core_ast.Abs (x, e) -> 
     begin
-      let e' = eval e in
+      let e' = eval ind_env e in
       match e' with
       | Core_ast.App (e1 , e2) ->
           begin
@@ -183,19 +183,34 @@ let rec eval = function
 
   | Core_ast.App (e1, e2) -> 
     begin
-      let e1' = eval e1 in
+      let e1' = eval ind_env e1 in
       match e1' with
       | Core_ast.Abs (_, e) ->
-          eval (beta e e2)
+          eval ind_env (beta e e2)
       | _ ->
-        let e2' = eval e2 in
-        Core_ast.App (e1', e2')
+        let e2' = eval ind_env e2 in
+        let full_app = Core_ast.App (e1', e2') in
+        let head, args = break_args [] full_app in
+        (match head with
+        | Core_ast.Global namerec ->
+            let name =
+              (* Slice the rec suffix from namerec if the string is long enough *)
+              let len = String.length namerec in
+              if len >= 3 then String.sub namerec 0 (len - 3) else namerec
+            in
+            (match Hashtbl.find_opt ind_env name with
+            | Some rec_spec ->
+                (match reduce_recursor rec_spec args with
+                | Some reduced -> reduced
+                | None -> full_app)
+            | None -> full_app)
+        | _ -> full_app)
     end
 
   | Core_ast.Pair (e1, e2) ->
     begin
-      let e1' = eval e1 in
-      let e2' = eval e2 in
+      let e1' = eval ind_env e1 in
+      let e2' = eval ind_env e2 in
       match e1', e2' with
       | Core_ast.Fst e11, Core_ast.Snd e22 ->
         if e11 = e22 then
@@ -208,7 +223,7 @@ let rec eval = function
 
   | Core_ast.Fst e ->
     begin
-      let e' = eval e in
+      let e' = eval ind_env e in
       match e' with
       | Core_ast.Pair (e1 , _) -> e1
       | _ -> 
@@ -217,7 +232,7 @@ let rec eval = function
 
   | Core_ast.Snd e -> 
     begin
-      let e' = eval e in
+      let e' = eval ind_env e in
       match e' with
       | Core_ast.Pair (_ , e2) -> e2
       | _ -> 
@@ -225,66 +240,66 @@ let rec eval = function
     end
 
   | Core_ast.Inl e ->
-    let e' = eval e in
+    let e' = eval ind_env e in
     Core_ast.Inl e'
 
   | Core_ast.Inr e -> 
-    let e' = eval e in
+    let e' = eval ind_env e in
     Core_ast.Inr e'
 
   | Core_ast.Case (e, e1, e2) -> 
     begin
-      let e' = eval e in
+      let e' = eval ind_env e in
       match e' with
-      | Core_ast.Inl a -> eval (Core_ast.App (e1,a))
-      | Core_ast.Inr b -> eval (Core_ast.App (e2,b))
+      | Core_ast.Inl a -> eval ind_env (Core_ast.App (e1,a))
+      | Core_ast.Inr b -> eval ind_env (Core_ast.App (e2,b))
       | _ ->
-        let e1' = eval e1 in
-        let e2' = eval e2 in
+        let e1' = eval ind_env e1 in
+        let e2' = eval ind_env e2 in
         Core_ast.Case (e', e1', e2')
     end
 
   | Core_ast.Succ e ->
-    let e' = eval e in
+    let e' = eval ind_env e in
     Core_ast.Succ e'
 
   | Core_ast.Natrec (e, e1, e2) -> 
     begin
-      let e' = eval e in 
+      let e' = eval ind_env e in 
       match e' with
-      | Core_ast.Zero() -> eval e1
-      | Core_ast.Succ k -> eval (Core_ast.App (Core_ast.App (e2,k),Core_ast.Natrec(k,e1,e2)))
+      | Core_ast.Zero() -> eval ind_env e1
+      | Core_ast.Succ k -> eval ind_env (Core_ast.App (Core_ast.App (e2,k),Core_ast.Natrec(k,e1,e2)))
       | _ -> 
-        let e1' = eval e1 in
-        let e2' = eval e2 in
+        let e1' = eval ind_env e1 in
+        let e2' = eval ind_env e2 in
         Core_ast.Natrec (e', e1', e2')
     end
 
   | Core_ast.If (e, e1, e2) -> 
     begin
-      let e' = eval e in
+      let e' = eval ind_env e in
       match e' with
-      | Core_ast.True() -> eval e1
-      | Core_ast.False() -> eval e2
+      | Core_ast.True() -> eval ind_env e1
+      | Core_ast.False() -> eval ind_env e2
       | _ ->
-        let e1' = eval e1 in
-        let e2' = eval e2 in
+        let e1' = eval ind_env e1 in
+        let e2' = eval ind_env e2 in
         Core_ast.If (e', e1', e2')
     end
 
   | Core_ast.Let (e, e1) -> 
     begin
-      let e' = eval e in
+      let e' = eval ind_env e in
       match e' with
-      | Core_ast.Star() -> eval e1
+      | Core_ast.Star() -> eval ind_env e1
       | _ -> 
-        let e1' = eval e1 in
+        let e1' = eval ind_env e1 in
         Core_ast.Let (e', e1')
     end
 
   | Core_ast.Pabs (x, e) -> 
     begin
-      let e' = eval e in
+      let e' = eval ind_env e in
       match e' with
       | Core_ast.At (e1 , e2) ->
         begin
@@ -302,57 +317,37 @@ let rec eval = function
 
   | Core_ast.At (e1, e2) -> 
     begin
-      let e1' = eval e1 in
+      let e1' = eval ind_env e1 in
       match e1' with
       | Core_ast.Pabs (_ , e) ->
-          eval (beta e e2)
+          eval ind_env (beta e e2)
       | _ ->
-        let e2' = eval e2 in
+        let e2' = eval ind_env e2 in
         Core_ast.At (e1', e2')
     end
 
   | Core_ast.Pi (x, e1, e2) ->
-    let e1' = eval e1 in
-    let e2' = eval e2 in
+    let e1' = eval ind_env e1 in
+    let e2' = eval ind_env e2 in
     Core_ast.Pi (x, e1', e2')
 
   | Core_ast.Sigma (x, e1, e2) ->
-    let e1' = eval e1 in
-    let e2' = eval e2 in
+    let e1' = eval ind_env e1 in
+    let e2' = eval ind_env e2 in
     Core_ast.Sigma (x, e1', e2')
 
   | Core_ast.Sum (e1, e2) ->
-    let e1' = eval e1 in
-    let e2' = eval e2 in
+    let e1' = eval ind_env e1 in
+    let e2' = eval ind_env e2 in
     Core_ast.Sum (e1', e2')
 
   | Core_ast.Pathd (e, e1, e2) -> 
-    let e' = eval e in
-    let e1' = eval e1 in
-    let e2' = eval e2 in
+    let e' = eval ind_env e in
+    let e1' = eval ind_env e1 in
+    let e2' = eval ind_env e2 in
     Core_ast.Pathd (e', e1', e2')
 
   | Core_ast.Type l ->
     Core_ast.Type (Core_ast.unieval l)
     
-  | e -> e
-
-(* Evaluation with recursors of inductive families *)
-
-let eval_only_rec ind_env = function
-  | App (e1, e2) ->
-    let e1' = eval e1 in
-    let e2' = eval e2 in
-        let full_app = Core_ast.App (e1', e2') in
-        let head, args = break_args [] full_app in
-        (match head with
-        | Core_ast.Global namerec ->
-            let name = String.sub namerec 0 (String.length namerec - 3) in 
-            (match Hashtbl.find_opt ind_env name with
-            | Some rec_spec ->
-                (match reduce_recursor rec_spec args with
-                | Some reduced -> reduced
-                | None -> full_app)
-            | None -> full_app)
-        | _ -> full_app)
   | e -> e

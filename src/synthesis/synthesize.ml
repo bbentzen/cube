@@ -12,10 +12,10 @@ open Checker
 
 (* Iterated synthesization attempts *)
 
-let rec check global ctx lvl sl e ty max =
-  let e' = eval e in
-  let ty' = eval ty in
-  let elab = Elab.elaborate global ctx lvl sl ty' 0 0 e' in
+let rec check global ind_env ctx lvl sl e ty max =
+  let e' = eval ind_env e in
+  let ty' = eval ind_env ty in
+  let elab = Elab.elaborate global ind_env ctx lvl sl ty' 0 0 e' in
   begin
     match elab with
     | Ok (e', ty', sl') ->
@@ -24,22 +24,22 @@ let rec check global ctx lvl sl e ty max =
         Ok (e', ty')
       else
 
-        let e'' = eval e' in
-        let ty'' = eval ty' in
-        let relab = Elab.elaborate global ctx lvl sl ty'' 0 0 e'' in
+        let e'' = eval ind_env e' in
+        let ty'' = eval ind_env ty' in
+        let relab = Elab.elaborate global ind_env ctx lvl sl ty'' 0 0 e'' in
         begin
           match relab with
           | Ok _ -> 
             Ok (e', ty')
           | Error (_, msg) -> 
-            iter sl' msg global ctx lvl e ty (max+1)
+            iter sl' msg global ind_env ctx lvl e ty (max+1)
         end
       
     | Error (sl', msg) ->
-      iter sl' msg global ctx lvl e ty (max+1)
+      iter sl' msg global ind_env ctx lvl e ty (max+1)
   end
 
-and iter sl' msg global ctx lvl e ty max =
+and iter sl' msg global ind_env ctx lvl e ty max =
   if max > 100 then
     Error "Maximum number of synthetization steps reached
       \n(You should not see this message, please report)"
@@ -55,13 +55,13 @@ and iter sl' msg global ctx lvl e ty max =
       | Ok _ -> 
 
         let e' = Debruijn.fullsubst 0 (Wild n) (Global id) true e in
-        let w = check global ctx lvl ([], snd sl') e' ty max in
+        let w = check global ind_env ctx lvl ([], snd sl') e' ty max in
         begin 
           match w with
           | Ok (e', ty') ->
             Ok (e', ty')
           | Error _ ->
-            check global ctx lvl ([], Stack.mkfalse n id (snd sl')) e ty max
+            check global ind_env ctx lvl ([], Stack.mkfalse n id (snd sl')) e ty max
         end
           
       | Error _ ->
@@ -69,6 +69,6 @@ and iter sl' msg global ctx lvl e ty max =
         "'\n(You should not see this message, please report)\n")
       end
 
-let init global ctx lvl e ty =
-  check global ctx lvl ([], []) e ty 0
+let init global ind_env ctx lvl e ty =
+  check global ind_env ctx lvl ([], []) e ty 0
   
