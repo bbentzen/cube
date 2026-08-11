@@ -96,12 +96,12 @@ let rec elaborate global ind_env ctx lvl sl ty ph vars = function
         let h1 = Placeholder.generate ty ph [] in
         begin match elaborate global ind_env ctx lvl sl h1 ph vars ty' with
         | Ok (_, tTy', sa) ->
-          let u = unify global ind_env ctx lvl sl ph vars (eval ind_env ty', eval ind_env ty, tTy') true in
+          let u = unify global ind_env ctx lvl sl ph vars (eval ind_env ty, eval ind_env ty', tTy') true in
           begin match u with
           | Ok s -> 
             Ok (Global x, s, sl) 
           | Error (_, msg) ->
-            Error (sa, "The variable " ^ x ^ " has type\n   " ^ Pretty.printf ty' ^ 
+              Error (sa, "The variable " ^ x ^ " has type\n   " ^ Pretty.printf ty' ^ 
                   "\nbut is expected to have type\n  " ^ Pretty.printf ty ^ "\n" ^ msg)
           end
         | Error (sa, msg) -> (* This case is impossible *)
@@ -228,10 +228,8 @@ let rec elaborate global ind_env ctx lvl sl ty ph vars = function
 
     else if not (Placeholder.has_underscore e2) then
       (* Default: typecheck e1 fist and then e2 *)
-      
       let h1 = Placeholder.generate ty ph [] in
       let v1 = (create_fresh [e1; ty] 1).(0) in (* probably unnecessary *)
-      (* let (h2, ph) = Placeholder.preforget (ph+1) ty in *)
       let h2 = Placeholder.generate ty (ph+1) [] in
       let elab1 = elaborate global ind_env ctx lvl sl (Pi(v1, h1, h2)) (ph+2) (vars+2) e1 in
       begin match elab1 with
@@ -241,8 +239,9 @@ let rec elaborate global ind_env ctx lvl sl ty ph vars = function
           match elab2 with
           | Ok (e2', _, sa2) ->
             let ty2' = open_var 0 e2' ty2 in
-            let h3 = Placeholder.generate ty2' (ph+3) [] in (* for now just a placeholder *)
-            let u = unify global ind_env ctx lvl sl (ph+3) vars (eval ind_env ty, eval ind_env ty2', h3) false in
+            let h3 = Placeholder.generate ty2' (ph+3) [] in 
+            (* Unify both types possibly lifting the universe level when needed *)
+            let u = unify global ind_env ctx lvl sl (ph+3) vars (eval ind_env ty, eval ind_env ty2', h3) true in
             begin match u with
             | Ok _ -> 
               Ok (App (e1', e2'), ty2', Stack.append sa1 sa2)
@@ -350,7 +349,6 @@ let rec elaborate global ind_env ctx lvl sl ty ph vars = function
       end
     | Hole _ -> 
       let v1 = (create_fresh [e1; e2; ty] 1).(0) in 
-      (* let v1 = fresh_var (App (e1, e2)) ty vars in *)
       let h1 = Placeholder.generate ty 0 [] in
       let h2 = Placeholder.generate ty 1 [] in
       elaborate global ind_env ctx lvl sl (Sigma(v1, h1, h2)) (ph+2) (vars+1) (Pair (e1, e2))
@@ -2270,14 +2268,14 @@ and unify global ind_env ctx lvl sl ph vars x lift =
         end
 
       | Type m, Type n, _ ->
-        let msg = (Type m, Type n), "The types\n  " ^ Pretty.print (to_raw_expr (Type m)) ^ "\nand\n  " ^ Pretty.print (to_raw_expr (Type n)) ^ "\nhave incompatible universe levels" in
+        let e, msg = (Type m, Type n), "The types\n  " ^ Pretty.print (to_raw_expr (Type m)) ^ "\nand\n  " ^ Pretty.print (to_raw_expr (Type n)) ^ "\nhave incompatible universe levels" in
         if lift then
           if Core_ast.leq (n, m) then
             Ok (Type n)
           else
-            Error msg
+            Error (e, "Could not check universe levels: " ^ msg)
         else
-          Error msg
+          Error (e, msg)
       
       | e , e', _ -> 
         if eval ind_env e = eval ind_env e' then 
