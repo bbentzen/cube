@@ -66,8 +66,10 @@ let rec compile global ind_env ind lopen filename lvl next_location = function
               | Error msg -> 
                 failwith_at location msg
             end
-          | Error msg, _ | _, Error msg -> 
-            failwith_at location ("The following error was found at '" ^ id ^ "'\n" ^ msg)
+          | Error msg, _ -> 
+            failwith_at location ("Error found at '" ^ id ^ "' when validating its context. \n" ^ msg)
+          | _, Error msg  -> 
+            failwith_at location ("Error found at '" ^ id ^ "' when checking typehood for the target type. \n" ^ msg)
         end
       | Error msg -> 
         failwith_at location msg

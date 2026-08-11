@@ -40,4 +40,3 @@ let fresh_var_int e =
 
 let fresh_var e1 e2 i = 
   "v" ^ string_of_int (fresh_var_int (Ast.App (e1, e2)) + i)
-

@@ -87,7 +87,7 @@ let rec has_underscore = function
 let rec preforget n e =
   let h n = Hole (string_of_int n, []) in
   match e with
-  | Global y -> Global y, n
+  | Global _ -> h n, n (* was Global y *)
   | Local index -> Local index, n
   | Coe (_, _, _, _) ->
     Coe (h n, h (n+1), h (n+2), h (n+3)), n+4
@@ -104,7 +104,8 @@ let rec preforget n e =
   | Snd _ -> 
     Snd (h n), n+1
   | Pi (y, Hole (k, l), e) ->
-    Pi (y, Hole (k, l), fst (preforget n e)), snd (preforget n e)
+    let e', n' = preforget n e in
+    Pi (y, Hole (k, l), e'), n'
   | Pi (y, _, _) -> 
     Pi (y, h n, h (n+1)), n+2
   | Sigma (y, _, _) -> 

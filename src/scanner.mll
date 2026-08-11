@@ -122,13 +122,3 @@ rule token = parse
 and comment = parse
   | "*/"               { token lexbuf }
   | _                  { comment lexbuf }
-
-(*
-(* | "--"               { comment_line lexbuf } *)
-and comment_line = parse
-  | end_of_line        { token lexbuf }
-  | _                  { comment_line lexbuf } 
-  
-allow ℓ for universe levels
-
-*)
