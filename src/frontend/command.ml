@@ -44,10 +44,10 @@ let rec compile global ind_env ind lopen filename lvl next_location = function
             begin 
               match Env.unfold_all global 0 (Implicit.convert e) with
               | Ok e' ->
-                if Env.is_declared id global then 
+                if Env.is_declared id global || Env.is_declared id ind then 
                   failwith_at location
                     ("Naming conflict with the identifier '" ^ id ^
-                     "'\nName already exists in the environment (try 'print " ^ id ^ "' for more information)")
+                     "'\nName already exists in the environment (try 'infer " ^ id ^ "' for more information)")
                 else
                   begin
                     (* Evaluate expressions and temporarily add inductive types to the context for type checking *)
@@ -56,7 +56,7 @@ let rec compile global ind_env ind lopen filename lvl next_location = function
                     let res = Synthesize.init global ind_env ictx lvl e' ty' in
                     match res with 
                     | Ok (e1, ty1) ->
-                      if id = "" then
+                      if id = "infer" then
                         Ok (global, ("infer := " ^ Pretty.printf e1 ^ ": \n" ^ "         " ^ Pretty.printf ty1 ^ "\n", lopen))
                       else
                         compile (Env.add global id ctx' (e1, ty1)) ind_env ind lopen filename lvl next_location cmd
