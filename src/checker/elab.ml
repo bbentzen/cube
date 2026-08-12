@@ -179,155 +179,51 @@ let rec elaborate global ind_env ctx lvl sl ty ph vars = function
       "\nhas type\n  " ^ Pretty.print (to_raw_expr ty) ^ "\nbut is expected to have type\n  Π (v? : ?0?) ?1?")
     end
 
-  | App (e1, e2) ->
-    let instantiate_pi binder arg body =
-      let _ = binder in
-      open_var 0 arg body
-    in
-    let e2_is_subgoal =
-      match e2 with
-      | Subgoal () -> true
-      | _ -> false
-    in
-    (* let e2_needs_expected_type =
-      match e2 with
-      | Pabs (_, _) | Abs (_, _) -> true
-      | _ -> false
-    in *)
-      if e2_is_subgoal 
-        (* || e2_needs_expected_type  *)
-        then
-
-      let h1 = Placeholder.generate ty ph [] in
-      let elab1 = elaborate global ind_env ctx lvl sl h1 (ph+1) (vars+1) e1 in
-      begin match elab1 with
-      | Ok (e1', Pi(x, ty1, ty2), sa1) ->
-        let goal_ty =
-          if Placeholder.has_placeholder ty1 then
-            match find true global ind_env ctx ctx ty1 lvl sl ph vars with
-            | Ok (_, ty1') -> ty1'
-            | Error _ -> ty1
-          else
-            ty1
-        in
-        begin
-          match elaborate global ind_env ctx lvl sl goal_ty (ph+1) (vars+1) e2 with
-          | Ok (e2', _, sa2) ->
-            Ok (App (e1', e2'), instantiate_pi x e2' ty2, Stack.append sa1 sa2)
-          | Error (sa2, msg) ->
-            Error (Stack.append sa1 sa2, msg)
-        end
-      | Ok (e1', _, sa1) ->
-        Error (sa1,
-          "Failed function application\n  " ^ Pretty.print (to_raw_expr (App (e1', e2))) ^
-          "\nThe term\n  " ^ Pretty.print (to_raw_expr e1') ^
-          "\nchecked against " ^ Pretty.print (to_raw_expr ty) ^ " is expected to have type\n  Π (v? : ?0?) ?1?")
-      | Error (sa, msg) ->
-        Error (sa, msg)
-      end
-
-    else if not (Placeholder.has_underscore e2) then
-      (* Default: typecheck e1 fist and then e2 *)
-      let h1 = Placeholder.generate ty ph [] in
-      let v1 = (create_fresh [e1; ty] 1).(0) in (* probably unnecessary *)
-      let h2 = Placeholder.generate ty (ph+1) [] in
-      let elab1 = elaborate global ind_env ctx lvl sl (Pi(v1, h1, h2)) (ph+2) (vars+2) e1 in
-      begin match elab1 with
-      | Ok (e1', Pi(_, ty1, ty2), sa1) ->
-        let elab2 = elaborate global ind_env ctx lvl sl ty1 (ph+2) (vars+2) e2 in
-        begin 
-          match elab2 with
-          | Ok (e2', _, sa2) ->
-            let ty2' = open_var 0 e2' ty2 in
-            let h3 = Placeholder.generate ty2' (ph+3) [] in 
-            (* Unify both types possibly lifting the universe level when needed *)
-            let u = unify global ind_env ctx lvl sl (ph+3) vars (eval ind_env ty, eval ind_env ty2', h3) true in
-            begin match u with
-            | Ok _ -> 
-              Ok (App (e1', e2'), ty2', Stack.append sa1 sa2)
-            | Error (_, msg) ->
-              Error (Stack.append sa1 sa2,
-                "Failed application\n  " ^ Pretty.print (to_raw_expr (App (e1', e2'))) ^
-                "\nThe term\n  " ^ Pretty.print (to_raw_expr e2') ^ 
-                "\nis expected to have type\n  " ^ Pretty.print (to_raw_expr ty1) ^ "\n" ^ msg)
-            end
-          | Error (sa2, msg) -> 
+  | App (e1, e2) ->      
+    (* Typecheck head expression e1 fist and then check e2 against the domain *)
+    let h1 = Placeholder.generate ty ph [] in
+    let v1 = (create_fresh [e1; ty] 1).(0) in 
+    let h2 = Placeholder.generate ty (ph+1) [] in
+    let elab1 = elaborate global ind_env ctx lvl sl (Pi(v1, h1, h2)) (ph+2) (vars+2) e1 in
+    begin match elab1 with
+    | Ok (e1', Pi(_, ty1, ty2), sa1) ->
+      let elab2 = elaborate global ind_env ctx lvl sl ty1 (ph+2) (vars+2) e2 in
+      begin
+        match elab2 with
+        | Ok (e2', _, sa2) ->
+          let ty2' = open_var 0 e2' ty2 in
+          let h3 = Placeholder.generate ty2' (ph+3) [] in 
+          (* Unify both types possibly lifting the universe level when needed *)
+          let u = unify global ind_env ctx lvl sl (ph+3) vars (eval ind_env ty, eval ind_env ty2', h3) true in
+          begin match u with
+          | Ok _ -> 
+            Ok (App (e1', e2'), ty2', Stack.append sa1 sa2)
+          | Error (_, msg) ->
             Error (Stack.append sa1 sa2,
-              "Failed application\n  " ^ Pretty.print (to_raw_expr (App (e1, e2))) ^
-              "\nThe term\n  " ^ Pretty.print (to_raw_expr e2) ^ 
-              "\nis expected to have type\n  " ^ Pretty.print (to_raw_expr ty1) ^ "\n" ^ msg)
-          end
-        
-      | Ok (e1', _, sa1) -> 
-        Error (sa1,
-          "Failed application\n  " ^ Pretty.print (to_raw_expr (App (e1', e2))) ^
-          "\nThe term\n  " ^ Pretty.print (to_raw_expr e1') ^ 
-          "\nis expected to have type\n " ^ Pretty.print (to_raw_expr h2))
-      | Error (sa, msg) -> 
-        Error (sa, msg)
-      end
-      
-      (* let h1 = Placeholder.generate ty ph [] in
-      let v1 = (create_fresh [e1; ty] 1).(0) in (* probably unnecessary *)
-      let (h2, ph) = Placeholder.preforget (ph+2) ty in
-      let elab1 = elaborate global ind_env ctx lvl sl (Pi(v1, h1, h2)) (ph+1) (vars+2) e1 in
-      begin match elab1 with
-      | Ok (e1', Pi(x, ty1, ty2), sa1) ->
-        let elab2 = elaborate global ind_env ctx lvl sl ty1 (ph+1) (vars+2) e2 in
-        begin 
-          match elab2 with
-          | Ok (e2', _, sa2) ->
-            Ok (App (e1', e2'), instantiate_pi x e2' ty2, Stack.append sa1 sa2)
-          | Error (sa2, msg) -> 
-            Error (Stack.append sa1 sa2,
-              "Failed application\n  " ^ Pretty.print (to_raw_expr (App (e1, e2))) ^
-              "\nThe term\n  " ^ Pretty.print (to_raw_expr e2) ^ 
-              "\nis expected to have type\n  " ^ Pretty.print (to_raw_expr ty1) ^ "\n" ^ msg)
-          end
-        
-      | Ok (e1', _, sa1) -> 
-        Error (sa1,
-          "Failed application\n  " ^ Pretty.print (to_raw_expr (App (e1', e2))) ^
-          "\nThe term\n  " ^ Pretty.print (to_raw_expr e1') ^ 
-          "\nis expected to have type\n " ^ Pretty.print (to_raw_expr h2))
-      | Error (sa, msg) -> 
-        Error (sa, msg)
-      end *)
-
-    else
-      let h1 = Placeholder.generate ty ph [] in
-      let v1 = (create_fresh [e1; e2; ty] 1).(0) in (* probably unnecessary? *)
-      let elab2 = elaborate global ind_env ctx lvl sl h1 (ph+1) (vars+2) e2 in
-      begin match elab2 with
-      | Ok (e2', ty2', sa2) ->
-        let h2 = Placeholder.generate ty (ph+1) [Global v1; e2; e2'] in
-        let helper argty1' =
-          let elab1 = elaborate global ind_env ctx lvl sl argty1' (ph+1) (vars+2) e1 in
-          begin match elab1 with
-          | Ok (e1', Pi(x, _, ty'), sa1) ->
-            Ok (App (e1', e2'), instantiate_pi x e2' ty', Stack.append sa1 sa2)
-          | Ok (e1', _, sa1) -> 
-            Error (Stack.append sa1 sa2, 
               "Failed application\n  " ^ Pretty.print (to_raw_expr (App (e1', e2'))) ^
-              "\nThe term\n  " ^ Pretty.print (to_raw_expr e1') ^ 
-              "\nis expected to have type\n " ^ Pretty.print (to_raw_expr argty1'))
-          | Error (sa1, msg) -> 
-            Error (Stack.append sa1 sa2,
-              "The term\n  " ^ Pretty.printf e1 ^ 
-              "\nis expected to be a function of type\n  " ^ Pretty.printf argty1' ^ 
-              "\nin the application\n  " ^ Pretty.printf (App (e1, e2')) ^ "\n" ^ msg)
+              "\nThe term\n  " ^ Pretty.print (to_raw_expr e2') ^ 
+              "\nis expected to have type\n  " ^ Pretty.print (to_raw_expr ty1) ^ "\n" ^ msg)
           end
-        in
-        if e2 = e2' then
-          let ty1' = Pi(v1, fullsubst 0 e2 h2 true ty2', fullsubst 0 e2 h2 true ty) in
-          helper ty1'
-        else
-          let subs x = fullsubst 0 e2' h2 false (fullsubst 0 e2 h2 true x) in
-          let ty1' = Pi(v1, subs ty2', subs ty) in
-          helper ty1'
-      | Error (sa, msg) -> 
-        Error (sa, msg)
-      end
+        | Error (sa2, msg) -> 
+          Error (Stack.append sa1 sa2,
+            "Failed application\n  " ^ Pretty.print (to_raw_expr (App (e1, e2))) ^
+            "\nThe applied term\n  " ^ Pretty.print (to_raw_expr e2) ^ 
+            "\nis expected to have type\n  " ^ Pretty.print (to_raw_expr ty1) ^ "\n" ^ msg)
+        end
+      
+    | Ok (e1', ty1', sa1) -> 
+      Error (sa1,
+        "Failed application\n  " ^ Pretty.print (to_raw_expr (App (e1', e2))) ^
+        "\nThe head term\n  " ^ Pretty.print (to_raw_expr e1') ^ 
+        "\nis expected to have type\n " ^ Pretty.print (to_raw_expr h2) ^
+        "\nbut was found to have type\n " ^ Pretty.printf ty1'
+        )
+    | Error (sa, msg) -> 
+      Error (sa, 
+      "Failed application\n  " ^ Pretty.print (to_raw_expr (App (e1, e2))) ^ 
+      "\nThe head term\n  " ^ Pretty.print (to_raw_expr e1) ^ 
+        "\nis expected to have a function type.\n " ^ msg)
+    end
     
   | Pair (e1, e2) -> 
     begin match ty with
