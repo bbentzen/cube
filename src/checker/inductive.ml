@@ -9,7 +9,6 @@
 elims are described as variables and printed in the ctx *)
 
 open Basis
-(* open Debruijn *)
 open Core_ast
 
 let rec occurs_name id l = function
@@ -157,7 +156,7 @@ let generate_recursor ind_name ind_ty constrs ctx ctx_rev = (*ind_ty *)
   
   (* Applies parameters and context arguments *)
   let motive_dom = app_constr_args (app_ctx_args ind_name ctx) (ar_type_fam ind_ty) in
-  let motive_ty = Pi (var, motive_dom, Type (Num 0)) in
+  let motive_ty = Pi (var, motive_dom, Type (Var "?_")) in
 
   let rec add_minor_premises = function
     | [] ->
@@ -171,7 +170,7 @@ let generate_recursor ind_name ind_ty constrs ctx ctx_rev = (*ind_ty *)
   in
   (* Prefix the recursor with the index of the inductive type and its parameters *)
   let abs_params x = abs_par_args x ind_ty in
-  let abs_indices x = abs_ctx_args x ctx_rev in
+  let abs_indices x = abs_ctx_args x (Ctx.parametrize_levels ctx_rev) in
   abs_indices (Pi (motive_name, abs_params motive_ty, Debruijn.close_var 0 motive_name (add_minor_premises constrs)))
 
 (* Extracts universe level l if expr is Type l *)

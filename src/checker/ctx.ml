@@ -55,3 +55,8 @@ let check_with_universe global ind_env ctx lvl =
     end
   in
   helper (List.rev ctx)
+
+let rec parametrize_levels = function
+  | [] -> []
+  | (x, ty, b) :: ctx' ->
+      (x, Core_ast.parametrize_levels ty, b) :: parametrize_levels ctx'

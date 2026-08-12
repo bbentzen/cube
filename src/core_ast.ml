@@ -82,6 +82,38 @@ let rec unieval = function
       Max (unieval n, unieval m)
   | l -> l
 
+let rec parametrize_level = function
+  | Num l -> Num l 
+  | Var s -> Var ("?" ^ s)
+  | Suc l -> Suc (parametrize_level l)
+  | Max (l1, l2) -> Max (parametrize_level l1, parametrize_level l2)
+
+let rec parametrize_levels = function
+  | Type lvl -> Type (parametrize_level lvl)
+  | Pi (x, l1, l2) -> Pi (x, parametrize_levels l1, parametrize_levels l2)
+  | Sigma (x, l1, l2) -> Sigma (x, parametrize_levels l1, parametrize_levels l2)
+  | Coe (i, j, l1, l2) -> Coe (parametrize_levels i, parametrize_levels j, parametrize_levels l1, parametrize_levels l2)
+  | Hfill (l1, l2, l3) -> Hfill (parametrize_levels l1, parametrize_levels l2, parametrize_levels l3)
+  | App (l1, l2) -> App (parametrize_levels l1, parametrize_levels l2)
+  | Pair (l1, l2) -> Pair (parametrize_levels l1, parametrize_levels l2)
+  | Fst l -> Fst (parametrize_levels l)
+  | Snd l -> Snd (parametrize_levels l)
+  | Inl l -> Inl (parametrize_levels l)
+  | Inr l -> Inr (parametrize_levels l)
+  | Case (l1, l2, l3) -> Case (parametrize_levels l1, parametrize_levels l2, parametrize_levels l3)
+  | Sum (l1, l2) -> Sum (parametrize_levels l1, parametrize_levels l2)
+  | Let (l1, l2) -> Let (parametrize_levels l1, parametrize_levels l2)
+  | False u -> False u
+  | If (l1, l2, l3) -> If (parametrize_levels l1, parametrize_levels l2, parametrize_levels l3)
+  | Succ l -> Succ (parametrize_levels l)
+  | Natrec (l1, l2, l3) -> Natrec (parametrize_levels l1, parametrize_levels l2, parametrize_levels l3)
+  | Abort l -> Abort (parametrize_levels l)
+  | Pabs (s, l) -> Pabs (s, parametrize_levels l)
+  | At (l1, l2) -> At (parametrize_levels l1, parametrize_levels l2)
+  | Pathd (l1, l2, l3) -> Pathd (parametrize_levels l1, parametrize_levels l2, parametrize_levels l3)
+  | Hole (s, ls) -> Hole (s, List.map parametrize_levels ls)
+  | e -> e
+
 (* Hash table for tracking inductive type information *)
 
 type constr_spec = {

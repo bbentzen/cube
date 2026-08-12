@@ -15,11 +15,12 @@ open Eval
 
 let rec decl2 lvl = function
 | Core_ast.Num _ -> Ok ()
-| Core_ast.Var n -> 
-  if List.mem n lvl then 
+| Core_ast.Var name ->
+  (* Checks if declaration exists or if it's a parameter level *)
+  if List.mem name lvl || Char.equal name.[0] '?' then 
     Ok ()
   else
-    Error ("No declaration found for the universe level '" ^ n ^ "'")
+    Error ("No declaration found for the universe level '" ^ name ^ "'")
 | Core_ast.Suc n ->
   begin
     match decl2 lvl n with
@@ -179,7 +180,7 @@ let rec elaborate global ind_env ctx lvl sl ty ph vars = function
       "\nhas type\n  " ^ Pretty.print (to_raw_expr ty) ^ "\nbut is expected to have type\n  Π (v? : ?0?) ?1?")
     end
 
-  | App (e1, e2) ->      
+  | App (e1, e2) ->
     (* Typecheck head expression e1 fist and then check e2 against the domain *)
     let h1 = Placeholder.generate ty ph [] in
     let v1 = (create_fresh [e1; ty] 1).(0) in 
@@ -2164,15 +2165,26 @@ and unify global ind_env ctx lvl sl ph vars x lift =
         end
 
       | Type m, Type n, _ ->
-        let e, msg = (Type m, Type n), "The types\n  " ^ Pretty.print (to_raw_expr (Type m)) ^ "\nand\n  " ^ Pretty.print (to_raw_expr (Type n)) ^ "\nhave incompatible universe levels" in
-        if lift then
-          if Core_ast.leq (n, m) then
-            Ok (Type n)
+        (* Helper compare function *)
+        let compare m n = if lift then if Core_ast.leq (n, m) then Ok (Type n) else
+            Error ((Type m, Type n), "Could not unify after lifting the universe levels of the types\n  " ^ Pretty.printf (Type m) ^ "\nand\n  " ^ Pretty.printf (Type n))
           else
-            Error (e, "Could not check universe levels: " ^ msg)
-        else
-          Error (e, msg)
-      
+            Error ((Type m, Type n), "The types\n  " ^ Pretty.printf (Type m) ^ "\nand\n  " ^ Pretty.printf (Type n) ^ "\nhave incompatible universe levels")
+        in
+        (* Checks if either level is an arbitrary parameter to be unified *)
+        begin match m, n with
+        | Var par1, Var par2 -> 
+          if Universe.level_is_arbitrary par1 then Ok (Type (Var par2))
+          else if Universe.level_is_arbitrary par2 then Ok (Type (Var par1))
+          else compare (Var par1) (Var par2)
+        | Var par, n -> 
+          if Universe.level_is_arbitrary par then Ok (Type n)
+          else compare (Var par) n 
+        | m, Var par -> 
+          if Universe.level_is_arbitrary par then Ok (Type m)
+          else compare m (Var par)
+        | m, n -> compare m n
+        end
       | e , e', _ -> 
         if eval ind_env e = eval ind_env e' then 
           Ok e 

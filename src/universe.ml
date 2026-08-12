@@ -94,6 +94,9 @@ let rec decl lvl = function
 
 let rec to_hole = function
   | Num l -> Num l 
-  | Var n -> Var ("?" ^ n)
+  | Var s -> Var ("?" ^ s)
   | Suc l -> Suc (to_hole l)
   | Max (l1, l2) -> Max (to_hole l1, to_hole l2)
+
+let level_is_arbitrary par =
+  Char.equal par.[0] '?'
