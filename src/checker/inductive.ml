@@ -139,16 +139,15 @@ let rec build_ihs ind_name ind_ty motive_name ar vars ctx c_name = function
       else
         Pi (var, arg_ty, (ih_wrap (ar + 1)))
   | c_ty ->
-    let app_indices x = app_ctx_args x ctx in
     match ind_ty with
     | Pi (_, _, _) ->
       (* If type has parameters we infer it from the constructor's type and prefix it to the constructor *)
       let ind_fam = app_ctx_args ind_name ctx in
-      let head = find_params_cons ind_fam (app_indices motive_name) c_ty in
+      let head = find_params_cons ind_fam (Global motive_name) c_ty in
       App (head, app_constr_args (Global c_name) ar )
     | _ ->
       (* Otherwise we apply the motive to all constructor arguments *)
-      App (app_indices motive_name, app_constr_args (Global c_name) ar )
+      App (Global motive_name, app_constr_args (Global c_name) ar )
 
 (* Synthesizes the full recursor type for an inductive definition *)
 
@@ -156,23 +155,24 @@ let generate_recursor ind_name ind_ty constrs ctx ctx_rev = (*ind_ty *)
   let motive_name = "C" in
   let var = create_fresh_cons ind_name [] 1 0 in (* not sure if this should be empty*)
   
-  (* applies parameters and context arguments *)
+  (* Applies parameters and context arguments *)
   let motive_dom = app_constr_args (app_ctx_args ind_name ctx) (ar_type_fam ind_ty) in
   let motive_ty = Pi (var, motive_dom, Type (Num 0)) in
 
   let rec add_minor_premises = function
     | [] ->
-        let abs_params x = abs_par_args x ind_ty in
-        let app_params x = Debruijn.shift 0 1 (app_constr_args x (ar_type_fam ind_ty)) in
-        abs_params (Pi (var, motive_dom, App (app_params (app_ctx_args motive_name ctx), Local 0))) (* target type *)
+      (* Generates target type with parameters *)
+      let abs_params x = abs_par_args x ind_ty in
+      let app_params x = Debruijn.shift 0 1 (app_constr_args x (ar_type_fam ind_ty)) in
+      abs_params (Pi (var, motive_dom, App (app_params (Global motive_name), Local 0))) 
     | (c_name, c_ty) :: rest ->
-        let minor_ty = build_ihs ind_name ind_ty motive_name 0 0 ctx c_name c_ty in
-        Pi ("c_" ^ c_name, minor_ty, add_minor_premises rest)
+      let minor_ty = build_ihs ind_name ind_ty motive_name 0 0 ctx c_name c_ty in
+      Pi ("c_" ^ c_name, minor_ty, add_minor_premises rest)
   in
-  (* prefix the recursor with the index of the inductive type and its parameters *)
+  (* Prefix the recursor with the index of the inductive type and its parameters *)
   let abs_params x = abs_par_args x ind_ty in
   let abs_indices x = abs_ctx_args x ctx_rev in
-  abs_indices (abs_params (Pi (motive_name, motive_ty, Debruijn.close_var 0 motive_name (add_minor_premises constrs))))
+  abs_indices (Pi (motive_name, abs_params motive_ty, Debruijn.close_var 0 motive_name (add_minor_premises constrs)))
 
 (* Extracts universe level l if expr is Type l *)
 
