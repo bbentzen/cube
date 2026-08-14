@@ -46,7 +46,7 @@ let rec candidates = function (* TODO: remove duplicates *)
 (* Determines whether an expression is or has a placeholder/underscore *)
 
 let is = function
-  | Hole _ -> true
+  | Hole _ | Wild _ -> true
   | _ -> false
 
 let rec has_placeholder = function

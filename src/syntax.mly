@@ -96,7 +96,7 @@ command:
 
 decl:
   | DEF ID ctx expr COLONEQ expr                            {Prf($2, $3, $4, $6)}
-  | INFER ctx expr                                          {Prf("", $2, Ast.Hole("0", []), $3)}
+  | INFER ctx expr                                          {Prf("infer", $2, Ast.Hole("0", []), $3)}
 
 constr: 
   | BAR ID COLON expr                                       {[($2, $4)]}

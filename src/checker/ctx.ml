@@ -8,14 +8,16 @@ open Basis
 open Context
 open Eval
 
-let check global ind_env ctx lvl =
+let check global ind_env ind ctx lvl =
   let rec helper l = 
     match l with
   | [] -> Ok []
   | (x, ty, b) :: ctx' ->
     begin match Env.unfold_all global 0 ty with
     | Ok ty' ->
-      begin match Type.check global ind_env ctx' lvl ty', helper ctx' with
+      (* Dumps inductive type data into the context *)
+      let ind_ctx = List.map (fun (id, ty) -> (id, ty, true)) ind @ ctx' in
+      begin match Type.check global ind_env ind_ctx lvl ty', helper ctx' with
       | Ok elab, Ok ctx'' -> 
         if Env.is_declared x global then
           Error ("Naming conflict with the identifier '" ^ x ^ 

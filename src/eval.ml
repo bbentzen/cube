@@ -192,13 +192,13 @@ let rec eval ind_env = function
         let full_app = Core_ast.App (e1', e2') in
         let head, args = break_args [] full_app in
         (match head with
-        | Core_ast.Global namerec ->
-            let name =
+        | Core_ast.Global rec_name ->
+            (* let name =
               (* Slice the rec suffix from namerec if the string is long enough *)
               let len = String.length namerec in
               if len >= 3 then String.sub namerec 0 (len - 3) else namerec
-            in
-            (match Hashtbl.find_opt ind_env name with
+            in *)
+            (match Hashtbl.find_opt ind_env rec_name with
             | Some rec_spec ->
                 (match reduce_recursor rec_spec args with
                 | Some reduced -> reduced

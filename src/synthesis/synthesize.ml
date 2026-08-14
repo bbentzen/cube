@@ -71,4 +71,3 @@ and iter sl' msg global ind_env ctx lvl e ty max =
 
 let init global ind_env ctx lvl e ty =
   check global ind_env ctx lvl ([], []) e ty 0
-  

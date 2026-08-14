@@ -33,7 +33,7 @@ let rec compile global ind_env ind lopen filename lvl next_location = function
       | Ok hty ->
         let ctx = Global.create_ctx l in
         let (h1, h2) = 
-          Ctx.check global ind_env ctx lvl,
+          Ctx.check global ind_env ind ctx lvl,
           let ind_ctx = Inductive.add ind ctx in
           Type.check global ind_env ind_ctx lvl (eval ind_env hty)
         in
@@ -212,7 +212,7 @@ let rec compile global ind_env ind lopen filename lvl next_location = function
                     Core_ast.c_rec_args = c_rec_args }
                   ) cons_checked' in
                   
-                  Hashtbl.add ind_env id {
+                  Hashtbl.add ind_env (id ^ "rec") {
                     Core_ast.ind_name = id;
                     Core_ast.num_params = num_params;
                     Core_ast.num_indices = num_indices;

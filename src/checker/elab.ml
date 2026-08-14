@@ -181,49 +181,56 @@ let rec elaborate global ind_env ctx lvl sl ty ph vars = function
     end
 
   | App (e1, e2) ->
-    (* Typecheck head expression e1 fist and then check e2 against the domain *)
-    let h1 = Placeholder.generate ty ph [] in
-    let v1 = (create_fresh [e1; ty] 1).(0) in 
-    let h2 = Placeholder.generate ty (ph+1) [] in
-    let elab1 = elaborate global ind_env ctx lvl sl (Pi(v1, h1, h2)) (ph+2) (vars+2) e1 in
-    begin match elab1 with
-    | Ok (e1', Pi(_, ty1, ty2), sa1) ->
-      let elab2 = elaborate global ind_env ctx lvl sl ty1 (ph+2) (vars+2) e2 in
-      begin
-        match elab2 with
-        | Ok (e2', _, sa2) ->
-          let ty2' = open_var 0 e2' ty2 in
-          let h3 = Placeholder.generate ty2' (ph+3) [] in 
-          (* Unify both types possibly lifting the universe level when needed *)
-          let u = unify global ind_env ctx lvl sl (ph+3) vars (eval ind_env ty, eval ind_env ty2', h3) true in
-          begin match u with
-          | Ok _ -> 
-            Ok (App (e1', e2'), ty2', Stack.append sa1 sa2)
-          | Error (_, msg) ->
+    (* If the head expression is a recursor try to infer the motive *)
+    let head, args = Eval.break_args [] (App (e1, e2)) in
+    begin match Infer.try_infer_motive ind_env ty args head with
+    | Some res ->
+      elaborate global ind_env ctx lvl sl ty ph vars res
+    | None -> 
+      (* Otherwise first infer the type of e1 and then check its domain against e2 *)
+      let h1 = Placeholder.generate ty ph [] in
+      let v1 = (create_fresh [e1; ty] 1).(0) in 
+      let h2 = Placeholder.generate ty (ph+1) [] in
+      let elab1 = elaborate global ind_env ctx lvl sl (Pi(v1, h1, h2)) (ph+2) (vars+2) e1 in
+      begin match elab1 with
+      | Ok (e1', Pi(_, ty1, ty2), sa1) ->
+        let elab2 = elaborate global ind_env ctx lvl sl ty1 (ph+2) (vars+2) e2 in
+        begin
+          match elab2 with
+          | Ok (e2', _, sa2) ->
+            let ty2' = open_var 0 e2' ty2 in
+            let h3 = Placeholder.generate ty2' (ph+3) [] in 
+            (* Unify both types possibly lifting the universe level when needed *)
+            let u = unify global ind_env ctx lvl sl (ph+3) vars (eval ind_env ty, eval ind_env ty2', h3) true in
+            begin match u with
+            | Ok _ -> 
+              Ok (App (e1', e2'), ty2', Stack.append sa1 sa2)
+            | Error (_, msg) ->
+              Error (Stack.append sa1 sa2,
+                "Failed application\n  " ^ Pretty.print (to_raw_expr (App (e1', e2'))) ^
+                "\nThe term\n  " ^ Pretty.print (to_raw_expr e2') ^ 
+                "\nis expected to have type\n  " ^ Pretty.print (to_raw_expr ty1) ^ "\n" ^ msg)
+            end
+          | Error (sa2, msg) -> 
             Error (Stack.append sa1 sa2,
-              "Failed application\n  " ^ Pretty.print (to_raw_expr (App (e1', e2'))) ^
-              "\nThe term\n  " ^ Pretty.print (to_raw_expr e2') ^ 
+              "Failed application\n  " ^ Pretty.print (to_raw_expr (App (e1, e2))) ^
+              "\nThe applied term\n  " ^ Pretty.print (to_raw_expr e2) ^ 
               "\nis expected to have type\n  " ^ Pretty.print (to_raw_expr ty1) ^ "\n" ^ msg)
           end
-        | Error (sa2, msg) -> 
-          Error (Stack.append sa1 sa2,
-            "Failed application\n  " ^ Pretty.print (to_raw_expr (App (e1, e2))) ^
-            "\nThe applied term\n  " ^ Pretty.print (to_raw_expr e2) ^ 
-            "\nis expected to have type\n  " ^ Pretty.print (to_raw_expr ty1) ^ "\n" ^ msg)
-        end
-      
-    | Ok (e1', ty1', sa1) -> 
-      Error (sa1,
-        "Failed application\n  " ^ Pretty.print (to_raw_expr (App (e1', e2))) ^
-        "\nThe head term\n  " ^ Pretty.print (to_raw_expr e1') ^ 
-        "\nis expected to have type\n " ^ Pretty.print (to_raw_expr h2) ^
-        "\nbut was found to have type\n " ^ Pretty.printf ty1'
-        )
-    | Error (sa, msg) -> 
-      Error (sa, 
-      "Failed application\n  " ^ Pretty.print (to_raw_expr (App (e1, e2))) ^ 
-      "\nThe head term\n  " ^ Pretty.print (to_raw_expr e1) ^ 
-        "\nis expected to have a function type.\n " ^ msg)
+        
+      | Ok (e1', ty1', sa1) -> 
+        Error (sa1,
+          "Failed application\n  " ^ Pretty.print (to_raw_expr (App (e1', e2))) ^
+          "\nThe head term\n  " ^ Pretty.print (to_raw_expr e1') ^ 
+          "\nis expected to have type\n " ^ Pretty.print (to_raw_expr h2) ^
+          "\nbut was found to have type\n " ^ Pretty.printf ty1'
+          )
+      | Error (sa, msg) -> 
+        Error (sa, 
+        "Failed application\n  " ^ Pretty.print (to_raw_expr (App (e1, e2))) ^ 
+        "\nThe head term\n  " ^ Pretty.print (to_raw_expr e1) ^ 
+          "\nis expected to have a function type.\n " ^ msg)
+      end
     end
     
   | Pair (e1, e2) -> 
@@ -238,7 +245,7 @@ let rec elaborate global ind_env ctx lvl sl ty ph vars = function
           let ty' = fullsubst 0 e1' (Hole (n, e1 :: e1' :: Global y :: l)) true ty2' in
           Ok (Pair (e1', e2'), Sigma(y, ty1', ty'), Stack.append sa2 sa1)
         | _ ->
-          let ty' = fullsubst 0 e1' (Global y) true ty2' in
+          let ty' = fullsubst 0 e1' (Global y) true ty2' in (* to be improved *)
           Ok (Pair (e1', e2'), Sigma(y, ty1', ty'), Stack.append sa2 sa1)
         end
       | Error msg, _ | _, Error msg -> 
