@@ -171,7 +171,7 @@ let rec eval ind_env = function
           begin
           match e2 with 
           | Local 0 ->
-            if not (occurs_index 0 0 e1) then
+            if not (occurs_index 0 0 e1) && not (Placeholder.has e1) then
               shift 0 (-1) e1 (* eta reduction *)
             else
               Core_ast.Abs (x, e')

@@ -153,17 +153,6 @@ let rec elaborate global ind_env ctx lvl sl ty ph vars = function
     begin match ty with
     | Pi (_, ty1, ty2) ->
       let s var = (fst sl, Stack.allconcat var ty1 (snd sl)) in
-      (* if has_var x ty then
-        let v1 = fresh_var e ty vars in
-        let e' = subst x (Id v1) e in
-        let elab = elaborate global ind_env ((v1, ty1, true) :: ctx) lvl (s v1) (subst y (Id v1) ty2) ph vars e' in
-        begin match elab with
-        | Ok (e'', ty2', sa) ->
-          Ok (Abs (v1, e''), Pi (v1, ty1, ty2'), sa)
-        | Error (sa, msg) -> 
-          Error (sa, msg)
-        end
-      else *)
         let elab = elaborate global ind_env ((x, ty1, true) :: ctx) lvl (s x) (open_bound x (Global x) ty2) ph vars (open_bound x (Global x) e) in
         begin match elab with
         | Ok (e', ty2', sa) -> 
@@ -176,8 +165,8 @@ let rec elaborate global ind_env ctx lvl sl ty ph vars = function
       let h2 = Placeholder.generate ty (ph+1) [] in
       elaborate global ind_env ctx lvl sl (Pi(x, h1, h2)) (ph+2) vars (Abs (x, e))
     | _ -> 
-      Error (sl, "The term\n  λ " ^ x ^ ", " ^ Pretty.print (to_raw_expr e) ^ 
-      "\nhas type\n  " ^ Pretty.print (to_raw_expr ty) ^ "\nbut is expected to have type\n  Π (v? : ?0?) ?1?")
+      Error (sl, "The term\n  " ^ Pretty.printf (Abs (x, e)) ^ 
+      "\nhas type\n  " ^ Pretty.printf ty ^ "\nbut is expected to have type\n  Π (v? : ?0?) ?1?")
     end
 
   | App (e1, e2) ->
@@ -187,18 +176,20 @@ let rec elaborate global ind_env ctx lvl sl ty ph vars = function
     | Some res ->
       elaborate global ind_env ctx lvl sl ty ph vars res
     | None -> 
-      (* Otherwise first infer the type of e1 and then check its domain against e2 *)
+      (* Otherwise infer the type of e1 and check its evaluated domain against e2 *)
       let h1 = Placeholder.generate ty ph [] in
       let v1 = (create_fresh [e1; ty] 1).(0) in 
       let h2 = Placeholder.generate ty (ph+1) [] in
       let elab1 = elaborate global ind_env ctx lvl sl (Pi(v1, h1, h2)) (ph+2) (vars+2) e1 in
       begin match elab1 with
       | Ok (e1', Pi(_, ty1, ty2), sa1) ->
-        let elab2 = elaborate global ind_env ctx lvl sl ty1 (ph+2) (vars+2) e2 in
+        (* Evaluates the inferred domain before type checking *)
+        let ty1' = eval ind_env ty1 in
+        let elab2 = elaborate global ind_env ctx lvl sl ty1' (ph+2) (vars+2) e2 in
         begin
           match elab2 with
           | Ok (e2', _, sa2) ->
-            let ty2' = open_var 0 e2' ty2 in
+            let ty2' = eval ind_env (open_var 0 e2' ty2) in
             let h3 = Placeholder.generate ty2' (ph+3) [] in 
             (* Unify both types possibly lifting the universe level when needed *)
             let u = unify global ind_env ctx lvl sl (ph+3) vars (eval ind_env ty, eval ind_env ty2', h3) true in
@@ -207,28 +198,28 @@ let rec elaborate global ind_env ctx lvl sl ty ph vars = function
               Ok (App (e1', e2'), ty2', Stack.append sa1 sa2)
             | Error (_, msg) ->
               Error (Stack.append sa1 sa2,
-                "Failed application\n  " ^ Pretty.print (to_raw_expr (App (e1', e2'))) ^
-                "\nThe term\n  " ^ Pretty.print (to_raw_expr e2') ^ 
-                "\nis expected to have type\n  " ^ Pretty.print (to_raw_expr ty1) ^ "\n" ^ msg)
+                "Failed application\n  " ^ Pretty.printf (App (e1', e2')) ^
+                "\nThe term\n  " ^ Pretty.printf e2' ^ 
+                "\nis expected to have type\n  " ^ Pretty.printf ty1' ^ "\n" ^ msg)
             end
           | Error (sa2, msg) -> 
             Error (Stack.append sa1 sa2,
-              "Failed application\n  " ^ Pretty.print (to_raw_expr (App (e1, e2))) ^
-              "\nThe applied term\n  " ^ Pretty.print (to_raw_expr e2) ^ 
-              "\nis expected to have type\n  " ^ Pretty.print (to_raw_expr ty1) ^ "\n" ^ msg)
+              "Failed application\n  " ^ Pretty.printf (App (e1, e2)) ^
+              "\nThe applied term\n  " ^ Pretty.printf e2 ^ 
+              "\nis expected to have type\n  " ^ Pretty.printf ty1' ^ "\n" ^ msg)
           end
         
       | Ok (e1', ty1', sa1) -> 
         Error (sa1,
-          "Failed application\n  " ^ Pretty.print (to_raw_expr (App (e1', e2))) ^
-          "\nThe head term\n  " ^ Pretty.print (to_raw_expr e1') ^ 
-          "\nis expected to have type\n " ^ Pretty.print (to_raw_expr h2) ^
+          "Failed application\n  " ^ Pretty.printf (App (e1', e2)) ^
+          "\nThe head term\n  " ^ Pretty.printf e1' ^ 
+          "\nis expected to have type\n " ^ Pretty.printf h2 ^
           "\nbut was found to have type\n " ^ Pretty.printf ty1'
           )
       | Error (sa, msg) -> 
         Error (sa, 
-        "Failed application\n  " ^ Pretty.print (to_raw_expr (App (e1, e2))) ^ 
-        "\nThe head term\n  " ^ Pretty.print (to_raw_expr e1) ^ 
+        "Failed application\n  " ^ Pretty.printf (App (e1, e2)) ^
+        "\nThe head term\n  " ^ Pretty.printf e1 ^ 
           "\nis expected to have a function type.\n " ^ msg)
       end
     end
@@ -666,10 +657,10 @@ let rec elaborate global ind_env ctx lvl sl ty ph vars = function
           Error msg
         | _, _, Error (sa, msg), _ ->
           Error (sa,
-            "Failed while elaborating coercion family instance" ^ Pretty.print (to_raw_expr tyi_expr) ^ " at " ^ Pretty.printf i ^ "\n" ^ msg)
+            "Failed while elaborating coercion family instance " ^ Pretty.print (to_raw_expr tyi_expr) ^ " at " ^ Pretty.printf i ^ "\n" ^ msg)
         | _, _, _, Error (sa, msg) ->
           Error (sa,
-            "Failed while elaborating coercion family instance" ^ Pretty.print (to_raw_expr tyj_expr) ^ " at " ^ Pretty.printf j ^ "\n" ^ msg)
+            "Failed while elaborating coercion family instance " ^ Pretty.print (to_raw_expr tyj_expr) ^ " at " ^ Pretty.printf j ^ "\n" ^ msg)
       end
     end
   
@@ -1173,14 +1164,13 @@ let rec elaborate global ind_env ctx lvl sl ty ph vars = function
           Ok (Pi(x, ty1', close_bound x ty2'), Type m, Stack.append sa1 sa2) 
         else 
           Error (Stack.append sa1 sa2, 
-            "Type mismatch when checking that \n  Π ( " ^ x ^ " : " ^ Pretty.print (to_raw_expr ty1) ^ ") " ^ Pretty.print (to_raw_expr ty2) ^
-            "\nof type \n  " ^ Pretty.print (to_raw_expr (eval ind_env (Type (Max (n1, n2))))) ^ "\nhas type\n  " ^ Pretty.print (to_raw_expr (Type m)))
+            "Type mismatch when checking that \n  " ^ Pretty.printf (Pi(x, ty1, ty2)) ^
+            "\nof type \n  " ^ Pretty.printf (eval ind_env (Type (Max (n1, n2)))) ^ "\nhas type\n  " ^ Pretty.printf (Type m))
       | Hole _ -> 
         Ok (Pi(x, ty1', close_bound x ty2'), Type (Core_ast.unieval (Max(n1, n2))), Stack.append sa1 sa2)
       | _ ->
         Error (Stack.append sa1 sa2, 
-          "Type mismatch when checking that\n  Π ( " ^ x ^ " : " ^ 
-          Pretty.print (to_raw_expr ty1) ^ ") " ^ Pretty.print (to_raw_expr ty2) ^ "\nhas type\n  " ^ Pretty.print (to_raw_expr ty))
+          "Type mismatch when checking that\n  " ^ Pretty.printf (Pi(x, ty1, ty2)) ^ "\nhas type\n  " ^ Pretty.printf ty)
       end
 
     | Ok (ty1', Type n, sa), Ok (Hole (k,l), _, _) -> 
@@ -1189,12 +1179,12 @@ let rec elaborate global ind_env ctx lvl sl ty ph vars = function
         if Core_ast.leq (n, m) then 
           Ok (Pi(x, ty1', Hole (k,l)), Type m, sa) 
         else 
-          Error (sa, "Type mismatch when checking that \n  Π ( " ^ x ^ " : " ^ Pretty.print (to_raw_expr ty1) ^ ") " ^ Pretty.print (to_raw_expr ty2) ^ 
-            "\nof type \n  " ^ Pretty.print (to_raw_expr (Type n)) ^ "\nhas type\n  " ^ Pretty.print (to_raw_expr (Type m)))
+          Error (sa, "Type mismatch when checking that \n  " ^ Pretty.printf (Pi(x, ty1, ty2)) ^ 
+            "\nof type \n  " ^ Pretty.printf (Type n) ^ "\nhas type\n  " ^ Pretty.printf (Type m))
       | Hole _ -> 
         Ok (Pi(x, ty1', Hole (k,l)), Type n, sa) (* TODO: hole might have live in a higher universe *)
       | _ ->
-        Error (sa, "Type mismatch when checking that\n  Π ( " ^ x ^ " : " ^ Pretty.print (to_raw_expr ty1) ^ ") " ^ Pretty.print (to_raw_expr ty2) ^ "\nhas type\n  " ^ Pretty.print (to_raw_expr ty))
+        Error (sa, "Type mismatch when checking that\n  " ^ Pretty.printf (Pi(x, ty1, ty2)) ^ "\nhas type\n  " ^ Pretty.printf ty)
       end
     | Ok (Hole (k,l), _, _), Ok (ty2', Type n, sa) -> 
       begin match ty with
@@ -1202,12 +1192,12 @@ let rec elaborate global ind_env ctx lvl sl ty ph vars = function
         if Core_ast.leq (n, m) then 
           Ok (Pi(x, Hole (k,l), close_bound x ty2'), Type m, sa) 
         else 
-          Error (sa, "Type mismatch when checking that \n  Π ( " ^ x ^ " : " ^ Pretty.print (to_raw_expr ty1) ^ ") " ^ Pretty.print (to_raw_expr ty2) ^ 
-                "\nof type \n  " ^ Pretty.print (to_raw_expr (Type n)) ^ "\n has type\n  " ^ Pretty.print (to_raw_expr (Type m)))
+          Error (sa, "Type mismatch when checking that \n  " ^ Pretty.printf (Pi(x, ty1, ty2)) ^ 
+                "\nof type \n  " ^ Pretty.printf (Type n) ^ "\n has type\n  " ^ Pretty.printf (Type m))
       | Hole _ -> 
         Ok (Pi(x, Hole (k,l), close_bound x ty2'), Type n, sa) (* TODO: hole might have live in a higher universe *)
       | _ ->
-        Error (sa, "Type mismatch when checking that\n  Π ( " ^ x ^ " : " ^ Pretty.print (to_raw_expr ty1) ^ ") " ^ Pretty.print (to_raw_expr ty2) ^ "\nhas type\n  " ^ Pretty.print (to_raw_expr ty))
+        Error (sa, "Type mismatch when checking that\n  " ^ Pretty.printf (Pi(x, ty1, ty2)) ^ "\nhas type\n  " ^ Pretty.printf ty)
       end
     | Ok (Hole (k1,l1), _, _), Ok (Hole (k2,l2), _, _) ->
       begin match ty with
@@ -1216,7 +1206,7 @@ let rec elaborate global ind_env ctx lvl sl ty ph vars = function
       | Hole (k, l) -> 
           Ok (Pi(x, Hole (k1,l1), Hole (k2,l2)), Hole(k, l), sl)
       | _ ->
-        Error (sl, "Type mismatch when checking that\n  Π ( " ^ x ^ " : " ^ Pretty.print (to_raw_expr ty1) ^ ") " ^ Pretty.print (to_raw_expr ty2) ^ "\nhas type\n  " ^ Pretty.print (to_raw_expr ty))
+        Error (sl, "Type mismatch when checking that\n  " ^ Pretty.printf (Pi(x, ty1, ty2)) ^ "\nhas type\n  " ^ Pretty.printf ty)
       end
     
     | Ok (_, Type _, sa), Error (sb, msg) -> 
@@ -1289,8 +1279,9 @@ let rec elaborate global ind_env ctx lvl sl ty ph vars = function
         Error (sl, 
         "Type mismatch when checking that\n  Σ ( " ^ x ^ " : " ^ Pretty.print (to_raw_expr ty1) ^ ") " ^ Pretty.print (to_raw_expr ty2) ^ "\nhas type\n  " ^ Pretty.print (to_raw_expr ty))
       end
-    | Ok (_, Type _, _), Error (sa, msg) -> 
+    | Ok (_, Type _, _), Error (sa, msg) ->
       Error (sa, "Failed to check that\n  " ^ Pretty.print (to_raw_expr ty2) ^ "\nis a type\n" ^ msg)
+    | Error (sa, msg), _ -> Error (sa, "Failed1 to check that\n  " ^ Pretty.print (to_raw_expr ty1) ^ "\nis a type\n" ^ msg)
     | _ -> Error (sl, "Failed to check that\n  " ^ Pretty.print (to_raw_expr ty1) ^ "\nis a type")
     end
   
@@ -1526,9 +1517,11 @@ let rec elaborate global ind_env ctx lvl sl ty ph vars = function
           | Type m -> 
             if Core_ast.leq (n, m) then 
               Ok (Type n, Type m, sl) 
-            else 
-              Error (sl, "Universe inconsistency: the universe level of\n  " ^ Pretty.print (to_raw_expr (Type n)) ^ 
-              "\nmust be inferior to the universe level of\n  " ^ Pretty.print (to_raw_expr (Type m)) ^ 
+            else if Universe.arbitrary_level m then 
+              Ok (Type n, Type m, sl)
+            else
+              Error (sl, "Universe inconsistency: the universe level of\n  " ^ Pretty.printf (Type n) ^ 
+              "\nmust be inferior to the universe level of\n  " ^ Pretty.printf (Type m) ^ 
               "\nFailed to prove that" ^ Pretty.print_level (to_raw_level n) ^ "≤" ^ Pretty.print_level (to_raw_level m))
           | Hole _ -> 
             Ok (Type n, Type (Suc n), sl)
@@ -2178,7 +2171,10 @@ and unify global ind_env ctx lvl sl ph vars x lift =
           else
             Error ((Type m, Type n), "The types\n  " ^ Pretty.printf (Type m) ^ "\nand\n  " ^ Pretty.printf (Type n) ^ "\nhave incompatible universe levels")
         in
-        (* Checks if either level is an arbitrary parameter to be unified *)
+        (* This code is shorter but the longer seems computationally cheaper? *)
+        (* if Universe.arbitrary_level m then Ok (Type n)
+        else if Universe.arbitrary_level n then Ok (Type m)
+        else compare m n *)
         begin match m, n with
         | Var par1, Var par2 -> 
           if Universe.level_is_arbitrary par1 then Ok (Type (Var par2))

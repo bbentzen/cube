@@ -140,3 +140,15 @@ let rec preforget n e =
 
 let forget ph e =
     fst (preforget ph e)
+
+(* Has either placeholders or underscores *)
+  
+let rec has = function
+  | Wild _ | Hole _ -> true
+  | Abs (_, e) | Pabs (_, e) -> has e
+  | Pi (_, e1, e2) | Sigma (_, e1, e2) -> has e1 || has e2
+  | Fst e | Snd e | Inl e | Inr e | Succ e | Abort e -> has e
+  | App (e1, e2) | Pair (e1, e2) | Sum (e1, e2) | Let (e1, e2) | At(e1, e2) -> has e1 || has e2
+  | Case (e, e1, e2) | Natrec (e, e1, e2) | If (e, e1, e2) | Pathd (e, e1, e2) | Hfill (e, e1, e2) -> has e || has e1 || has e2
+  | Coe (i, j, e1, e2) -> has i || has j || has e1 || has e2
+  | _ -> false

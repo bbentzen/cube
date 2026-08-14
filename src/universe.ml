@@ -100,3 +100,9 @@ let rec to_hole = function
 
 let level_is_arbitrary par =
   Char.equal par.[0] '?'
+
+open Core_ast
+
+let arbitrary_level = function
+  | Var par -> Char.equal par.[0] '?'
+  | _ -> false

@@ -67,6 +67,7 @@ let rec leq = function
   | Suc n, Suc m -> leq (n, m)
   | Num n, Suc m -> leq (Num (n-1), m)
   | n, Suc m -> leq (n, m)
+  | Var par, _  | _, Var par when par.[0] = '?' -> true (* Level placeholders *)
   | Suc _, _ | Num _, Var _ | Var _, Num _ -> false
 
 let rec unieval = function

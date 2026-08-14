@@ -3,7 +3,6 @@
  * Released under Apache 2.0 license as described in the file LICENSE.
  * Desc: Infers the motive of a recursor when it is applied to a placeholder 
  *       by checking the target type and the parameters and major arguments of the recursor. 
- *       
  **)
 
 open Basis
