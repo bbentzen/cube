@@ -120,10 +120,6 @@ theorem dlet {C : unit → type l} (c : C ())
 ⊢ Π (x : unit) C x :=
 λ u, let u c
  
-theorem dif {C : bool → type l} (c1 : C true) (c2 : C false)
-⊢ Π (x : bool) C x :=
-λ b, if b c1 c2
- 
 theorem dnatrec {C : nat → type l} (c0 : C 0) (cs : Π (n : nat) C n → C (succ n))
 ⊢ Π (n : nat) C n :=
 λ n, natrec n c0 cs

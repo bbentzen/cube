@@ -57,7 +57,7 @@ let rec compile global ind_env ind lopen filename lvl next_location = function
                     match res with 
                     | Ok (e1, ty1) ->
                       if id = "infer" then
-                        Ok (global, ("infer := " ^ Pretty.printf e1 ^ ": \n" ^ "         " ^ Pretty.printf ty1 ^ "\n", lopen))
+                        Ok (global, ind_env, ind, ("infer := " ^ Pretty.printf e1 ^ ": \n" ^ "         " ^ Pretty.printf ty1 ^ "\n", lopen))
                       else
                         compile (Env.add global id ctx' (e1, ty1)) ind_env ind lopen filename lvl next_location cmd
                     | Error msg -> 
@@ -82,8 +82,8 @@ let rec compile global ind_env ind lopen filename lvl next_location = function
       | Ok (e, ty) ->
         begin 
           match compile global ind_env ind lopen filename lvl next_location cmd with
-          | Ok (global', (s, lopen)) -> 
-            Ok (global', (id ^ " := \n  " ^ Pretty.printf e ^ ": \n  " ^ 
+          | Ok (global', ind_env', ind', (s, lopen)) -> 
+            Ok (global', ind_env', ind', (id ^ " := \n  " ^ Pretty.printf e ^ ": \n  " ^ 
             Pretty.printf (eval ind_env ty) ^ "\n" ^ s, lopen))
           | Error msg ->
             failwith_at location msg
@@ -98,7 +98,7 @@ let rec compile global ind_env ind lopen filename lvl next_location = function
       let e = Debruijn.of_raw_expr e_raw in
       match (Env.unfold_all global 0 e) with
       | Ok e' ->
-        Ok (global, ("eval " ^ Pretty.print e_raw ^ " := " ^ 
+        Ok (global, ind_env, ind, ("eval " ^ Pretty.print e_raw ^ " := " ^ 
         Pretty.printf (eval ind_env e'), lopen))
       | Error msg -> 
         failwith_at location msg
@@ -112,8 +112,8 @@ let rec compile global ind_env ind lopen filename lvl next_location = function
     else
       begin
         match checkfile global ind_env ind lopen path' lvl with
-        | Ok (global', (_, lopen')) ->
-          compile global' ind_env ind (path' :: lopen') filename lvl next_location cmd
+        | Ok (global', ind_env', ind', (_, lopen')) ->
+          compile global' ind_env' ind' (path' :: lopen') filename lvl next_location cmd
         | Error msg ->
           failwith_at location msg
       end
@@ -221,11 +221,11 @@ let rec compile global ind_env ind lopen filename lvl next_location = function
 
                   (* If predicative load output and continue compiling subsequent commands *)
                   begin match compile global ind_env ind_all lopen filename lvl next_location cmd with
-                  | Ok (global_res, (s, lopen_res)) ->
+                  | Ok (global', ind_env', ind', (s, lopen_res)) ->
                       let log_str =
                         "inductive " ^ id ^ " successfully introduced.\n" ^ s
                       in
-                      Ok (global_res, (log_str, lopen_res))
+                      Ok (global', ind_env', ind', (log_str, lopen_res))
                   | Error msg -> failwith_at location msg
                   end
                 else
@@ -242,7 +242,7 @@ let rec compile global ind_env ind lopen filename lvl next_location = function
     end
 
   | Ast.Eof() -> 
-    Ok (global, ("", lopen))
+    Ok (global, ind_env, ind, ("", lopen))
 
 and checkfile global ind_env ind lopen filename lvl =
   let cmd =

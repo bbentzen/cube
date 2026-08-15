@@ -120,7 +120,6 @@ let rec print = function
   | Sum (e1, e2) -> String.concat "" ["( "; par e1; "+ "; par e2; ") "]
   | Succ e -> String.concat "" ["succ "; par e]
   | Natrec (e, e1, e2) -> String.concat "" ["natrec "; par e; par e1; par e2]
-  | If (e, e1, e2) -> String.concat "" ["if "; par e; par e1; par e2]
   | Let (e1, e2) -> String.concat "" ["let "; par e1; par e2]
   | Abort e -> String.concat "" ["abort "; par e]
   | Pabs (y, e) -> String.concat "" ["<"; y; "> "; print e]
@@ -132,9 +131,6 @@ let rec print = function
   | Int() -> "I " 
   | Zero() -> "0 "
   | Nat() -> "nat "
-  | True() -> "true "
-  | False() -> "false "
-  | Bool() -> "bool "
   | Star() -> "() "
   | Unit() -> "unit "
   | Void() -> "void "
@@ -147,7 +143,7 @@ and par e =
   let helper = function
     | Abs _ | Ast.Pabs _ | Pi _ | Sigma _ | Fst _ | Snd _ 
     | Inl _ | Inr _ | Succ _ | Abort _ | App _ | Pair _ 
-    | Sum _ | Let _ | At _ | Case _ | Natrec _ | If _ 
+    | Sum _ | Let _ | At _ | Case _ | Natrec _ 
     | Pathd _ | Coe _ -> 
       true
     | _ -> false
@@ -247,7 +243,6 @@ let rec printc = function
   | Core_ast.Sum (e1, e2) -> String.concat "" ["( "; parc e1; "+ "; parc e2; ") "]
   | Core_ast.Succ e -> String.concat "" ["succ "; parc e]
   | Core_ast.Natrec (e, e1, e2) -> String.concat "" ["natrec "; parc e; parc e1; parc e2]
-  | Core_ast.If (e, e1, e2) -> String.concat "" ["if "; parc e; parc e1; parc e2]
   | Core_ast.Let (e1, e2) -> String.concat "" ["let "; parc e1; parc e2]
   | Core_ast.Abort e -> String.concat "" ["abort "; parc e]
   | Core_ast.Pabs (y, e) -> String.concat "" ["<"; y; "> "; printc e]
@@ -260,9 +255,6 @@ let rec printc = function
   | Int() -> "I " 
   | Zero() -> "0 "
   | Nat() -> "nat "
-  | True() -> "true "
-  | False() -> "false "
-  | Bool() -> "bool "
   | Star() -> "() "
   | Unit() -> "unit "
   | Void() -> "void "
@@ -275,7 +267,7 @@ and parc e =
   let helper = function
     | Core_ast.Abs _ | Pabs _ | Pi _ | Sigma _ | Fst _ | Snd _ 
     | Inl _ | Inr _ | Succ _ | Abort _ | App _ | Pair _ 
-    | Sum _ | Let _ | At _ | Case _ | Natrec _ | If _ 
+    | Sum _ | Let _ | At _ | Case _ | Natrec _ 
     | Pathd _ | Coe _ -> 
       true
     | _ -> false

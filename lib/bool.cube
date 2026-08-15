@@ -6,7 +6,19 @@
  
 import ./function.cube
 
-/* Boolean */
+universe l
+
+/* Boolean type, constructors and eliminator */
+
+inductive bool ⊢ type 0 :=
+| true : bool
+| false : bool
+
+def if {C : bool → type l} (b : bool) (ct : C true) (cf : C false)
+⊢ C b :=
+boolrec C ct cf b
+
+/* Boolean operations */
  
 def bneg
 ⊢ bool → bool :=

@@ -49,7 +49,6 @@ let single_id = function
 %token LPAREN RPAREN COMMA FST SND PROD SIGMA
 %token INL INR CASE SUM
 %token ZERO SUCC NATREC NAT
-%token TRUE FALSE IF BOOL
 %token STAR LET UNIT
 %token ABORT VOID NEG
 %token LANGLE RANGLE AT REFL SYMM TRANS PATHD PATH
@@ -65,7 +64,7 @@ let single_id = function
 %nonassoc FST SND INL INR SUCC 
 %nonassoc CASE ABORT
 %left APP
-%nonassoc ID LPAREN I0 I1 INTERVAL COE COM FILL HCOM HFILL ABS SIGMA NATREC LET PATHD PATH TRUE FALSE IF BOOL ZERO NAT STAR UNIT VOID REFL TYPE PLACEHOLDER WILDCARD LANGLE
+%nonassoc ID LPAREN I0 I1 INTERVAL COE COM FILL HCOM HFILL ABS SIGMA NATREC LET PATHD PATH ZERO NAT STAR UNIT VOID REFL TYPE PLACEHOLDER WILDCARD LANGLE
 %nonassoc SYMM
 
 %start command
@@ -167,7 +166,6 @@ head_expr:
   | INL head_expr                                           { Inl($2) }
   | INR head_expr                                           { Inr($2) }
   | CASE head_expr head_expr head_expr %prec CASE           { Case($2,$3,$4) }
-  | IF head_expr head_expr head_expr %prec CASE             { If($2,$3,$4) }
   | SUCC head_expr                                          { Succ($2) }
   | NATREC head_expr head_expr head_expr %prec ABORT        { Natrec($2,$3,$4) }
   | LET head_expr head_expr %prec ABORT                     { Let($2,$3) }
@@ -214,7 +212,6 @@ face_head:
   | INL face_head                                           { Inl($2) }
   | INR face_head                                           { Inr($2) }
   | CASE face_head face_head face_head %prec CASE           { Case($2,$3,$4) }
-  | IF face_head face_head face_head %prec CASE             { If($2,$3,$4) }
   | SUCC face_head                                          { Succ($2) }
   | NATREC face_head face_head face_head %prec ABORT        { Natrec($2,$3,$4) }
   | LET face_head face_head %prec ABORT                     { Let($2,$3) }
@@ -232,9 +229,6 @@ atom:
   | I1                                                      { I1() }
   | INTERVAL                                                { Int() }
   | LPAREN expr COMMA expr RPAREN                           { Pair($2,$4) }
-  | TRUE                                                    { True() }
-  | FALSE                                                   { False() }
-  | BOOL                                                    { Bool() }
   | ZERO                                                    { Zero() }
   | NAT                                                     { Nat() }
   | STAR                                                    { Star() }

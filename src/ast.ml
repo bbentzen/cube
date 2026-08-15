@@ -31,10 +31,6 @@ type expr =
   | Star of unit
   | Let of expr * expr
   | Unit of unit
-  | True of unit
-  | False of unit
-  | If of expr * expr * expr
-  | Bool of unit
   | Zero of unit
   | Succ of expr
   | Natrec of expr * expr * expr

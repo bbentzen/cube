@@ -21,13 +21,13 @@ let () =
   (* Initialize the hasthtable of inductive families and parse file *)
   let ind_env : (string, Core_ast.ind_spec) Hashtbl.t = Hashtbl.create 16 in
   match checkfile [] ind_env [] [] filename [] with 
-  | Ok (env, (s, _)) ->
+  | Ok (env, _, _, (s, _)) ->
     let n = String.length s in
     let s' = 
       if n > 0 && s.[n-1] = '\n' then 
         String.sub s 0 (n-1)
       else 
-        s 
+        s
     in
     print_endline s';
     let time = string_of_float (Sys.time() -. start) in

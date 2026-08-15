@@ -275,18 +275,6 @@ let rec eval ind_env = function
         Core_ast.Natrec (e', e1', e2')
     end
 
-  | Core_ast.If (e, e1, e2) -> 
-    begin
-      let e' = eval ind_env e in
-      match e' with
-      | Core_ast.True() -> eval ind_env e1
-      | Core_ast.False() -> eval ind_env e2
-      | _ ->
-        let e1' = eval ind_env e1 in
-        let e2' = eval ind_env e2 in
-        Core_ast.If (e', e1', e2')
-    end
-
   | Core_ast.Let (e, e1) -> 
     begin
       let e' = eval ind_env e in

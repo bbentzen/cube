@@ -96,8 +96,6 @@ let rec lift n = function
   | Succ e -> Succ (lift n e)
   | Natrec (e, e1, e2) -> 
     Natrec (lift n e, lift n e1, lift n e2)
-  | If (e, e1, e2) -> 
-    If (lift n e, lift n e1, lift n e2)
   | Let (e, e1) -> Let (lift n e, lift n e1)
   | Abort e -> Abort (lift n e)
   | Pabs (y, e) -> 
@@ -229,15 +227,6 @@ let rec unfold_all env vars = function
     let u2 = unfold_all env vars e2 in
     begin match u, u1, u2 with
       | Ok e', Ok e1', Ok e2' -> Ok (Natrec (e', e1', e2'))
-      | Error msg, _, _ | _, Error msg , _ | _, _, Error msg -> Error msg
-    end
-
-  | If (e, e1, e2) ->
-    let u = unfold_all env vars e in
-    let u1 = unfold_all env vars e1 in
-    let u2 = unfold_all env vars e2 in
-    begin match u, u1, u2 with
-      | Ok e', Ok e1', Ok e2' -> Ok (If (e', e1', e2'))
       | Error msg, _, _ | _, Error msg , _ | _, _, Error msg -> Error msg
     end
 

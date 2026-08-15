@@ -17,7 +17,7 @@ let rec count = function
   | Let (e1, e2) | At(e1, e2) | Pi (_, e1, e2) | Sigma (_, e1, e2) -> 
     count e1 + count e2
   | Case (e, e1, e2) | Natrec (e, e1, e2) 
-  | If (e, e1, e2) | Pathd (e, e1, e2) | Hfill (e, e1, e2) -> 
+  | Pathd (e, e1, e2) | Hfill (e, e1, e2) -> 
     count e + count e1 + count e2
   | Coe (i, j, e1, e2) -> 
     count i + count j + count e1 + count e2
@@ -39,7 +39,7 @@ let rec candidates = function (* TODO: remove duplicates *)
     candidates e1 @ candidates e2
   | App (e1, e2) | Pair (e1, e2) | Sum (e1, e2) | Let (e1, e2) | At(e1, e2) -> 
     candidates e1 @ candidates e2
-  | Case (e, e1, e2) | Natrec (e, e1, e2) | If (e, e1, e2) | Pathd (e, e1, e2) -> 
+  | Case (e, e1, e2) | Natrec (e, e1, e2) | Pathd (e, e1, e2) -> 
     candidates e @ candidates e1 @ candidates e2
   | _ -> []
 
@@ -59,7 +59,7 @@ let rec has_placeholder = function
     has_placeholder e
   | App (e1, e2) | Pair (e1, e2) | Sum (e1, e2) | Let (e1, e2) | At(e1, e2) -> 
     has_placeholder e1 || has_placeholder e2
-  | Case (e, e1, e2) | Natrec (e, e1, e2) | If (e, e1, e2) | Pathd (e, e1, e2) | Hfill (e, e1, e2) -> 
+  | Case (e, e1, e2) | Natrec (e, e1, e2) | Pathd (e, e1, e2) | Hfill (e, e1, e2) -> 
     has_placeholder e || has_placeholder e1 || has_placeholder e2
   | Coe (i, j, e1, e2) -> 
     has_placeholder i || has_placeholder j || has_placeholder e1 || has_placeholder e2
@@ -78,7 +78,7 @@ let rec has_underscore = function
     has_underscore e
   | App (e1, e2) | Pair (e1, e2) | Sum (e1, e2) | Let (e1, e2) | At(e1, e2) -> 
     has_underscore e1 || has_underscore e2
-  | Case (e, e1, e2) | Natrec (e, e1, e2) | If (e, e1, e2) | Pathd (e, e1, e2) | Hfill (e, e1, e2) -> 
+  | Case (e, e1, e2) | Natrec (e, e1, e2) | Pathd (e, e1, e2) | Hfill (e, e1, e2) -> 
     has_underscore e || has_underscore e1 || has_underscore e2
   | Coe (i, j, e1, e2) -> 
     has_underscore i || has_underscore j || has_underscore e1 || has_underscore e2
@@ -122,8 +122,6 @@ let rec preforget n e =
     Succ (h n), n+1
   | Natrec (_, _, _) -> 
     Natrec (h n, h (n+1), h (n+2)), n+3
-  | If (_, _, _) -> 
-    If (h n, h (n+1), h (n+2)), n+3
   | Let (_, _) -> 
     Let (h n, h (n+1)), n+2
   | Abort _ -> 
@@ -149,6 +147,6 @@ let rec has = function
   | Pi (_, e1, e2) | Sigma (_, e1, e2) -> has e1 || has e2
   | Fst e | Snd e | Inl e | Inr e | Succ e | Abort e -> has e
   | App (e1, e2) | Pair (e1, e2) | Sum (e1, e2) | Let (e1, e2) | At(e1, e2) -> has e1 || has e2
-  | Case (e, e1, e2) | Natrec (e, e1, e2) | If (e, e1, e2) | Pathd (e, e1, e2) | Hfill (e, e1, e2) -> has e || has e1 || has e2
+  | Case (e, e1, e2) | Natrec (e, e1, e2) | Pathd (e, e1, e2) | Hfill (e, e1, e2) -> has e || has e1 || has e2
   | Coe (i, j, e1, e2) -> has i || has j || has e1 || has e2
   | _ -> false

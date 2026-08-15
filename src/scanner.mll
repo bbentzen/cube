@@ -69,10 +69,6 @@ rule token = parse
   | "natrec"           { NATREC }
   | "nat"              { NAT }
   | "ℕ"                { NAT }
-  | "true"             { TRUE }
-  | "false"            { FALSE }
-  | "if"               { IF }
-  | "bool"             { BOOL }
   | "()"               { STAR }
   | "let"              { LET }
   | "unit"             { UNIT }

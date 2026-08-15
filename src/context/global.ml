@@ -14,8 +14,7 @@ open Debruijn
 
 let rec subst_global k d x = function
   | Global y when x = y -> shift 0 k d
-  | Global _ | Local _ | Int _ | I1 _ | I0 _ | Star _ | Unit _ | True _ 
-  | False _ | Bool _ | Zero _ | Nat _ | Void _ | Type _ | Wild _ | Subgoal _ as e -> e
+  | Global _ | Local _ | Int _ | I1 _ | I0 _ | Star _ | Unit _ | Zero _ | Nat _ | Void _ | Type _ | Wild _ | Subgoal _ as e -> e
   | Coe (i, j, e1, e2) -> Coe (subst_global k d x i, subst_global k d x j, subst_global k d x e1, subst_global k d x e2)
   | Hfill (e, e1, e2) -> Hfill (subst_global k d x e, subst_global k d x e1, subst_global k d x e2)
   | Abs (y, e) -> Abs (y, subst_global (k+1) d x e)
@@ -30,7 +29,6 @@ let rec subst_global k d x = function
   | Case (e, e1, e2) -> Case (subst_global k d x e, subst_global k d x e1, subst_global k d x e2)
   | Sum (e1, e2) -> Sum (subst_global k d x e1, subst_global k d x e2)
   | Let (e1, e2) -> Let (subst_global k d x e1, subst_global k d x e2)
-  | If (e, e1, e2) -> If (subst_global k d x e, subst_global k d x e1, subst_global k d x e2)
   | Succ e -> Succ (subst_global k d x e)
   | Natrec (e, e1, e2) -> Natrec (subst_global k d x e, subst_global k d x e1, subst_global k d x e2)
   | Abort e -> Abort (subst_global k d x e)

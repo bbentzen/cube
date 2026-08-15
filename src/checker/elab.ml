@@ -12,7 +12,6 @@ open Core_ast
 open Debruijn
 open Eval
 
-
 let rec decl2 lvl = function
 | Core_ast.Num _ -> Ok ()
 | Core_ast.Var name ->
@@ -57,14 +56,14 @@ let close_bound binder body =
 
 let rec has_dangling_local depth = function
   | Local index -> index >= depth
-  | Global _ | Int _ | I1 _ | I0 _ | Star _ | Unit _ | True _ | False _
-  | Bool _ | Zero _ | Nat _ | Void _ | Type _ | Wild _ | Subgoal _ -> false
+  | Global _ | Int _ | I1 _ | I0 _ | Star _ | Unit _ 
+  | Zero _ | Nat _ | Void _ | Type _ | Wild _ | Subgoal _ -> false
   | Abs (_, e) | Pabs (_, e) -> has_dangling_local (depth + 1) e
   | Pi (_, e1, e2) | Sigma (_, e1, e2) ->
     has_dangling_local depth e1 || has_dangling_local (depth + 1) e2
   | Coe (i, j, e1, e2) ->
     has_dangling_local depth i || has_dangling_local depth j || has_dangling_local depth e1 || has_dangling_local depth e2
-  | Hfill (e, e1, e2) | Case (e, e1, e2) | Natrec (e, e1, e2) | If (e, e1, e2) | Pathd (e, e1, e2) ->
+  | Hfill (e, e1, e2) | Case (e, e1, e2) | Natrec (e, e1, e2) | Pathd (e, e1, e2) ->
     has_dangling_local depth e || has_dangling_local depth e1 || has_dangling_local depth e2
   | App (e1, e2) | Pair (e1, e2) | Sum (e1, e2) | Let (e1, e2) | At (e1, e2) ->
     has_dangling_local depth e1 || has_dangling_local depth e2
@@ -493,90 +492,7 @@ let rec elaborate global ind_env ctx lvl sl ty ph vars = function
     | Error msg -> 
       Error msg
     end
-
-  | True() ->
-    begin match ty with
-      | Bool() -> 
-        Ok (True(), Bool(), sl)
-      | Hole _ -> 
-        Ok (True(), Bool(), sl) 
-      | _ -> 
-        Error (sl, "Type mismatch when checking that the term true of type bool has type " ^ Pretty.print (to_raw_expr ty))
-    end
   
-    | False() ->
-      begin match ty with
-      | Bool() -> 
-        Ok (False(), Bool(), sl)
-      | Hole _ -> 
-        Ok (False(), Bool(), sl)
-      | _ -> 
-        Error (sl, "Type mismatch when checking that the term false of type bool has type " ^ Pretty.print (to_raw_expr ty))
-    end
-    
-  | If (e, e1, e2) ->
-    let elab = elaborate global ind_env ctx lvl sl (Bool()) ph vars e in
-    let elab1 = elaborate global ind_env ctx lvl sl (fullsubst 0 e (True()) true ty) ph vars e1 in
-    let elab2 = elaborate global ind_env ctx lvl sl (fullsubst 0 e (False()) true ty) ph vars e2 in
-    begin match elab, elab1, elab2 with
-    | Ok (e', _, sa), Ok (e1', ty1', sa1), Ok (e2', ty2', sa2) ->
-      begin match ty with
-      | Hole _ ->
-        let h1 = Placeholder.generate ty 0 [] in
-        let tyt = fullsubst 0 (True()) h1 false ty1' in
-        let tyf = fullsubst 0 (False()) h1 false ty2' in
-        begin
-          match tyt, tyf with
-          | Type n, Type m ->
-            if Core_ast.leq (m, n) then
-              Ok (If(e', e1', e2'), Type n, Stack.lappend sa sa1 sa2)
-            else
-            Ok (If(e', e1', e2'), Type m, Stack.lappend sa sa1 sa2)
-          | _ ->
-            let elabTy = elaborate global ind_env ctx lvl sl h1 ph vars ty in
-            begin match elabTy with
-            | Ok (_, tTy, _) ->
-              let u = unify global ind_env ctx lvl sl ph vars (tyt, tyf, tTy) false in
-              begin match u with 
-              | Ok sty ->
-                let tyt' = fullsubst 0 h1 (True()) true sty in
-                let tyf' = fullsubst 0 h1 (False()) true sty in
-                let elabt = elaborate global ind_env ctx lvl sl tyt' ph vars e1' in
-                let elabf = elaborate global ind_env ctx lvl sl tyf' ph vars e2' in
-                begin match elabt, elabf with
-                | Ok _, Ok _ ->
-                  Ok (If (e', e1', e2'), fullsubst 0 h1 e' true sty, Stack.lappend sa sa1 sa2)
-                | _ -> 
-                  Error (Stack.lappend sa sa1 sa2, 
-                  "Failed to unify the types\n  " ^ Pretty.print (to_raw_expr (fullsubst 0 h1 (True()) true ty1')) ^ 
-                  "\nand\n  " ^ Pretty.print (to_raw_expr (fullsubst 0 h1 (False()) true ty2')))
-                end
-              | _ ->
-                let tyt' = fullsubst 0 h1 (False()) true ty1' in
-                let tyf' = fullsubst 0 h1 (True()) true ty2' in
-                let elabt = elaborate global ind_env ctx lvl sl tyf' ph vars e1' in
-                let elabf = elaborate global ind_env ctx lvl sl tyt' ph vars e2' in
-                begin match elabt, elabf with
-                | Ok (_, _, sa'), _ | _, Ok (_, _, sa') -> 
-                  Ok (If (e', e1', e2'), ty, Stack.append sa' (Stack.lappend sa sa1 sa2))
-                | _ ->
-                  Error (Stack.lappend sa sa1 sa2, 
-                    "Failed to unify the types\n  " ^ Pretty.print (to_raw_expr (fullsubst 0 h1 (True()) true ty1')) ^ 
-                    "\nand\n  " ^ Pretty.print (to_raw_expr (fullsubst 0 h1 (False()) true ty2')))
-                end
-              end
-            | Error msg -> (* This case is impossible *)
-              Error msg
-            end
-        end
-
-      | _ ->
-        Ok (If (e', e1', e2'), ty, Stack.lappend sa sa1 sa2)
-      end
-    | Error msg, _, _| _, Error msg, _ | _, _, Error msg -> 
-      Error msg
-    end
-
   | Star() -> 
     begin match ty with
     | Unit() -> 
@@ -1373,17 +1289,6 @@ let rec elaborate global ind_env ctx lvl sl ty ph vars = function
         Error (sl, "Type mismatch when checking that\n  nat\nhas type\n  " ^ Pretty.print (to_raw_expr ty))
     end
 
-  | Bool() ->
-    begin 
-      match ty with
-      | Type m -> 
-        Ok (Bool(), Type m, sl)
-      | Hole _ -> 
-        Ok (Bool(), Type (Num 0), sl) 
-      | _ -> 
-        Error (sl, "Type mismatch when checking that\n  bool\nhas type\n  " ^ Pretty.print (to_raw_expr ty))
-    end
-
   | Unit() ->
     begin 
       match ty with
@@ -2113,16 +2018,6 @@ and unify global ind_env ctx lvl sl ph vars x lift =
         let u2 = unify global ind_env ctx lvl sl ph vars (e2, e2', tys) lift in
         begin match u, u1, u2 with
         | Ok s, Ok s1, Ok s2 -> Ok (Natrec (s, s1, s2))
-        | Error msg, _, _ | _ , Error msg, _| _ , _, Error msg ->
-          Error msg
-        end
-
-      | If (e, e1, e2), If (e', e1', e2'), ty ->
-        let u = unify global ind_env ctx lvl sl ph vars (e, e', Bool()) lift in
-        let u1 = unify global ind_env ctx lvl sl ph vars (e1, e1', fullsubst 0 e (True()) true ty) lift in
-        let u2 = unify global ind_env ctx lvl sl ph vars (e2, e2', fullsubst 0 e (False()) true ty) lift in
-        begin match u, u1, u2 with
-        | Ok s, Ok s1, Ok s2 -> Ok (If (s, s1, s2))
         | Error msg, _, _ | _ , Error msg, _| _ , _, Error msg ->
           Error msg
         end

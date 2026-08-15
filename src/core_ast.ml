@@ -33,10 +33,6 @@ type expr =
   | Star of unit
   | Let of expr * expr
   | Unit of unit
-  | True of unit
-  | False of unit
-  | If of expr * expr * expr
-  | Bool of unit
   | Zero of unit
   | Succ of expr
   | Natrec of expr * expr * expr
@@ -104,8 +100,6 @@ let rec parametrize_levels = function
   | Case (l1, l2, l3) -> Case (parametrize_levels l1, parametrize_levels l2, parametrize_levels l3)
   | Sum (l1, l2) -> Sum (parametrize_levels l1, parametrize_levels l2)
   | Let (l1, l2) -> Let (parametrize_levels l1, parametrize_levels l2)
-  | False u -> False u
-  | If (l1, l2, l3) -> If (parametrize_levels l1, parametrize_levels l2, parametrize_levels l3)
   | Succ l -> Succ (parametrize_levels l)
   | Natrec (l1, l2, l3) -> Natrec (parametrize_levels l1, parametrize_levels l2, parametrize_levels l3)
   | Abort l -> Abort (parametrize_levels l)
