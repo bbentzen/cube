@@ -11,11 +11,10 @@ open Basis
 
 (* Print synthesization attempts *)
 
-let rec printfst synl =
-  match synl with
+let rec printfst = function
   | [] -> "" 
   | (n, id, ty) :: synl' -> 
-    string_of_int n ^ ", " ^ id ^ " : " ^ Pretty.print ty ^ "\n" ^ printfst synl'
+    string_of_int n ^ ", " ^ id ^ " : " ^ Pretty.printf ty ^ "\n" ^ printfst synl'
 
 (* A synthesization attempt ?a : A is trustworthy if A is not a placeholder *)
 
@@ -26,3 +25,5 @@ let rec trustworthy = function
       false
     else
       trustworthy synl
+
+(* Print synthesization attempts *)

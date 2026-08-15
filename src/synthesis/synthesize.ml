@@ -19,22 +19,11 @@ let rec check global ind_env ctx lvl sl e ty max =
   begin
     match elab with
     | Ok (e', ty', sl') ->
-
+      (* Double checks that there are no placeholders left in the synthesization attempts *)
       if Attempt.trustworthy (fst sl') then
         Ok (e', ty')
       else
-
-        let e'' = eval ind_env e' in
-        let ty'' = eval ind_env ty' in
-        let relab = Elab.elaborate global ind_env ctx lvl sl ty'' 0 0 e'' in
-        begin
-          match relab with
-          | Ok _ -> 
-            Ok (e', ty')
-          | Error (_, msg) -> 
-            iter sl' msg global ind_env ctx lvl e ty (max+1)
-        end
-      
+        Error ("Untrustworthy synthesization attempt with " ^ Attempt.printfst (fst sl') ^ "\nYou should not see this message, please report.")      
     | Error (sl', msg) ->
       iter sl' msg global ind_env ctx lvl e ty (max+1)
   end
@@ -44,29 +33,18 @@ and iter sl' msg global ind_env ctx lvl e ty max =
     Error "Maximum number of synthetization steps reached
       \n(You should not see this message, please report)"
   else
-
-    match (fst sl') with
-    | [] ->
-      Error msg
-    
-    | (n, id, _) :: _ ->
-
-      begin match Stack.find_index n (snd sl') with 
-      | Ok _ -> 
-
-        let e' = Debruijn.fullsubst 0 (Wild n) (Global id) true e in
-        let w = check global ind_env ctx lvl ([], snd sl') e' ty max in
-        begin 
-          match w with
-          | Ok (e', ty') ->
-            Ok (e', ty')
-          | Error _ ->
-            check global ind_env ctx lvl ([], Stack.mkfalse n id (snd sl')) e ty max
-        end
-          
-      | Error _ ->
-        Error ("Can't find stack for the placeholder '?" ^ id ^ 
-        "'\n(You should not see this message, please report)\n")
+    let current, past = sl' in
+    match current with
+    | [] -> Error msg
+    | (n, id, _) :: current' ->
+      let e' = Debruijn.fullsubst 0 (Wild n) (Global id) true e in
+      let w = check global ind_env ctx lvl ([], past) e' ty max in
+      begin 
+        match w with
+        | Ok (e', ty') ->
+          Ok (e', ty')
+        | Error _ ->
+          check global ind_env ctx lvl (current', (n, id) :: past) e ty max
       end
 
 let init global ind_env ctx lvl e ty =

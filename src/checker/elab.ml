@@ -152,8 +152,7 @@ let rec elaborate global ind_env ctx lvl sl ty ph vars = function
   | Abs (x, e) -> 
     begin match ty with
     | Pi (_, ty1, ty2) ->
-      let s var = (fst sl, Stack.allconcat var ty1 (snd sl)) in
-        let elab = elaborate global ind_env ((x, ty1, true) :: ctx) lvl (s x) (open_bound x (Global x) ty2) ph vars (open_bound x (Global x) e) in
+        let elab = elaborate global ind_env ((x, ty1, true) :: ctx) lvl sl (open_bound x (Global x) ty2) ph vars (open_bound x (Global x) e) in
         begin match elab with
         | Ok (e', ty2', sa) -> 
           Ok (Abs (x, close_bound x e'), Pi (x, ty1, close_bound x ty2'), sa)
@@ -359,24 +358,30 @@ let rec elaborate global ind_env ctx lvl sl ty ph vars = function
               match tyl', tyr' with
               | Type n, Type m ->
                 if n > m then
-                  Ok (Case(e', e1', e2'), Type n, Stack.lappend sa sa1 sa2)
+                  let sa' = (fst sa @ fst sa1 @ fst sa2, snd sa @ snd sa1 @ snd sa2) in
+                  Ok (Case(e', e1', e2'), Type n, sa')
                 else
-                  Ok (Case(e', e1', e2'), Type m, Stack.lappend sa sa1 sa2)
+                  let sa' = (fst sa @ fst sa1 @ fst sa2, snd sa @ snd sa1 @ snd sa2) in
+                  Ok (Case(e', e1', e2'), Type m, sa')
               | _ ->
                 let u = unify global ind_env ctx lvl sl ph vars (tyl', tyr', tTy) false in
                 begin match u1, u2, u with
                 | Ok _, Ok _, Ok st ->
                   let st' = fullsubst 0 h1 e false st in
-                  Ok (Case(e', e1', e2'), st', Stack.lappend sa sa1 sa2)
+                  let sa' = (fst sa @ fst sa1 @ fst sa2, snd sa @ snd sa1 @ snd sa2) in
+                  Ok (Case(e', e1', e2'), st', sa')
                 | Ok _, Ok _, _ ->
-                  Error (Stack.lappend sa sa1 sa2, 
+                  let sa' = (fst sa @ fst sa1 @ fst sa2, snd sa @ snd sa1 @ snd sa2) in
+                  Error (sa', 
                     "Failed to unify\n  " ^ Pretty.print (to_raw_expr tyl') ^ "\nwith\n  " ^ Pretty.print (to_raw_expr tyr'))
                 | Ok _, _, _ ->
-                  Error (Stack.lappend sa sa1 sa2, 
+                  let sa' = (fst sa @ fst sa1 @ fst sa2, snd sa @ snd sa1 @ snd sa2) in
+                  Error (sa', 
                     "The term\n  " ^ Pretty.print (to_raw_expr e2') ^ "\nhas type\n  " ^ Pretty.print (to_raw_expr (Pi(y, ty2', tyr))) ^ 
                     "\nbut is expected to have type\n  Π (" ^ y ^ " : " ^ Pretty.print (to_raw_expr ty2) ^ ") ?1?")
                 | _ ->
-                  Error (Stack.lappend sa sa1 sa2, 
+                  let sa' = (fst sa @ fst sa1 @ fst sa2, snd sa @ snd sa1 @ snd sa2) in
+                  Error (sa', 
                     "The term\n  " ^ Pretty.print (to_raw_expr e1') ^ "\nhas type\n  " ^ Pretty.print (to_raw_expr (Pi(x, ty1', tyl))) ^ 
                     "\nbut is expected to have type\n  Π (" ^ x ^ " : " ^ Pretty.print (to_raw_expr ty1) ^ ") ?1?")
               end
@@ -401,7 +406,8 @@ let rec elaborate global ind_env ctx lvl sl ty ph vars = function
         let elab2 = elaborate global ind_env ctx lvl sl (Pi(v1, ty2, branch_ty (Inr (Local 0)))) ph (vars+1) e2 in
         begin match elab1, elab2 with
         | Ok (e1', _, sa1), Ok (e2', _, sa2) ->
-          Ok (Case(e', e1', e2'), ty, Stack.lappend sa sa1 sa2)
+          let sa' = (fst sa @ fst sa1 @ fst sa2, snd sa @ snd sa1 @ snd sa2) in
+          Ok (Case(e', e1', e2'), ty, sa')
         | Error msg, _ | _, Error msg -> Error msg
         end
       end
@@ -456,11 +462,13 @@ let rec elaborate global ind_env ctx lvl sl ty ph vars = function
               | Ok _ ->
                 Ok (Natrec(e', e1', e2'), ty', Stack.lappend sa sa1 sa2)
               | Error (_, msg) ->
-                Error (Stack.lappend sa sa1 sa2, 
+                let sa' = Stack.lappend sa sa1 sa2 in
+                Error (sa', 
                   "Don't know how to unify\n  " ^ Pretty.print (to_raw_expr nat) ^ "\nwith\n  nat\n" ^ msg)
               end
             | Ok (e2', ty', sa2) -> 
-              Error (Stack.lappend sa sa1 sa2, 
+              let sa' = Stack.lappend sa sa1 sa2 in
+              Error (sa',
                 "The term\n  " ^ Pretty.print (to_raw_expr e2') ^ "\nhas type\n  " ^ Pretty.print (to_raw_expr ty') ^ 
                 "\nbut is expected to have type\n  Π (v? : nat) ?0? → ?1?")  
             | Error msg -> 
@@ -839,17 +847,16 @@ let rec elaborate global ind_env ctx lvl sl ty ph vars = function
     begin match elabt with
     | Ok (Pathd (Hole (n, l), e1, e2), _, _) ->
       let h0 = Placeholder.generate ty 0 [] in
-      let sl' = (fst sl, Stack.allconcat i (Int()) (snd sl)) in
       let ee = open_var 0 (Global i) e in
-      let elab = elaborate global ind_env ((i, Int(), true) :: ctx) lvl sl' (Hole (n, l)) ph vars ee in
+      let elab = elaborate global ind_env ((i, Int(), true) :: ctx) lvl sl (Hole (n, l)) ph vars ee in
 
       begin match elab with
       | Ok (e', _, sa) ->
         let e_closed = close_bound i e' in
         let ei0 = open_var 0 (I0()) e_closed in
         let ei1 = open_var 0 (I1()) e_closed in
-        let elab1 = elaborate global ind_env ((i, Int(), true) :: ctx) lvl sl' h0 ph vars ei0 in
-        let elab2 = elaborate global ind_env ((i, Int(), true) :: ctx) lvl sl' h0 ph vars ei1 in
+        let elab1 = elaborate global ind_env ((i, Int(), true) :: ctx) lvl sl h0 ph vars ei0 in
+        let elab2 = elaborate global ind_env ((i, Int(), true) :: ctx) lvl sl h0 ph vars ei1 in
         begin match elab1, elab2 with
         | Ok (ei0, tyi0, _), Ok (ei1, tyi1, _) ->
         
@@ -897,8 +904,7 @@ let rec elaborate global ind_env ctx lvl sl ty ph vars = function
       let ty1' = eval ind_env (App(ty1, Global i)) in
       let ei = open_var 0 (Global i) e in
       let elab = 
-        elaborate global ind_env ((i, Int(), true) :: ctx) lvl 
-        (fst sl, Stack.allconcat i (Int()) (snd sl)) ty1' ph vars ei
+        elaborate global ind_env ((i, Int(), true) :: ctx) lvl sl ty1' ph vars ei
       in
       begin match elab with
       | Ok (e', _, saa) ->
@@ -1153,8 +1159,7 @@ let rec elaborate global ind_env ctx lvl sl ty ph vars = function
     let h1 = Placeholder.generate ty 0 [] in
     let elab1 = elaborate global ind_env ctx lvl sl h1 (ph+1) vars ty1 in
     let ty2' = (open_var 0 (Global x) ty2) in
-    let elab2 = elaborate global ind_env ((x, ty1, true) :: ctx) lvl 
-      (fst sl, Stack.allconcat x ty1 (snd sl)) h1 (ph+1) vars ty2'
+    let elab2 = elaborate global ind_env ((x, ty1, true) :: ctx) lvl sl h1 (ph+1) vars ty2'
     in
     begin match elab1, elab2 with
     | Ok (ty1', Type n1, sa1), Ok (ty2', Type n2, sa2) -> 
@@ -1224,8 +1229,7 @@ let rec elaborate global ind_env ctx lvl sl ty ph vars = function
     let h1 = Placeholder.generate ty 0 [] in
     let elab1 = elaborate global ind_env ctx lvl sl h1 (ph+1) vars ty1 in
     let elab2 = 
-      elaborate global ind_env ((x, ty1, true) :: ctx) lvl 
-      (fst sl, Stack.allconcat x ty1 (snd sl)) h1 (ph+1) vars (open_var 0 (Global x) ty2)
+      elaborate global ind_env ((x, ty1, true) :: ctx) lvl sl h1 (ph+1) vars (open_var 0 (Global x) ty2)
     in
     begin match elab1, elab2 with
     | Ok (ty1', Type n1, sa1), Ok (ty2', Type n2, sa2) -> 
@@ -1537,87 +1541,46 @@ let rec elaborate global ind_env ctx lvl sl ty ph vars = function
     Ok (Hole (n, l), ty, sl)
 
   | Wild n ->
-    let fails = 
-      Error (([], []), 
-      "Failed to synthesize placeholder for ?0" ^ string_of_int n ^ "? in the current goal:\n" ^ 
-      Global.printf ctx ^ "-------------------------------------------\n ⊢ " ^ Pretty.printf (eval ind_env ty))
-    in
-    begin
-      match Stack.find_index n (snd sl) with
-      | Ok l ->
-        begin
-          match find false global ind_env ctx l ty lvl sl ph vars with
-          | Ok (e', ty') ->
-            if List.mem (n, e', ty') (fst sl) then
-              Ok (Global e', ty, sl) 
-            else    
-              let sl' = ((n, e', ty') :: fst sl, snd sl) in
-              Ok (Global e', ty, sl')
-          | Error _ -> 
-            fails
-        end
-      | Error _ ->
-        begin
-          match find true global ind_env ctx ctx ty lvl sl ph vars with
-          | Ok (e', ty') ->
-            if List.mem (n, e', ty') (fst sl) then
-              let sl' = (fst sl, Stack.make n ctx :: (snd sl)) in 
-              Ok (Global e', ty, sl') (* n, ctx | all true at n *)
-            else
-              let sl' = ((n, e', ty') :: fst sl, Stack.make n ctx :: (snd sl)) in
-              Ok (Global e', ty, sl') (* n, ctx | all true at n *)
-          | Error _ ->
-            fails
-        end
-        end
+    let solved, used = sl in
+    (* If the placeholder has already synthesized replace it *)
+    begin match List.find_opt (fun (n', _, _) -> n = n') solved with
+    | Some (_, e', _) -> Ok (Global e', ty, sl)
+    | None ->
+      begin match find n global ind_env ctx ty lvl sl ph vars with (* false*)
+      | Ok (e', ty') ->
+        let sl' = ((n, e', ty') :: solved, used) in
+        Ok (Global e', ty, sl')
+      | Error _ -> 
+        Error (([], []), 
+        "Failed to synthesize placeholder for ?" ^ string_of_int n ^ "? in the current goal:\n" ^ 
+        Global.printf ctx ^ "-------------------------------------------\n ⊢ " ^ Pretty.printf (eval ind_env ty))
+      end
+    end
 
   | Subgoal () ->
-      let goal_ty =
-        if Placeholder.has_placeholder ty then
-          match find true global ind_env ctx ctx ty lvl sl ph vars with
-          | Ok (_, ty') -> ty'
-          | Error _ -> ty
-        else
-          ty
-      in
       Error (sl, 
       "The current goal:\n" ^ Global.printf ctx ^ 
       "-------------------------------------------\n ⊢ " ^ 
-      Pretty.printf goal_ty)
+      Pretty.printf ty)
 
 (* Finds a variable in a context for a given type up to unification *)
 
-and find flag global ind_env ctx l ty lvl sl ph vars =
-  match Global.find_true ty l with
-  | Ok id -> Ok (id, ty)
-  | Error _ ->
-    begin
-      let h1 = Placeholder.generate ty ph [] in
-      let elab = elaborate global ind_env ctx lvl sl h1 ph vars ty in
-      match elab with
-        | Ok (_, tTy, _) ->
-          begin 
-            match l with
-            | [] -> Error "Can't find match" 
-            | (id, ty', b) :: l' ->
-
-              (* When flag=false the search ignores variables set as false *)
-
-              if b || flag then
-                let u = unify global ind_env ctx lvl sl ph vars (ty, ty', tTy) true in
-                begin
-                  match u with
-                  | Ok uty ->
-                    Ok (id, uty)
-                  | Error _ ->
-                    find flag global ind_env ctx l' ty lvl sl ph vars
-                end
-              else 
-                find flag global ind_env ctx l' ty lvl sl ph vars
-          end
-        | Error (_, msg) ->
-          Error msg
-    end
+and find n global ind_env ctx ty lvl sl ph vars =
+  let forbidden = snd sl in
+  let rec search = function
+    | [] -> Error "Can't find match"
+    | (id, ty', _) :: ctx' ->
+      if List.mem (n, id) forbidden then search ctx'
+      else if ty' = ty then 
+        Ok (id, ty) (* syntactic equality fast path *)
+      else
+        (* We ignore their types since they are assumed to be well-typed *)
+        let h1 = Placeholder.generate ty ph [] in
+        match unify global ind_env ctx lvl sl ph vars (ty, ty', h1) true with
+        | Ok uty -> Ok (id, uty)
+        | Error _ -> search ctx'
+  in
+  search ctx
 
 (* Unifies two expressions at type *)
 
@@ -2171,21 +2134,9 @@ and unify global ind_env ctx lvl sl ph vars x lift =
           else
             Error ((Type m, Type n), "The types\n  " ^ Pretty.printf (Type m) ^ "\nand\n  " ^ Pretty.printf (Type n) ^ "\nhave incompatible universe levels")
         in
-        (* This code is shorter but the longer seems computationally cheaper? *)
-        (* if Universe.arbitrary_level m then Ok (Type n)
-        else if Universe.arbitrary_level n then Ok (Type m)
-        else compare m n *)
         begin match m, n with
-        | Var par1, Var par2 -> 
-          if Universe.level_is_arbitrary par1 then Ok (Type (Var par2))
-          else if Universe.level_is_arbitrary par2 then Ok (Type (Var par1))
-          else compare (Var par1) (Var par2)
-        | Var par, n -> 
-          if Universe.level_is_arbitrary par then Ok (Type n)
-          else compare (Var par) n 
-        | m, Var par -> 
-          if Universe.level_is_arbitrary par then Ok (Type m)
-          else compare m (Var par)
+        | Var par, _ when Universe.level_is_arbitrary par -> Ok (Type n)
+        | _, Var par when Universe.level_is_arbitrary par -> Ok (Type m)
         | m, n -> compare m n
         end
       | e , e', _ -> 
