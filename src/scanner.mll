@@ -70,8 +70,6 @@ rule token = parse
   | "nat"              { NAT }
   | "ℕ"                { NAT }
   | "()"               { STAR }
-  | "let"              { LET }
-  | "unit"             { UNIT }
   | "abort"            { ABORT }
   | "empty"            { VOID }
   | "void"             { VOID }

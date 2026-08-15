@@ -49,7 +49,7 @@ let single_id = function
 %token LPAREN RPAREN COMMA FST SND PROD SIGMA
 %token INL INR CASE SUM
 %token ZERO SUCC NATREC NAT
-%token STAR LET UNIT
+%token STAR
 %token ABORT VOID NEG
 %token LANGLE RANGLE AT REFL SYMM TRANS PATHD PATH
 %token WILDCARD PLACEHOLDER COLONEQ SUBGOAL
@@ -64,7 +64,7 @@ let single_id = function
 %nonassoc FST SND INL INR SUCC 
 %nonassoc CASE ABORT
 %left APP
-%nonassoc ID LPAREN I0 I1 INTERVAL COE COM FILL HCOM HFILL ABS SIGMA NATREC LET PATHD PATH ZERO NAT STAR UNIT VOID REFL TYPE PLACEHOLDER WILDCARD LANGLE
+%nonassoc ID LPAREN I0 I1 INTERVAL COE COM FILL HCOM HFILL ABS SIGMA NATREC PATHD PATH ZERO NAT STAR VOID REFL TYPE PLACEHOLDER WILDCARD LANGLE
 %nonassoc SYMM
 
 %start command
@@ -168,7 +168,6 @@ head_expr:
   | CASE head_expr head_expr head_expr %prec CASE           { Case($2,$3,$4) }
   | SUCC head_expr                                          { Succ($2) }
   | NATREC head_expr head_expr head_expr %prec ABORT        { Natrec($2,$3,$4) }
-  | LET head_expr head_expr %prec ABORT                     { Let($2,$3) }
   | ABORT head_expr %prec ABORT                             { Abort($2) }
   | NEG app_expr %prec NEG                                  { Pi("v?",$2,Void()) }
   | LANGLE ID RANGLE expr %prec PI                          { Pabs($2,$4) }
@@ -214,7 +213,6 @@ face_head:
   | CASE face_head face_head face_head %prec CASE           { Case($2,$3,$4) }
   | SUCC face_head                                          { Succ($2) }
   | NATREC face_head face_head face_head %prec ABORT        { Natrec($2,$3,$4) }
-  | LET face_head face_head %prec ABORT                     { Let($2,$3) }
   | ABORT face_head %prec ABORT                             { Abort($2) }
   | NEG face_expr                                           { Pi("v?",$2,Void()) }
   | LANGLE ID RANGLE face_expr %prec PI                     { Pabs($2,$4) }
@@ -231,8 +229,7 @@ atom:
   | LPAREN expr COMMA expr RPAREN                           { Pair($2,$4) }
   | ZERO                                                    { Zero() }
   | NAT                                                     { Nat() }
-  | STAR                                                    { Star() }
-  | UNIT                                                    { Unit() }
+  | STAR                                                    { Id("star") }
   | VOID                                                    { Void() }
   | REFL                                                    { Pabs("v?", Wild 0) }
   | TYPE ZERO                                               { Type(Num 0) }

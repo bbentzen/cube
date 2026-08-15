@@ -275,16 +275,6 @@ let rec eval ind_env = function
         Core_ast.Natrec (e', e1', e2')
     end
 
-  | Core_ast.Let (e, e1) -> 
-    begin
-      let e' = eval ind_env e in
-      match e' with
-      | Core_ast.Star() -> eval ind_env e1
-      | _ -> 
-        let e1' = eval ind_env e1 in
-        Core_ast.Let (e', e1')
-    end
-
   | Core_ast.Pabs (x, e) -> 
     begin
       let e' = eval ind_env e in

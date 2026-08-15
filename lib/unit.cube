@@ -4,25 +4,27 @@
  * Author: Bruno Bentzen
  */
 
-import ./bool.cube
- 
+universe l
+
+/* Unit type, constructors and eliminator */
+
+inductive unit ⊢ type 0 :=
+| star : unit
+
+theorem let {C : unit → type l} (u : unit) (c : C ())
+⊢ C u :=
+unitrec C c u
+
 /* The unit type */
 
 def lem_unit
 ⊢ unit + ¬unit :=
 inl ()
- 
-def unit_to_bool
-⊢ (unit + unit) → bool :=
-λ v, case v (λ u, let u true) (λ u, let u false)
- 
-theorem bool_to_unit
-⊢ bool → (unit + unit) :=
-λ b, if b (inl ()) (inr ())
 
 /* Paths */
  
 def unit_eq (u : unit)
 ⊢ path unit u () :=
 let u (<_> ())
+
 

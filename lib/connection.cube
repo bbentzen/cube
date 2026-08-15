@@ -5,7 +5,7 @@
  */
  
 import ./function.cube
- 
+
 universe l 
 
 /* Connections for paths */

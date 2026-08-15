@@ -28,9 +28,6 @@ type expr =
   | Inr of expr
   | Case of expr * expr * expr
   | Sum of expr * expr
-  | Star of unit
-  | Let of expr * expr
-  | Unit of unit
   | Zero of unit
   | Succ of expr
   | Natrec of expr * expr * expr

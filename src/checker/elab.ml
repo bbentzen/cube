@@ -56,7 +56,7 @@ let close_bound binder body =
 
 let rec has_dangling_local depth = function
   | Local index -> index >= depth
-  | Global _ | Int _ | I1 _ | I0 _ | Star _ | Unit _ 
+  | Global _ | Int _ | I1 _ | I0 _ 
   | Zero _ | Nat _ | Void _ | Type _ | Wild _ | Subgoal _ -> false
   | Abs (_, e) | Pabs (_, e) -> has_dangling_local (depth + 1) e
   | Pi (_, e1, e2) | Sigma (_, e1, e2) ->
@@ -65,7 +65,7 @@ let rec has_dangling_local depth = function
     has_dangling_local depth i || has_dangling_local depth j || has_dangling_local depth e1 || has_dangling_local depth e2
   | Hfill (e, e1, e2) | Case (e, e1, e2) | Natrec (e, e1, e2) | Pathd (e, e1, e2) ->
     has_dangling_local depth e || has_dangling_local depth e1 || has_dangling_local depth e2
-  | App (e1, e2) | Pair (e1, e2) | Sum (e1, e2) | Let (e1, e2) | At (e1, e2) ->
+  | App (e1, e2) | Pair (e1, e2) | Sum (e1, e2) | At (e1, e2) ->
     has_dangling_local depth e1 || has_dangling_local depth e2
   | Inl e | Inr e | Fst e | Snd e | Succ e | Abort e -> has_dangling_local depth e
   | Hole (_, l) -> List.exists (has_dangling_local depth) l
@@ -491,42 +491,6 @@ let rec elaborate global ind_env ctx lvl sl ty ph vars = function
         end
     | Error msg -> 
       Error msg
-    end
-  
-  | Star() -> 
-    begin match ty with
-    | Unit() -> 
-      Ok (Star(), Unit(), sl)
-    | Hole _ -> 
-      Ok (Star(), Unit(), sl)
-    | _ -> 
-      Error (sl, "Type mismatch when checking that the term () of type unit has type " ^ Pretty.print (to_raw_expr ty))
-    end
-  
-  | Let (e1, e2) ->
-    let elab1 = elaborate global ind_env ctx lvl sl (Unit()) ph vars e1 in
-    begin match elab1 with
-    | Ok (e1', _, sa1) ->
-      begin match ty with
-      | Hole (n, l) ->
-        let elab2 = elaborate global ind_env ctx lvl sl (Hole (n, l)) ph vars e2 in
-        begin match elab2 with
-        | Ok (e2', ty2, sa2) ->
-          let h1 = Placeholder.generate ty 0 [e1; e1'; Star()] in
-          let ty' = fullsubst 0 (Star()) h1 false ty2 in
-          Ok (Let (e1', e2'), ty', Stack.append sa1 sa2)
-        | Error msg ->
-          Error msg
-        end
-      | _ ->
-        let elab2 = elaborate global ind_env ctx lvl sl (fullsubst 0 e1 (Star()) true ty) ph vars e2 in
-        begin match elab2 with
-        | Ok (e2', _, sa2) ->
-          Ok (Let (e1', e2'), ty, Stack.append sa1 sa2)
-        | Error msg -> Error msg
-        end
-      end
-    | Error msg -> Error msg
     end
   
   | Abort e ->
@@ -1289,17 +1253,6 @@ let rec elaborate global ind_env ctx lvl sl ty ph vars = function
         Error (sl, "Type mismatch when checking that\n  nat\nhas type\n  " ^ Pretty.print (to_raw_expr ty))
     end
 
-  | Unit() ->
-    begin 
-      match ty with
-      | Type m -> 
-        Ok (Unit(), Type m, sl)
-      | Hole _ -> 
-        Ok (Unit(), Type (Num 0), sl)
-      | _ -> 
-        Error (sl, "Type mismatch when checking that\n  unit\n has type\n  " ^ Pretty.print (to_raw_expr ty))
-    end
-
   | Void() ->
     begin 
       match ty with
@@ -1912,14 +1865,6 @@ and unify global ind_env ctx lvl sl ph vars x lift =
             end
             
           end
-
-      | Let (e1, e2), Let (e1', e2'), ty ->
-        let u1 = unify global ind_env ctx lvl sl ph vars (e1, e1', Unit()) lift in
-        let u2 = unify global ind_env ctx lvl sl ph vars (e2, e2', fullsubst 0 e1 (Star()) true ty) lift in
-        begin match u1, u2 with
-        | Ok s1, Ok s2 -> Ok (Let (s1, s2))
-        | Error msg, _ | _, Error msg -> Error msg
-        end
 
       | Fst e, Fst e', ty ->
         (* let v1 = fresh_var e e' vars in *)

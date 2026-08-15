@@ -66,9 +66,6 @@ let rec of_raw_expr_with_env env = function
   | Ast.Case (e, e1, e2) ->
     Core_ast.Case (of_raw_expr_with_env env e, of_raw_expr_with_env env e1, of_raw_expr_with_env env e2)
   | Ast.Sum (e1, e2) -> Core_ast.Sum (of_raw_expr_with_env env e1, of_raw_expr_with_env env e2)
-  | Ast.Star () -> Core_ast.Star ()
-  | Ast.Let (e1, e2) -> Core_ast.Let (of_raw_expr_with_env env e1, of_raw_expr_with_env env e2)
-  | Ast.Unit () -> Core_ast.Unit ()
   | Ast.Zero () -> Core_ast.Zero ()
   | Ast.Succ e -> Core_ast.Succ (of_raw_expr_with_env env e)
   | Ast.Natrec (e, e1, e2) ->
@@ -118,9 +115,6 @@ let rec to_raw_expr_with_env env = function
   | Core_ast.Case (e, e1, e2) ->
     Ast.Case (to_raw_expr_with_env env e, to_raw_expr_with_env env e1, to_raw_expr_with_env env e2)
   | Core_ast.Sum (e1, e2) -> Ast.Sum (to_raw_expr_with_env env e1, to_raw_expr_with_env env e2)
-  | Core_ast.Star () -> Ast.Star ()
-  | Core_ast.Let (e1, e2) -> Ast.Let (to_raw_expr_with_env env e1, to_raw_expr_with_env env e2)
-  | Core_ast.Unit () -> Ast.Unit ()
   | Core_ast.Zero () -> Ast.Zero ()
   | Core_ast.Succ e -> Ast.Succ (to_raw_expr_with_env env e)
   | Core_ast.Natrec (e, e1, e2) ->
@@ -175,7 +169,7 @@ let rec shift cutoff amount = function
   | Local index ->
     if index >= cutoff then Local (index + amount)
     else Local index
-  | Global _ | Int _ | I1 _ | I0 _ | Star _ | Unit _ | Zero _ | Nat _ | Void _ | Type _ | Wild _ | Subgoal _ as e -> e
+  | Global _ | Int _ | I1 _ | I0 _ | Zero _ | Nat _ | Void _ | Type _ | Wild _ | Subgoal _ as e -> e
   | Coe (i, j, e1, e2) ->
     Coe (shift cutoff amount i, shift cutoff amount j, shift cutoff amount e1, shift cutoff amount e2)
   | Hfill (e, e1, e2) ->
@@ -192,7 +186,6 @@ let rec shift cutoff amount = function
   | Case (e, e1, e2) ->
     Case (shift cutoff amount e, shift cutoff amount e1, shift cutoff amount e2)
   | Sum (e1, e2) -> Sum (shift cutoff amount e1, shift cutoff amount e2)
-  | Let (e1, e2) -> Let (shift cutoff amount e1, shift cutoff amount e2)
   | Succ e -> Succ (shift cutoff amount e)
   | Natrec (e, e1, e2) ->
     Natrec (shift cutoff amount e, shift cutoff amount e1, shift cutoff amount e2)
@@ -210,7 +203,7 @@ let rec open_var k replacement = function
     if index = k then shift 0 k replacement
     else if index > k then Local (index - 1)
     else Local index
-  | Global _ | Int _ | I1 _ | I0 _ | Star _ | Unit _ | Zero _ | Nat _ | Void _ | Type _ | Wild _ | Subgoal _ as e -> e
+  | Global _ | Int _ | I1 _ | I0 _ | Zero _ | Nat _ | Void _ | Type _ | Wild _ | Subgoal _ as e -> e
   | Coe (i, j, e1, e2) ->
     Coe (open_var k replacement i, open_var k replacement j, open_var k replacement e1, open_var k replacement e2)
   | Hfill (e, e1, e2) ->
@@ -227,7 +220,6 @@ let rec open_var k replacement = function
   | Case (e, e1, e2) ->
     Case (open_var k replacement e, open_var k replacement e1, open_var k replacement e2)
   | Sum (e1, e2) -> Sum (open_var k replacement e1, open_var k replacement e2)
-  | Let (e1, e2) -> Let (open_var k replacement e1, open_var k replacement e2)
   | Succ e -> Succ (open_var k replacement e)
   | Natrec (e, e1, e2) ->
     Natrec (open_var k replacement e, open_var k replacement e1, open_var k replacement e2)
@@ -255,9 +247,6 @@ let rec close_var k x = function
   | Inr e -> Inr (close_var k x e)
   | Case (e, e1, e2) -> Case (close_var k x e, close_var k x e1, close_var k x e2)
   | Sum (e1, e2) -> Sum (close_var k x e1, close_var k x e2)
-  | Star _ as e -> e
-  | Let (e1, e2) -> Let (close_var k x e1, close_var k x e2)
-  | Unit _ as e -> e
   | Zero _ as e -> e
   | Succ e -> Succ (close_var k x e)
   | Natrec (e, e1, e2) -> Natrec (close_var k x e, close_var k x e1, close_var k x e2)
@@ -276,7 +265,7 @@ let rec close_var k x = function
 
 let rec fullsubst k ex d b = function
   | e when e = (shift 0 k ex) -> shift 0 k d
-  | Global _ | Local _ | Int _ | I1 _ | I0 _ | Star _ | Unit _ | Zero _ | Nat _ | Void _ | Type _ | Wild _ | Subgoal _ as e -> e
+  | Global _ | Local _ | Int _ | I1 _ | I0 _ | Zero _ | Nat _ | Void _ | Type _ | Wild _ | Subgoal _ as e -> e
   | Coe (i, j, e1, e2) -> Coe (fullsubst k ex d b i, fullsubst k ex d b j, fullsubst k ex d b e1, fullsubst k ex d b e2)
   | Hfill (e, e1, e2) -> Hfill (fullsubst k ex d b e, fullsubst k ex d b e1, fullsubst k ex d b e2)
   | Abs (y, e) -> Abs (y, fullsubst (k+1) ex d b e)
@@ -290,7 +279,6 @@ let rec fullsubst k ex d b = function
   | Inr e -> Inr (fullsubst k ex d b e)
   | Case (e, e1, e2) -> Case (fullsubst k ex d b e, fullsubst k ex d b e1, fullsubst k ex d b e2)
   | Sum (e1, e2) -> Sum (fullsubst k ex d b e1, fullsubst k ex d b e2)
-  | Let (e1, e2) -> Let (fullsubst k ex d b e1, fullsubst k ex d b e2)
   | Succ e -> Succ (fullsubst k ex d b e)
   | Natrec (e, e1, e2) -> Natrec (fullsubst k ex d b e, fullsubst k ex d b e1, fullsubst k ex d b e2)
   | Abort e -> Abort (fullsubst k ex d b e)
@@ -303,12 +291,12 @@ let rec fullsubst k ex d b = function
 
 let rec occurs_index target cutoff = function
   | Local index -> index = target + cutoff
-  | Global _ | Int _ | I1 _ | I0 _ | Star _ | Unit _ | Zero _ | Nat _ | Void _ | Type _ | Wild _ | Subgoal _ -> false
+  | Global _ | Int _ | I1 _ | I0 _ | Zero _ | Nat _ | Void _ | Type _ | Wild _ | Subgoal _ -> false
   | Hole (_, l) -> List.exists (occurs_index target cutoff) l
   | Coe (i, j, e1, e2) -> occurs_index target cutoff i || occurs_index target cutoff j || occurs_index target cutoff e1 || occurs_index target cutoff e2
   | Hfill (e, e1, e2) -> occurs_index target cutoff e || occurs_index target cutoff e1 || occurs_index target cutoff e2
   | Abs (_, e) | Pabs (_, e) -> occurs_index target (cutoff + 1) e
-  | App (e1, e2) | Pair (e1, e2) | Sum (e1, e2) | Let (e1, e2) | At (e1, e2) -> occurs_index target cutoff e1 || occurs_index target cutoff e2
+  | App (e1, e2) | Pair (e1, e2) | Sum (e1, e2) | At (e1, e2) -> occurs_index target cutoff e1 || occurs_index target cutoff e2
   | Pi (_, e1, e2) | Sigma (_, e1, e2) -> occurs_index target cutoff e1 || occurs_index target (cutoff + 1) e2
   | Inl e | Inr e | Fst e | Snd e | Succ e | Abort e -> occurs_index target cutoff e
   | Case (e, e1, e2) | Natrec (e, e1, e2) | Pathd (e, e1, e2) ->
@@ -318,11 +306,11 @@ let rec occurs_name s hint = function
   | Abs (x, e) | Pabs (x, e) -> x = hint || occurs_name x hint e
   | Pi (x, e1, e2) | Sigma (x, e1, e2) -> x = hint || occurs_name x hint e1 || occurs_name x hint e2
   | Local _ -> s = hint | Global t -> t = hint
-  | Int _ | I1 _ | I0 _ | Star _ | Unit _ | Zero _ | Nat _ | Void _ | Type _ | Wild _ | Subgoal _ -> false
+  | Int _ | I1 _ | I0 _ | Zero _ | Nat _ | Void _ | Type _ | Wild _ | Subgoal _ -> false
   | Hole (_, l) -> List.exists (occurs_name s hint) l
   | Coe (i, j, e1, e2) -> occurs_name s hint i || occurs_name s hint j || occurs_name s hint e1 || occurs_name s hint e2
   | Hfill (e, e1, e2) -> occurs_name s hint e || occurs_name s hint e1 || occurs_name s hint e2
-  | App (e1, e2) | Pair (e1, e2) | Sum (e1, e2) | Let (e1, e2) | At (e1, e2) -> occurs_name s hint e1 || occurs_name s hint e2
+  | App (e1, e2) | Pair (e1, e2) | Sum (e1, e2) | At (e1, e2) -> occurs_name s hint e1 || occurs_name s hint e2
   | Inl e | Inr e | Fst e | Snd e | Succ e | Abort e -> occurs_name s hint e
   | Case (e, e1, e2) | Natrec (e, e1, e2) | Pathd (e, e1, e2) ->
     occurs_name s hint e || occurs_name s hint e1 || occurs_name s hint e2
@@ -331,7 +319,7 @@ let rec occurs_name s hint = function
 
 let rec list_to_expr l =
   match l with
-  | [] -> Core_ast.Star ()
+  | [] -> Core_ast.Void() (* This is arbitrary *)
   | e :: es -> App (e, list_to_expr es)
 
 (* Creates n-many fresh variables from a list es of expressions *)

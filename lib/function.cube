@@ -116,10 +116,6 @@ theorem dcase {A B : type l} {C : (A + B) → type l} (f : Π (x : A) C (inl x))
 ⊢ Π (x : A + B) C x :=
 λ v, case v f g
  
-theorem dlet {C : unit → type l} (c : C ())
-⊢ Π (x : unit) C x :=
-λ u, let u c
- 
 theorem dnatrec {C : nat → type l} (c0 : C 0) (cs : Π (n : nat) C n → C (succ n))
 ⊢ Π (n : nat) C n :=
 λ n, natrec n c0 cs
