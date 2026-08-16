@@ -47,21 +47,23 @@ type expr =
 type proof =
   | Prf of string * (((string list * expr) * bool) list) * expr * expr
 
-let rec leq = function
+let rec lt = function
   | Num 0, _ -> true
   | Num n, Num m -> n <= m
   | Var n, Var m -> n = m
   | Max (n, n'), Max (m, m') -> 
-    leq (Max (n, n'), m) || leq (Max (n, n'), m')
+    lt (Max (n, n'), m) || lt (Max (n, n'), m')
   | Max (n, n'), m ->
-    leq (n, m) && leq (n', m)
+    lt (n, m) && lt (n', m)
   | n, Max (m, m') ->
-    leq (n, m) || leq (n, m')
-  | Suc n, Suc m -> leq (n, m)
-  | Num n, Suc m -> leq (Num (n-1), m)
-  | n, Suc m -> leq (n, m)
-  | Var par, _  | _, Var par when par.[0] = '?' -> true (* Level placeholders *)
+    lt (n, m) || lt (n, m')
+  | Suc n, Suc m -> lt (n, m)
+  | Num n, Suc m -> lt (Num (n-1), m)
+  | n, Suc m -> lt (n, m)
+  | Var par, _  | _, Var par  when par.[0] = '?' -> true (* Level placeholders *)
   | Suc _, _ | Num _, Var _ | Var _, Num _ -> false
+
+let leq (m, n) = m = n || lt (m, n)
 
 let rec unieval = function
   | Suc n -> Suc (unieval n)

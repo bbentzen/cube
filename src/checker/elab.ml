@@ -1043,16 +1043,21 @@ let rec elaborate global ind_env ctx lvl sl ty ph vars = function
     in
     begin match elab1, elab2 with
     | Ok (ty1', Type n1, sa1), Ok (ty2', Type n2, sa2) -> 
+      let max = Core_ast.unieval (Max(n1, n2)) in
       begin match ty with
-      | Type m -> 
-        if Core_ast.leq (n1, m) && Core_ast.leq (n2, m) then 
-          Ok (Pi(x, ty1', close_bound x ty2'), Type m, Stack.append sa1 sa2) 
+      | Type (Var par) when Universe.level_is_arbitrary par ->
+        (* Synthesize type levels placeholder *)
+        Ok (Pi(x, ty1', close_bound x ty2'), Type (Suc(max)), Stack.append sa1 sa2)
+      | Type m ->
+        (* Check if levels are compatible *)
+        if Core_ast.leq (max, m) then 
+          Ok (Pi(x, ty1', close_bound x ty2'), Type m, Stack.append sa1 sa2)
         else 
           Error (Stack.append sa1 sa2, 
-            "Type mismatch when checking that \n  " ^ Pretty.printf (Pi(x, ty1, ty2)) ^
-            "\nof type \n  " ^ Pretty.printf (eval ind_env (Type (Max (n1, n2)))) ^ "\nhas type\n  " ^ Pretty.printf (Type m))
+            "Universe level mismatch when checking that the type\n  " ^ Pretty.printf (Pi(x, ty1, ty2)) ^
+            "\nof type \n  " ^ Pretty.printf (Type max) ^ "\nhas type\n  " ^ Pretty.printf (Type m))
       | Hole _ -> 
-        Ok (Pi(x, ty1', close_bound x ty2'), Type (Core_ast.unieval (Max(n1, n2))), Stack.append sa1 sa2)
+        Ok (Pi(x, ty1', close_bound x ty2'), Type max, Stack.append sa1 sa2)
       | _ ->
         Error (Stack.append sa1 sa2, 
           "Type mismatch when checking that\n  " ^ Pretty.printf (Pi(x, ty1, ty2)) ^ "\nhas type\n  " ^ Pretty.printf ty)
@@ -1064,7 +1069,7 @@ let rec elaborate global ind_env ctx lvl sl ty ph vars = function
         if Core_ast.leq (n, m) then 
           Ok (Pi(x, ty1', Hole (k,l)), Type m, sa) 
         else 
-          Error (sa, "Type mismatch when checking that \n  " ^ Pretty.printf (Pi(x, ty1, ty2)) ^ 
+          Error (sa, "Type mismatch when checking that the type\n  " ^ Pretty.printf (Pi(x, ty1, ty2)) ^ 
             "\nof type \n  " ^ Pretty.printf (Type n) ^ "\nhas type\n  " ^ Pretty.printf (Type m))
       | Hole _ -> 
         Ok (Pi(x, ty1', Hole (k,l)), Type n, sa) (* TODO: hole might have live in a higher universe *)
@@ -1091,7 +1096,7 @@ let rec elaborate global ind_env ctx lvl sl ty ph vars = function
       | Hole (k, l) -> 
           Ok (Pi(x, Hole (k1,l1), Hole (k2,l2)), Hole(k, l), sl)
       | _ ->
-        Error (sl, "Type mismatch when checking that\n  " ^ Pretty.printf (Pi(x, ty1, ty2)) ^ "\nhas type\n  " ^ Pretty.printf ty)
+        Error (sl, "Type mismatch when checking that the type\n  " ^ Pretty.printf (Pi(x, ty1, ty2)) ^ "\nhas type\n  " ^ Pretty.printf ty)
       end
     
     | Ok (_, Type _, sa), Error (sb, msg) -> 
