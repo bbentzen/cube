@@ -157,8 +157,10 @@ let rec compile global ind_env ind lopen filename lvl next_location = function
                   else
                     let ind' = Inductive.add [(id, ty_fam)] ctx' in
                     begin match Type.check global ind_env ind' lvl (eval ind_env c_ty) with
-                    | Ok (c_ty', c_univ) -> 
-                      (c_name, c_ty'), (c_name, c_univ)
+                    | Ok (c_ty', c_univ) ->
+                      let c_indexed_ty = Inductive.parametrize_constructor_ty c_ty' ctx in
+                      (* Store indexed, non-indexed versions, and their type universes *)
+                      (c_name, c_indexed_ty), (c_name, c_ty), (c_name, c_univ)
                     | Error msg ->
                       failwith_at location
                         ("Type check failed for constructor '" ^ c_name ^
@@ -171,10 +173,10 @@ let rec compile global ind_env ind lopen filename lvl next_location = function
             let ind_ty = (id, ty_fam) :: ind in
 
             (* Add each constructor to the type environment *)
-            let cons_checked' = List.map fst (cons_checked ind_ty) in
+            let idx_constr = List.map (fun (x, _, _) -> x) (cons_checked ind_ty) in
             let ind_cons =
               List.fold_left (fun l (c_name, c_ty) ->
-                (c_name, c_ty) :: l) ind_ty cons_checked' (* needs to turn into a list of exprs*)
+                (c_name, c_ty) :: l) ind_ty idx_constr (* needs to turn into a list of exprs*)
             in
 
             (* Generate and register the eliminator (id ^ "rec") *)
@@ -183,17 +185,17 @@ let rec compile global ind_env ind lopen filename lvl next_location = function
               failwith_at location
                 ("Naming conflict: generated eliminator '" ^ rec_name ^ "' already exists.")
             else
-              let constrs = cons_checked' in
-              let rec_ty = Inductive.generate_recursor id ty' constrs ctx_checked ctx' in (* use ctx_checked to print the ctx in order *)
+              let nonidx_constr = List.map (fun (_, y, _) -> y) (cons_checked ind_ty) in
+              let rec_ty = Inductive.generate_recursor id ty' nonidx_constr ctx_checked ctx' in (* use ctx_checked to print the ctx in order *)
               let ind_all =
                 (rec_name, rec_ty) :: ind_cons
               in
 
               (* Validate the predicativity of the purported inductive type  *)
-              let c_univs = List.map snd (cons_checked ind_ty) in
+              let univ_constr = List.map (fun (_, _, z) -> z) (cons_checked ind_ty) in
               begin match Inductive.extract_universe_level ty' with
               | Some target_lvl ->
-                if Inductive.check_universe_levels ctx_univ c_univs (Suc target_lvl) then
+                if Inductive.check_universe_levels ctx_univ univ_constr (Suc target_lvl) then
                   
                   (* Registers the inductive type into a hash table *)
 
@@ -210,7 +212,7 @@ let rec compile global ind_env ind lopen filename lvl next_location = function
                     { Core_ast.c_name = c_name; 
                     Core_ast.c_num_args = c_num_args; 
                     Core_ast.c_rec_args = c_rec_args }
-                  ) cons_checked' in
+                  ) idx_constr in
                   
                   Hashtbl.add ind_env (id ^ "rec") {
                     Core_ast.ind_name = id;

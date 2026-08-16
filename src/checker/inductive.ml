@@ -70,6 +70,9 @@ let rec abs_ctx_args e = function
 | [] -> e
 | ((x, ty, _) :: ctx) -> Pi (x, ty, Debruijn.close_var 0 x (abs_ctx_args e ctx))
 
+let parametrize_constructor_ty c_ty ctx = 
+  abs_ctx_args c_ty ctx
+
 (* Closes a type family with applications matching its context *)
 
 let rec app_ctx_args ind_name = function
@@ -143,10 +146,10 @@ let rec build_ihs ind_name ind_ty motive_name ar vars ctx c_name = function
       (* If type has parameters we infer it from the constructor's type and prefix it to the constructor *)
       let ind_fam = app_ctx_args ind_name ctx in
       let head = find_params_cons ind_fam (Global motive_name) c_ty in
-      App (head, app_constr_args (Global c_name) ar )
+      App (head, app_constr_args (app_ctx_args c_name ctx) ar )
     | _ ->
       (* Otherwise we apply the motive to all constructor arguments *)
-      App (Global motive_name, app_constr_args (Global c_name) ar )
+      App (Global motive_name, app_constr_args (app_ctx_args c_name ctx) ar )
 
 (* Synthesizes the full recursor type for an inductive definition *)
 
