@@ -16,9 +16,9 @@ def sigma_form {A : type l1} {B : A → type l2}
 ⊢ type (max l1 l2) :=
 Σ (x : A) B x
  
-def sum_type {A : type l1} {B : type l2} 
+/* def sum_type {A : type l1} {B : type l2} 
 ⊢ type (max l1 l2) :=
-A + B
+A + B */
  
 def path_form {A : type l1} (a b : A)
 ⊢ type l1 :=

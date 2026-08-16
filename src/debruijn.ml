@@ -61,11 +61,6 @@ let rec of_raw_expr_with_env env = function
   | Ast.Snd e -> Core_ast.Snd (of_raw_expr_with_env env e)
   | Ast.Sigma (x, e1, e2) ->
     Core_ast.Sigma (x, of_raw_expr_with_env env e1, of_raw_expr_with_env (x :: env) e2)
-  | Ast.Inl e -> Core_ast.Inl (of_raw_expr_with_env env e)
-  | Ast.Inr e -> Core_ast.Inr (of_raw_expr_with_env env e)
-  | Ast.Case (e, e1, e2) ->
-    Core_ast.Case (of_raw_expr_with_env env e, of_raw_expr_with_env env e1, of_raw_expr_with_env env e2)
-  | Ast.Sum (e1, e2) -> Core_ast.Sum (of_raw_expr_with_env env e1, of_raw_expr_with_env env e2)
   | Ast.Zero () -> Core_ast.Zero ()
   | Ast.Succ e -> Core_ast.Succ (of_raw_expr_with_env env e)
   | Ast.Natrec (e, e1, e2) ->
@@ -110,11 +105,6 @@ let rec to_raw_expr_with_env env = function
   | Core_ast.Snd e -> Ast.Snd (to_raw_expr_with_env env e)
   | Core_ast.Sigma (x, e1, e2) ->
     Ast.Sigma (x, to_raw_expr_with_env env e1, to_raw_expr_with_env (x :: env) e2)
-  | Core_ast.Inl e -> Ast.Inl (to_raw_expr_with_env env e)
-  | Core_ast.Inr e -> Ast.Inr (to_raw_expr_with_env env e)
-  | Core_ast.Case (e, e1, e2) ->
-    Ast.Case (to_raw_expr_with_env env e, to_raw_expr_with_env env e1, to_raw_expr_with_env env e2)
-  | Core_ast.Sum (e1, e2) -> Ast.Sum (to_raw_expr_with_env env e1, to_raw_expr_with_env env e2)
   | Core_ast.Zero () -> Ast.Zero ()
   | Core_ast.Succ e -> Ast.Succ (to_raw_expr_with_env env e)
   | Core_ast.Natrec (e, e1, e2) ->
@@ -181,11 +171,6 @@ let rec shift cutoff amount = function
   | Fst e -> Fst (shift cutoff amount e)
   | Snd e -> Snd (shift cutoff amount e)
   | Sigma (x, e1, e2) -> Sigma (x, shift cutoff amount e1, shift (cutoff + 1) amount e2)
-  | Inl e -> Inl (shift cutoff amount e)
-  | Inr e -> Inr (shift cutoff amount e)
-  | Case (e, e1, e2) ->
-    Case (shift cutoff amount e, shift cutoff amount e1, shift cutoff amount e2)
-  | Sum (e1, e2) -> Sum (shift cutoff amount e1, shift cutoff amount e2)
   | Succ e -> Succ (shift cutoff amount e)
   | Natrec (e, e1, e2) ->
     Natrec (shift cutoff amount e, shift cutoff amount e1, shift cutoff amount e2)
@@ -215,11 +200,6 @@ let rec open_var k replacement = function
   | Fst e -> Fst (open_var k replacement e)
   | Snd e -> Snd (open_var k replacement e)
   | Sigma (x, e1, e2) -> Sigma (x, open_var k replacement e1, open_var (k + 1) replacement e2)
-  | Inl e -> Inl (open_var k replacement e)
-  | Inr e -> Inr (open_var k replacement e)
-  | Case (e, e1, e2) ->
-    Case (open_var k replacement e, open_var k replacement e1, open_var k replacement e2)
-  | Sum (e1, e2) -> Sum (open_var k replacement e1, open_var k replacement e2)
   | Succ e -> Succ (open_var k replacement e)
   | Natrec (e, e1, e2) ->
     Natrec (open_var k replacement e, open_var k replacement e1, open_var k replacement e2)
@@ -243,10 +223,6 @@ let rec close_var k x = function
   | Fst e -> Fst (close_var k x e)
   | Snd e -> Snd (close_var k x e)
   | Sigma (y, e1, e2) -> Sigma (y, close_var k x e1, close_var (k + 1) x e2)
-  | Inl e -> Inl (close_var k x e)
-  | Inr e -> Inr (close_var k x e)
-  | Case (e, e1, e2) -> Case (close_var k x e, close_var k x e1, close_var k x e2)
-  | Sum (e1, e2) -> Sum (close_var k x e1, close_var k x e2)
   | Zero _ as e -> e
   | Succ e -> Succ (close_var k x e)
   | Natrec (e, e1, e2) -> Natrec (close_var k x e, close_var k x e1, close_var k x e2)
@@ -275,10 +251,6 @@ let rec fullsubst k ex d b = function
   | Fst e -> Fst (fullsubst k ex d b e)
   | Snd e -> Snd (fullsubst k ex d b e)
   | Sigma (y, e1, e2) -> Sigma (y, fullsubst k ex d b e1, fullsubst (k+1) ex d b e2)
-  | Inl e -> Inl (fullsubst k ex d b e)
-  | Inr e -> Inr (fullsubst k ex d b e)
-  | Case (e, e1, e2) -> Case (fullsubst k ex d b e, fullsubst k ex d b e1, fullsubst k ex d b e2)
-  | Sum (e1, e2) -> Sum (fullsubst k ex d b e1, fullsubst k ex d b e2)
   | Succ e -> Succ (fullsubst k ex d b e)
   | Natrec (e, e1, e2) -> Natrec (fullsubst k ex d b e, fullsubst k ex d b e1, fullsubst k ex d b e2)
   | Abort e -> Abort (fullsubst k ex d b e)
@@ -296,10 +268,10 @@ let rec occurs_index target cutoff = function
   | Coe (i, j, e1, e2) -> occurs_index target cutoff i || occurs_index target cutoff j || occurs_index target cutoff e1 || occurs_index target cutoff e2
   | Hfill (e, e1, e2) -> occurs_index target cutoff e || occurs_index target cutoff e1 || occurs_index target cutoff e2
   | Abs (_, e) | Pabs (_, e) -> occurs_index target (cutoff + 1) e
-  | App (e1, e2) | Pair (e1, e2) | Sum (e1, e2) | At (e1, e2) -> occurs_index target cutoff e1 || occurs_index target cutoff e2
+  | App (e1, e2) | Pair (e1, e2) | At (e1, e2) -> occurs_index target cutoff e1 || occurs_index target cutoff e2
   | Pi (_, e1, e2) | Sigma (_, e1, e2) -> occurs_index target cutoff e1 || occurs_index target (cutoff + 1) e2
-  | Inl e | Inr e | Fst e | Snd e | Succ e | Abort e -> occurs_index target cutoff e
-  | Case (e, e1, e2) | Natrec (e, e1, e2) | Pathd (e, e1, e2) ->
+  | Fst e | Snd e | Succ e | Abort e -> occurs_index target cutoff e
+  | Natrec (e, e1, e2) | Pathd (e, e1, e2) ->
     occurs_index target cutoff e || occurs_index target cutoff e1 || occurs_index target cutoff e2
 
 let rec occurs_name s hint = function
@@ -310,9 +282,9 @@ let rec occurs_name s hint = function
   | Hole (_, l) -> List.exists (occurs_name s hint) l
   | Coe (i, j, e1, e2) -> occurs_name s hint i || occurs_name s hint j || occurs_name s hint e1 || occurs_name s hint e2
   | Hfill (e, e1, e2) -> occurs_name s hint e || occurs_name s hint e1 || occurs_name s hint e2
-  | App (e1, e2) | Pair (e1, e2) | Sum (e1, e2) | At (e1, e2) -> occurs_name s hint e1 || occurs_name s hint e2
-  | Inl e | Inr e | Fst e | Snd e | Succ e | Abort e -> occurs_name s hint e
-  | Case (e, e1, e2) | Natrec (e, e1, e2) | Pathd (e, e1, e2) ->
+  | App (e1, e2) | Pair (e1, e2) | At (e1, e2) -> occurs_name s hint e1 || occurs_name s hint e2
+  | Fst e | Snd e | Succ e | Abort e -> occurs_name s hint e
+  | Natrec (e, e1, e2) | Pathd (e, e1, e2) ->
     occurs_name s hint e || occurs_name s hint e1 || occurs_name s hint e2
 
 (* Converts a list of expressions into a single expression by application *)

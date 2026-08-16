@@ -104,18 +104,6 @@ theorem pi_prod_distr {A B : type l} {C : A → type l}
 ⊢ (B × Π (x : A) C x) → (Π (x : A) B × C x) :=
 λ w x, (fst w, (snd w) x)
  
-theorem pi_sum_distr {A : type l} {B C : A → type l}
-⊢ ((Π (x : A) B x) + (Π (x : A) C x)) → (Π (x : A) B x + C x) :=
-λ w x, case w (λ f, inl (f x)) (λ g, inr (g x))
- 
-theorem pi_sum_distrb {A B : type l} {C : A → type l}
-⊢ (B + (Π (x : A) C x)) → (Π (x : A) B + C x) :=
-λ w x, case w (λ y, inl y) (λ f, inr (f x))
- 
-theorem dcase {A B : type l} {C : (A + B) → type l} (f : Π (x : A) C (inl x)) (g : Π (y : B) C (inr y))
-⊢ Π (x : A + B) C x :=
-λ v, case v f g
- 
 theorem dnatrec {C : nat → type l} (c0 : C 0) (cs : Π (n : nat) C n → C (succ n))
 ⊢ Π (n : nat) C n :=
 λ n, natrec n c0 cs

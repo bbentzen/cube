@@ -15,12 +15,6 @@ theorem let {C : unit → type l} (u : unit) (c : C ())
 ⊢ C u :=
 unitrec C c u
 
-/* The unit type */
-
-def lem_unit
-⊢ unit + ¬unit :=
-inl ()
-
 /* Paths */
  
 def unit_eq (u : unit)

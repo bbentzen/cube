@@ -60,9 +60,6 @@ rule token = parse
   | "×"                { PROD }
   | "⨉"                { PROD }
   | "Σ"                { SIGMA }
-  | "inl"              { INL }
-  | "inr"              { INR }
-  | "case"             { CASE }
   | "+"                { SUM }  
   | "0"                { ZERO }
   | "succ"             { SUCC }

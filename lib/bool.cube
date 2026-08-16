@@ -101,13 +101,3 @@ def bool_eq (b b' : bool)
 if b 
   (if b' id_iff_id (bool_neq, absurd)) 
   (if b' (bool_neq', absurd) id_iff_id)
-
-/* Interaction with units */
-
-def unit_to_bool
-⊢ (unit + unit) → bool :=
-λ v, case v (λ u, let u true) (λ u, let u false)
- 
-theorem bool_to_unit
-⊢ bool → (unit + unit) :=
-λ b, if b (inl ()) (inr ())

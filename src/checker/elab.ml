@@ -7,7 +7,6 @@
 
 open Basis
 open Context
-open Global
 open Core_ast
 open Debruijn
 open Eval
@@ -63,11 +62,11 @@ let rec has_dangling_local depth = function
     has_dangling_local depth e1 || has_dangling_local (depth + 1) e2
   | Coe (i, j, e1, e2) ->
     has_dangling_local depth i || has_dangling_local depth j || has_dangling_local depth e1 || has_dangling_local depth e2
-  | Hfill (e, e1, e2) | Case (e, e1, e2) | Natrec (e, e1, e2) | Pathd (e, e1, e2) ->
+  | Hfill (e, e1, e2) | Natrec (e, e1, e2) | Pathd (e, e1, e2) ->
     has_dangling_local depth e || has_dangling_local depth e1 || has_dangling_local depth e2
-  | App (e1, e2) | Pair (e1, e2) | Sum (e1, e2) | At (e1, e2) ->
+  | App (e1, e2) | Pair (e1, e2) | At (e1, e2) ->
     has_dangling_local depth e1 || has_dangling_local depth e2
-  | Inl e | Inr e | Fst e | Snd e | Succ e | Abort e -> has_dangling_local depth e
+  | Fst e | Snd e | Succ e | Abort e -> has_dangling_local depth e
   | Hole (_, l) -> List.exists (has_dangling_local depth) l
 
 (* Checks whether the type of a given expression is the given type *)
@@ -297,124 +296,6 @@ let rec elaborate global ind_env ctx lvl sl ty ph vars = function
       Error (sa, "The term\n  " ^ Pretty.print (to_raw_expr e') ^ "\nhas type\n  " ^ Pretty.print (to_raw_expr ty') ^ "\nbut is expected to have type\n  Σ (v0 : ?0?) ?1?")
     | Error (sa, msg) ->
       Error (sa, "The term\n  " ^ Pretty.print (to_raw_expr e) ^ "\nis expected to have type\n  Σ (v0 : ?0?) ?1?" ^ "\n" ^ msg)
-    end
-  
-  | Inl e ->
-    begin match ty with
-    | Sum (ty1, ty2) ->
-      let elab = elaborate global ind_env ctx lvl sl ty1 ph vars e in
-      begin match elab with
-      | Ok (e', ty1', sa) -> 
-        Ok (Inl e', Sum(ty1', ty2), sa)
-      | Error msg -> 
-        Error msg
-      end
-    | Hole _ ->
-      let h1 = Placeholder.generate ty 0 [] in
-      let h2 = Placeholder.generate ty 1 [] in
-      elaborate global ind_env ctx lvl sl (Sum(h1, h2)) (ph+2) vars (Inl e)
-    | _ ->
-      Error (sl, "Type mismatch when checking that the term inl " ^ Pretty.print (to_raw_expr e) ^ " of type ?0? + ?1? has type " ^ Pretty.print (to_raw_expr ty))
-    end
-
-  | Inr e -> 
-    begin match ty with
-    | Sum (ty1, ty2) ->
-      let elab = elaborate global ind_env ctx lvl sl ty2 ph vars e in
-      begin match elab with
-      | Ok (e', ty2', sa) -> 
-        Ok (Inr e', Sum(ty1, ty2'), sa)
-      | Error msg -> Error msg
-      end
-    | Hole _ ->
-      let h1 = Placeholder.generate ty 0 [] in
-      let h2 = Placeholder.generate ty 1 [] in
-      elaborate global ind_env ctx lvl sl (Sum(h1, h2)) (ph+2) vars (Inr e)
-    | _ -> 
-      Error (sl, "Type mismatch when checking that the term inr " ^ Pretty.print (to_raw_expr e) ^ " of type ?0? + ?1? has type " ^ Pretty.print (to_raw_expr ty))
-    end
-  
-  | Case (e, e1, e2) ->
-    let h1 = Placeholder.generate ty 0 [] in
-    let h2 = Placeholder.generate ty 1 [] in
-    let elab = elaborate global ind_env ctx lvl sl (Sum (h1, h2)) (ph+2) vars e in
-    begin match elab with
-    | Ok (e', Sum (ty1, ty2), sa) ->
-      begin match ty with
-      | Hole (n, l) ->
-        let elab1 = elaborate global ind_env ctx lvl sl (Hole (n, l)) ph (vars+1) e1 in
-        let elab2 = elaborate global ind_env ctx lvl sl (Hole (n, l)) ph (vars+1) e2 in
-        begin match elab1, elab2 with
-        | Ok (e1', Pi(x, ty1', tyl), sa1), Ok (e2', Pi(y, ty2', tyr), sa2) ->
-          let elabTy = elaborate global ind_env ctx lvl sl h1 ph vars (Pi(x, ty1', tyl)) in
-          begin match elabTy with
-          | Ok (_, tTy, _) ->
-            let u1 = unify global ind_env ctx lvl sl ph vars (ty1, ty1', tTy) false in
-            let u2 = unify global ind_env ctx lvl sl ph vars (ty2, ty2', tTy) false in
-            let tyl' = fullsubst 0 (Inl(Local 0)) h1 false tyl in
-            let tyr' = fullsubst 0 (Inr(Local 0)) h1 false tyr in
-            begin
-              match tyl', tyr' with
-              | Type n, Type m ->
-                if n > m then
-                  let sa' = (fst sa @ fst sa1 @ fst sa2, snd sa @ snd sa1 @ snd sa2) in
-                  Ok (Case(e', e1', e2'), Type n, sa')
-                else
-                  let sa' = (fst sa @ fst sa1 @ fst sa2, snd sa @ snd sa1 @ snd sa2) in
-                  Ok (Case(e', e1', e2'), Type m, sa')
-              | _ ->
-                let u = unify global ind_env ctx lvl sl ph vars (tyl', tyr', tTy) false in
-                begin match u1, u2, u with
-                | Ok _, Ok _, Ok st ->
-                  let st' = fullsubst 0 h1 e false st in
-                  let sa' = (fst sa @ fst sa1 @ fst sa2, snd sa @ snd sa1 @ snd sa2) in
-                  Ok (Case(e', e1', e2'), st', sa')
-                | Ok _, Ok _, _ ->
-                  let sa' = (fst sa @ fst sa1 @ fst sa2, snd sa @ snd sa1 @ snd sa2) in
-                  Error (sa', 
-                    "Failed to unify\n  " ^ Pretty.print (to_raw_expr tyl') ^ "\nwith\n  " ^ Pretty.print (to_raw_expr tyr'))
-                | Ok _, _, _ ->
-                  let sa' = (fst sa @ fst sa1 @ fst sa2, snd sa @ snd sa1 @ snd sa2) in
-                  Error (sa', 
-                    "The term\n  " ^ Pretty.print (to_raw_expr e2') ^ "\nhas type\n  " ^ Pretty.print (to_raw_expr (Pi(y, ty2', tyr))) ^ 
-                    "\nbut is expected to have type\n  Π (" ^ y ^ " : " ^ Pretty.print (to_raw_expr ty2) ^ ") ?1?")
-                | _ ->
-                  let sa' = (fst sa @ fst sa1 @ fst sa2, snd sa @ snd sa1 @ snd sa2) in
-                  Error (sa', 
-                    "The term\n  " ^ Pretty.print (to_raw_expr e1') ^ "\nhas type\n  " ^ Pretty.print (to_raw_expr (Pi(x, ty1', tyl))) ^ 
-                    "\nbut is expected to have type\n  Π (" ^ x ^ " : " ^ Pretty.print (to_raw_expr ty1) ^ ") ?1?")
-              end
-            end
-          | Error msg -> (* This case is impossible *)
-            Error msg
-          end
-
-        | Ok (e1', ty', sa'), Ok (_, Pi(_,_,_), _) -> 
-          Error (sa', "The term\n  " ^ Pretty.print (to_raw_expr e1') ^ "\nhas type\n  " ^ Pretty.print (to_raw_expr ty') ^ 
-            "\nbut is expected to have type\n  Π (v? : ?0?) ?1?")
-        | Ok _, Ok (e2', ty', sa') -> 
-          Error (sa', "The term\n  " ^ Pretty.print (to_raw_expr e2') ^ "\nhas type\n  " ^ Pretty.print (to_raw_expr ty') ^ 
-            "\nbut is expected to have type\n  Π (v? : ?0?) ?1?")
-        | Error msg, _ | _, Error msg -> Error msg
-        end
-      | _ -> 
-        (* let v1 = fresh_var (Sum(ty1, ty2)) ty vars in *)
-        let v1 = (create_fresh [ty1; ty2; ty] 1).(0) in 
-        let branch_ty left_or_right = fullsubst 0 e' left_or_right true ty in
-        let elab1 = elaborate global ind_env ctx lvl sl (Pi(v1, ty1, branch_ty (Inl (Local 0)))) ph (vars+1) e1 in
-        let elab2 = elaborate global ind_env ctx lvl sl (Pi(v1, ty2, branch_ty (Inr (Local 0)))) ph (vars+1) e2 in
-        begin match elab1, elab2 with
-        | Ok (e1', _, sa1), Ok (e2', _, sa2) ->
-          let sa' = (fst sa @ fst sa1 @ fst sa2, snd sa @ snd sa1 @ snd sa2) in
-          Ok (Case(e', e1', e2'), ty, sa')
-        | Error msg, _ | _, Error msg -> Error msg
-        end
-      end
-    | Ok (e', ty', sa) -> 
-      Error (sa, "Type mismatch when checking that the term " ^ 
-        Pretty.print (to_raw_expr e') ^ " of type " ^ Pretty.print (to_raw_expr ty') ^ "has type ?0? + ?1?")
-    | Error msg -> 
-      Error msg
     end
 
   | Zero() ->
@@ -1174,68 +1055,6 @@ let rec elaborate global ind_env ctx lvl sl ty ph vars = function
     | _ -> Error (sl, "Failed to check that\n  " ^ Pretty.print (to_raw_expr ty1) ^ "\nis a type")
     end
   
-  | Sum(ty1, ty2) ->
-    let h1 = Placeholder.generate ty 0 [] in
-    let elab1 = elaborate global ind_env ctx lvl sl h1 (ph+1) vars ty1 in
-    let elab2 = elaborate global ind_env ctx lvl sl h1 (ph+1) vars ty2 in
-    begin match elab1, elab2 with
-    | Ok (ty1', Type n1, sa1), Ok (ty2', Type n2, sa2) -> 
-      begin 
-        match ty with
-        | Type m -> 
-          if Core_ast.leq (n1, m) && Core_ast.leq (n2, m) then 
-            Ok (Sum(ty1', ty2'), Type m, Stack.append sa1 sa2) 
-          else 
-            Error (Stack.append sa1 sa2, "Type mismatch when checking that \n  " ^ Pretty.print (to_raw_expr ty1) ^ "+ " ^ Pretty.print (to_raw_expr ty2) ^ 
-              "\nof type \n  " ^ Pretty.print (to_raw_expr (eval ind_env (Type (Max(n1, n2))))) ^ "\n has type\n  " ^ Pretty.print (to_raw_expr (Type m)))
-        | Hole _ -> 
-          Ok (Sum(ty1', ty2'), Type (Core_ast.unieval (Max(n1, n2))), Stack.append sa1 sa2)
-        | _ ->
-          Error (Stack.append sa1 sa2, "Type mismatch when checking that\n  " ^ 
-            Pretty.print (to_raw_expr ty1) ^ "+ " ^ Pretty.print (to_raw_expr ty2) ^ "\nhas type\n  " ^ Pretty.print (to_raw_expr ty))
-      end
-    | Ok (ty1', Type n, sa), Ok (Hole (k,l), _, _) -> 
-      begin match ty with
-      | Type m -> 
-        if Core_ast.leq (n, m) then 
-          Ok (Sum(ty1', Hole (k,l)), Type m, sa) 
-        else 
-          Error (sa, "Type mismatch when checking that \n  " ^ Pretty.print (to_raw_expr ty1) ^ "+ " ^ Pretty.print (to_raw_expr ty2) ^ 
-            "\nof type \n  " ^ Pretty.print (to_raw_expr (Type n)) ^ "\nhas type\n  " ^ Pretty.print (to_raw_expr (Type m)))
-      | Hole _ -> 
-        Ok (Sum(ty1', Hole (k,l)), Type n, sa) (* TODO: hole might have live in a higher universe *)
-      | _ ->
-        Error (sa, "Type mismatch when checking that\n  " ^ Pretty.print (to_raw_expr ty1) ^ "+ " ^ Pretty.print (to_raw_expr ty2) ^ "\nhas type\n  " ^ Pretty.print (to_raw_expr ty))
-      end
-    | Ok (Hole (k,l), _, _), Ok (ty2', Type n, sa) -> 
-      begin match ty with
-      | Type m -> 
-        if Core_ast.leq (n, m) then 
-          Ok (Sum(Hole (k,l), ty2'), Type m, sa) 
-        else 
-          Error (sa, "Type mismatch when checking that \n  " ^ Pretty.print (to_raw_expr ty1) ^ "+ " ^ Pretty.print (to_raw_expr ty2) ^ 
-            "\nof type \n  " ^ Pretty.print (to_raw_expr (Type n)) ^ "\nhas type\n  " ^ Pretty.print (to_raw_expr (Type m)))
-      | Hole _ -> 
-        Ok (Sum(Hole (k,l), ty2'), Type n, sa) (* TODO: hole might have live in a higher universe *)
-      | _ ->
-        Error (sa, "Type mismatch when checking that\n  " ^ Pretty.print (to_raw_expr ty1) ^ "+ " ^ Pretty.print (to_raw_expr ty2) ^ "\nhas type\n  " ^ Pretty.print (to_raw_expr ty))
-      end
-    | Ok (Hole (k1, l1), _, _), Ok (Hole (k2, l2), _, _) ->
-      begin match ty with
-      | Type m -> 
-          Ok (Sum(Hole (k1, l1), Hole (k2, l2)), Type m, sl) 
-      | Hole (k, l) -> 
-          Ok (Sum(Hole (k1, l1), Hole (k2, l2)), Hole(k, l), sl)
-      | _ ->
-        Error (sl, "Type mismatch when checking that\n  " ^ 
-          Pretty.print (to_raw_expr ty1) ^ "+ " ^ Pretty.print (to_raw_expr ty2) ^ "\nhas type\n  " ^ Pretty.print (to_raw_expr ty))
-      end
-    | Ok (_, Type _, _), Error (sa, msg) -> 
-      Error (sa, "Failed to check that\n  " ^ Pretty.print (to_raw_expr ty2) ^ "\nis type\n" ^ msg)
-    | _ -> 
-      Error (sl, "Failed to check that\n  " ^ Pretty.print (to_raw_expr ty1) ^ "\nis type")
-    end
-  
   | Int() ->
     begin 
       match ty with
@@ -1547,15 +1366,6 @@ and unify global ind_env ctx lvl sl ph vars x lift =
           | Error (s, msg) -> Error (s, "Don't know how to unify\n  " ^ Pretty.print (to_raw_expr ty2_open) ^ "\nwith\n  " ^ Pretty.print (to_raw_expr ty2'_open) ^ "\n" ^ msg)
           end
         | Error (s, msg) -> Error (s, "Don't know how to unify\n  " ^ Pretty.print (to_raw_expr ty1) ^ "\nwith\n  " ^ Pretty.print (to_raw_expr ty1') ^ "\n" ^ msg)
-        end
-
-      | Sum (ty1, ty2) , Sum (ty1', ty2'), ty ->
-        let u1 = unify global ind_env ctx lvl sl ph vars (ty1, ty1', ty) lift in
-        let u2 = unify global ind_env ctx lvl sl ph vars (ty2, ty2', ty) lift in
-        begin match u1, u2 with
-        | Ok s1, Ok s2 -> Ok (Sum (s1, s2))
-        | Error msg, _ | _ , Error msg -> 
-          Error msg
         end
 
       | Pathd (e, e1, e2) , Pathd (e', e1', e2'), ty ->
@@ -1904,20 +1714,6 @@ and unify global ind_env ctx lvl sl ph vars x lift =
           Error ((Fst e, Fst e'), msg)
         end
 
-      | Inl e, Inl e', Sum(ty1, _) ->
-        let u = unify global ind_env ctx lvl sl ph vars (e, e', ty1) lift in
-        begin match u with
-        | Ok s -> Ok (Inl s)
-        | Error msg -> Error msg
-        end
-
-      | Inr e, Inr e', Sum(_, ty2) ->
-        let u = unify global ind_env ctx lvl sl ph vars (e, e', ty2) lift in
-        begin match u with
-        | Ok s -> Ok (Inr s)
-        | Error msg -> Error msg
-        end
-
       | Succ e, Succ e', Nat() ->
         let u = unify global ind_env ctx lvl sl ph vars (e, e', Nat()) lift in
         begin match u with
@@ -1930,31 +1726,6 @@ and unify global ind_env ctx lvl sl ph vars x lift =
         begin match u with
         | Ok s -> Ok (Abort s)
         | Error msg -> Error msg
-        end
-
-      | Case (e, e1, e2), Case (e', e1', e2'), ty ->
-        let h1 = Placeholder.generate ty ph [] in
-        let h2 = Placeholder.generate ty (ph+1) [] in
-        let elab = elaborate global ind_env ctx lvl sl (Sum(h1, h2)) ph vars e in
-        begin match elab with
-        | Ok (_, Sum(ty1, ty2), _) ->
-          let u = unify global ind_env ctx lvl sl ph vars (e, e', Sum(ty1, ty2)) lift in
-          (* let v1 = fresh_var e e' vars in *)
-          let v1 = (create_fresh [e; e'] 1).(0) in
-          let branch_ty left_or_right =
-            match e with
-            | Global x -> subst_global 0 left_or_right x ty
-            | _ -> fullsubst 0 e left_or_right true ty
-          in
-          let u1 = unify global ind_env ctx lvl sl ph vars (e1, e1', Pi(v1, ty1, branch_ty (Inl (Local 0)))) lift in
-          let u2 = unify global ind_env ctx lvl sl ph vars (e2, e2', Pi(v1, ty2, branch_ty (Inr (Local 0)))) lift in
-          begin match u, u1, u2 with
-          | Ok s, Ok s1, Ok s2 -> Ok (Case (s, s1, s2))
-          | Error msg, _, _ | _ , Error msg, _| _ , _, Error msg ->
-            Error msg
-          end
-        | _ -> (* This case never occurs *)
-          Error ((Case (e, e1, e2), Case (e', e1', e2')), "Unification error")
         end
 
       | Natrec (e, e1, e2), Natrec (e', e1', e2'), ty ->

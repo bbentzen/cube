@@ -84,10 +84,6 @@ def sigma_prod_distrb2 {A B : type l} {C : A → type l}
 ⊢ (Σ (x : A) (B × C x)) → (B × Σ (x : A) C x) :=
 λ w, (fst (snd w), (fst w, snd (snd w)))
 
-def sigma_sum_distrb {A B : type l} {C : A → type l}
-⊢ (Σ (x : A) B + C x) → (B + Σ (x : A) C x) :=
-λ w, case (snd w) (λ x, inl x) (λ y, inr (fst w, y))
-
 def sigma_prod_distrb {A : type l} {B C : A → type l}
 ⊢ (Σ (x : A) B x × C x) → (Σ (x : A) B x) × (Σ (x : A) C x) :=
 λ w, ((fst w, fst (snd w)), (fst w, snd (snd w)))

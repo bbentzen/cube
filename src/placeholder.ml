@@ -10,13 +10,10 @@ open Core_ast
 
 let rec count = function
   | Hole _ -> 1
-  | Fst e | Snd e | Inl e | Inr e 
-  | Succ e | Abort e| Abs (_, e) | Pabs (_, e) -> 
+  | Fst e | Snd e | Succ e | Abort e| Abs (_, e) | Pabs (_, e) -> 
     count e 
-  | App (e1, e2) | Pair (e1, e2) | Sum (e1, e2) 
-  | At(e1, e2) | Pi (_, e1, e2) | Sigma (_, e1, e2) -> 
+  | App (e1, e2) | Pair (e1, e2) | At(e1, e2) | Pi (_, e1, e2) | Sigma (_, e1, e2) -> 
     count e1 + count e2
-  | Case (e, e1, e2) | Natrec (e, e1, e2) 
   | Pathd (e, e1, e2) | Hfill (e, e1, e2) -> 
     count e + count e1 + count e2
   | Coe (i, j, e1, e2) -> 
@@ -33,13 +30,13 @@ let rec candidates = function (* TODO: remove duplicates *)
     [n, l]
   | Abs (_, e) | Pabs (_, e) -> 
     candidates e
-  | Fst e | Snd e | Inl e | Inr e | Succ e | Abort e -> 
+  | Fst e | Snd e | Succ e | Abort e -> 
     candidates e
   | Pi (_, e1, e2) | Sigma (_, e1, e2) -> 
     candidates e1 @ candidates e2
-  | App (e1, e2) | Pair (e1, e2) | Sum (e1, e2) | At(e1, e2) -> 
+  | App (e1, e2) | Pair (e1, e2) | At(e1, e2) -> 
     candidates e1 @ candidates e2
-  | Case (e, e1, e2) | Natrec (e, e1, e2) | Pathd (e, e1, e2) -> 
+  | Natrec (e, e1, e2) | Pathd (e, e1, e2) -> 
     candidates e @ candidates e1 @ candidates e2
   | _ -> []
 
@@ -55,11 +52,11 @@ let rec has_placeholder = function
     has_placeholder e 
   | Pi (_, e1, e2) | Sigma (_, e1, e2) -> 
     has_placeholder e1 || has_placeholder e2
-  | Fst e | Snd e | Inl e | Inr e | Succ e | Abort e -> 
+  | Fst e | Snd e | Succ e | Abort e -> 
     has_placeholder e
-  | App (e1, e2) | Pair (e1, e2) | Sum (e1, e2) | At(e1, e2) -> 
+  | App (e1, e2) | Pair (e1, e2) | At(e1, e2) -> 
     has_placeholder e1 || has_placeholder e2
-  | Case (e, e1, e2) | Natrec (e, e1, e2) | Pathd (e, e1, e2) | Hfill (e, e1, e2) -> 
+  | Natrec (e, e1, e2) | Pathd (e, e1, e2) | Hfill (e, e1, e2) -> 
     has_placeholder e || has_placeholder e1 || has_placeholder e2
   | Coe (i, j, e1, e2) -> 
     has_placeholder i || has_placeholder j || has_placeholder e1 || has_placeholder e2
@@ -74,11 +71,11 @@ let rec has_underscore = function
     has_underscore e 
   | Pi (_, e1, e2) | Sigma (_, e1, e2) -> 
     has_underscore e1 || has_underscore e2
-  | Fst e | Snd e | Inl e | Inr e | Succ e | Abort e -> 
+  | Fst e | Snd e | Succ e | Abort e -> 
     has_underscore e
-  | App (e1, e2) | Pair (e1, e2) | Sum (e1, e2) | At(e1, e2) -> 
+  | App (e1, e2) | Pair (e1, e2) | At(e1, e2) -> 
     has_underscore e1 || has_underscore e2
-  | Case (e, e1, e2) | Natrec (e, e1, e2) | Pathd (e, e1, e2) | Hfill (e, e1, e2) -> 
+  | Natrec (e, e1, e2) | Pathd (e, e1, e2) | Hfill (e, e1, e2) -> 
     has_underscore e || has_underscore e1 || has_underscore e2
   | Coe (i, j, e1, e2) -> 
     has_underscore i || has_underscore j || has_underscore e1 || has_underscore e2
@@ -110,14 +107,6 @@ let rec preforget n e =
     Pi (y, h n, h (n+1)), n+2
   | Sigma (y, _, _) -> 
     Sigma (y, h n, h (n+1)), n+2
-  | Inl _ -> 
-    Inl (h n), n+1
-  | Inr _ -> 
-    Inr (h n), n+1
-  | Case (_, _, _) -> 
-    Case (h n, h (n+1), h (n+2)), n+3
-  | Sum (_, _) -> 
-    Sum (h n, h (n+1)), n+2
   | Succ _ -> 
     Succ (h n), n+1
   | Natrec (_, _, _) -> 
@@ -143,8 +132,8 @@ let rec has = function
   | Wild _ | Hole _ -> true
   | Abs (_, e) | Pabs (_, e) -> has e
   | Pi (_, e1, e2) | Sigma (_, e1, e2) -> has e1 || has e2
-  | Fst e | Snd e | Inl e | Inr e | Succ e | Abort e -> has e
-  | App (e1, e2) | Pair (e1, e2) | Sum (e1, e2) | At(e1, e2) -> has e1 || has e2
-  | Case (e, e1, e2) | Natrec (e, e1, e2) | Pathd (e, e1, e2) | Hfill (e, e1, e2) -> has e || has e1 || has e2
+  | Fst e | Snd e | Succ e | Abort e -> has e
+  | App (e1, e2) | Pair (e1, e2) | At(e1, e2) -> has e1 || has e2
+  | Natrec (e, e1, e2) | Pathd (e, e1, e2) | Hfill (e, e1, e2) -> has e || has e1 || has e2
   | Coe (i, j, e1, e2) -> has i || has j || has e1 || has e2
   | _ -> false

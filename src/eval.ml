@@ -239,26 +239,6 @@ let rec eval ind_env = function
         Core_ast.Snd e'
     end
 
-  | Core_ast.Inl e ->
-    let e' = eval ind_env e in
-    Core_ast.Inl e'
-
-  | Core_ast.Inr e -> 
-    let e' = eval ind_env e in
-    Core_ast.Inr e'
-
-  | Core_ast.Case (e, e1, e2) -> 
-    begin
-      let e' = eval ind_env e in
-      match e' with
-      | Core_ast.Inl a -> eval ind_env (Core_ast.App (e1,a))
-      | Core_ast.Inr b -> eval ind_env (Core_ast.App (e2,b))
-      | _ ->
-        let e1' = eval ind_env e1 in
-        let e2' = eval ind_env e2 in
-        Core_ast.Case (e', e1', e2')
-    end
-
   | Core_ast.Succ e ->
     let e' = eval ind_env e in
     Core_ast.Succ e'
@@ -313,11 +293,6 @@ let rec eval ind_env = function
     let e1' = eval ind_env e1 in
     let e2' = eval ind_env e2 in
     Core_ast.Sigma (x, e1', e2')
-
-  | Core_ast.Sum (e1, e2) ->
-    let e1' = eval ind_env e1 in
-    let e2' = eval ind_env e2 in
-    Core_ast.Sum (e1', e2')
 
   | Core_ast.Pathd (e, e1, e2) -> 
     let e' = eval ind_env e in

@@ -13,11 +13,11 @@ let rec has_var x = function
     if x = y then false else has_var x e (* if x = y then true *)
   | Ast.Pi (y, e1, e2) | Ast.Sigma (y, e1, e2) -> (* if x = y then true *)
     if x = y then false else has_var x e1 || has_var x e2
-  | Ast.Fst e | Ast.Snd e | Ast.Inl e | Ast.Inr e | Ast.Succ e | Ast.Abort e -> 
+  | Ast.Fst e | Ast.Snd e | Ast.Succ e | Ast.Abort e -> 
     has_var x e
-  | Ast.App (e1, e2) | Ast.Pair (e1, e2) | Ast.Sum (e1, e2) | Ast.At(e1, e2) -> 
+  | Ast.App (e1, e2) | Ast.Pair (e1, e2) | Ast.At(e1, e2) -> 
     has_var x e1 || has_var x e2
-  | Ast.Case (e, e1, e2) | Ast.Natrec (e, e1, e2) | Ast.Pathd (e, e1, e2) | Ast.Hfill (e, e1, e2) -> 
+  | Ast.Natrec (e, e1, e2) | Ast.Pathd (e, e1, e2) | Ast.Hfill (e, e1, e2) -> 
     has_var x e || has_var x e1 || has_var x e2
   | Ast.Coe (i, j, e1, e2) -> 
     has_var x i || has_var x j || has_var x e1 || has_var x e2

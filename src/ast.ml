@@ -24,10 +24,6 @@ type expr =
   | Fst of expr
   | Snd of expr
   | Sigma of string * expr * expr
-  | Inl of expr
-  | Inr of expr
-  | Case of expr * expr * expr
-  | Sum of expr * expr
   | Zero of unit
   | Succ of expr
   | Natrec of expr * expr * expr
