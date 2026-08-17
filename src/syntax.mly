@@ -47,7 +47,7 @@ let single_id = function
 %token I0 I1 INTERVAL COE HCOM HFILL FILL COM BAR
 %token ABS APP RARROW LRARROW PI
 %token LPAREN RPAREN COMMA FST SND PROD SIGMA
-%token ZERO SUCC NATREC NAT
+%token ZERO NAT
 %token STAR SUM
 %token ABORT VOID NEG
 %token LANGLE RANGLE AT REFL SYMM TRANS PATHD PATH
@@ -60,10 +60,10 @@ let single_id = function
 %right SUM PROD
 %right TRANS
 %nonassoc NEG
-%nonassoc FST SND SUCC 
+%nonassoc FST SND 
 %nonassoc ABORT
 %left APP
-%nonassoc ID LPAREN I0 I1 INTERVAL COE COM FILL HCOM HFILL ABS SIGMA NATREC PATHD PATH ZERO NAT STAR VOID REFL TYPE PLACEHOLDER WILDCARD LANGLE
+%nonassoc ID LPAREN I0 I1 INTERVAL COE COM FILL HCOM HFILL ABS SIGMA PATHD PATH ZERO NAT STAR VOID REFL TYPE PLACEHOLDER WILDCARD LANGLE
 %nonassoc SYMM
 
 %start command
@@ -162,8 +162,6 @@ head_expr:
   | FST head_expr                                           { Fst($2) }
   | SND head_expr                                           { Snd($2) }
   | SIGMA blocks                                            { sigma_of_list (snd $2) (fst $2) }
-  | SUCC head_expr                                          { Succ($2) }
-  | NATREC head_expr head_expr head_expr %prec ABORT        { Natrec($2,$3,$4) }
   | ABORT head_expr %prec ABORT                             { Abort($2) }
   | NEG app_expr %prec NEG                                  { Pi("v?",$2,Void()) }
   | LANGLE ID RANGLE expr %prec PI                          { Pabs($2,$4) }
@@ -204,8 +202,6 @@ face_head:
   | FST face_head                                           { Fst($2) }
   | SND face_head                                           { Snd($2) }
   | SIGMA blocks                                            { sigma_of_list (snd $2) (fst $2) }
-  | SUCC face_head                                          { Succ($2) }
-  | NATREC face_head face_head face_head %prec ABORT        { Natrec($2,$3,$4) }
   | ABORT face_head %prec ABORT                             { Abort($2) }
   | NEG face_expr                                           { Pi("v?",$2,Void()) }
   | LANGLE ID RANGLE face_expr %prec PI                     { Pabs($2,$4) }
@@ -220,8 +216,8 @@ atom:
   | I1                                                      { I1() }
   | INTERVAL                                                { Int() }
   | LPAREN expr COMMA expr RPAREN                           { Pair($2,$4) }
-  | ZERO                                                    { Zero() }
-  | NAT                                                     { Nat() }
+  | ZERO                                                    { Id("zero") }
+  | NAT                                                     { Id("nat") }
   | STAR                                                    { Id("star") }
   | VOID                                                    { Void() }
   | REFL                                                    { Pabs("v?", Wild 0) }

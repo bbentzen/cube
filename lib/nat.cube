@@ -6,30 +6,43 @@
  
 import ./function.cube
 import ./path.cube
+import ./unit.cube
 
-/* Natural numbers */
+universe k
+
+/* Sum type former, constructors and eliminator */
+
+inductive nat ⊢ type 0 :=
+| zero : nat
+| succ : nat → nat
+
+def rec {C : nat → type k} (n : nat) 
+⊢ Π (c : C zero) (d : Π (k : nat) C k → C (succ k)) C n :=
+λ c d, natrec _ c d n
+
+/* Basic arithmetic operations */
  
 def pred
 ⊢ nat → nat :=
-λ n, natrec n 0 (λ k _, k)
+λ n, natrec _ 0 (λ k _, k) n
  
 def add
 ⊢ nat → nat → nat :=
-λ m n, natrec n m (λ k f, succ f)
+λ m n, natrec _  m (λ k res, succ res) n
 
 def mult 
 ⊢ nat → nat → nat := 
-λ m n, natrec n 0 (λ k f, (natrec f m (λ k, λ g, succ g)))
+λ m n, natrec _ 0 (λ k res, (natrec _ m (λ k, λ g, succ g) res)) n
  
 /* Numerical equations */
  
 def add_zero (m : nat)
 ⊢ path nat ((add 0) m) m :=
-natrec m (<_> 0) (λ n p , <i> succ (p @ i))
+natrec _ (<_> 0) (λ n p , <i> succ (p @ i)) m
 
 def succ_iff_eq {n m : nat}
 ⊢ path nat (succ n) (succ m) ↔ path nat n m :=
-(λ p, <i> natrec (p @ i) n (λ k _, k), λ p, <i> succ (p @ i))
+(λ p, <i> natrec _ n (λ k _, k) (p @ i), λ p, <i> succ (p @ i))
 
 def succ_to_eq {n m : nat}
 ⊢ path nat (succ n) (succ m) → path nat n m :=
@@ -42,37 +55,39 @@ snd succ_iff_eq
 def pred_succ {n : nat}
 ⊢ path nat (pred (succ n)) n :=
 <_> n
- 
+
 def succ_pred {n : nat} (w : Σ (k : nat) path nat (succ k) n)
 ⊢ path nat (succ (pred n)) n :=
-coe i0 i1 (λ i, path nat (succ (pred (snd w @ i))) (snd w @ i)) (<_> succ (fst w)) 
+coe i0 i1 (λ i, path nat (succ (pred (snd w @ i))) (snd w @ i)) (<_> succ (fst w))
  
 def nat_neq {n : nat}
 ⊢ ¬ path nat 0 (succ n) :=
-λ p, coe i0 i1 (λ i, natrec (p @ i) unit (λ _ _, void)) ()
+λ p, coe i0 i1 (λ i, natrec _ unit (λ _ _, void) (p @ i)) ()
 
 def nat_neq' {n : nat}
 ⊢ ¬ path nat (succ n) 0 :=
-λ p, coe i1 i0 (λ i, natrec (p @ i) unit (λ _ _, void)) ()
+λ p, coe i1 i0 (λ i, natrec _ unit (λ _ _, void) (p @ i) ) ()
 
 /* Basic arithmetical laws */
 
 def add_assoc (m n k : ℕ)
 ⊢ path ℕ (add (add m n) k) (add m (add n k)) :=
-natrec k (<_> add m n) (λ k ih, eq_to_succ ih)
+natrec _ (<_> add m n) (λ k ih, eq_to_succ ih) k
 
 def add_comm_zero (m : ℕ)
 ⊢ path ℕ m (add 0 m) :=
-natrec m (<_> 0) (λ k ih, eq_to_succ ih) 
+natrec _ (<_> 0) (λ k ih, eq_to_succ ih) m
 
 def add_comm_succ (l n : ℕ)
 ⊢ path ℕ (succ (add l n)) (add (succ l) n) :=
-natrec n (<_> succ l) (λ _ ih, eq_to_succ ih)
+natrec _ (<_> succ l) (λ _ ih, eq_to_succ ih) n
+
+/* BROKEN PROOFS TO BE FIXED: */
 
 def add_comm (m n : ℕ) 
 ⊢ path ℕ (add m n) (add n m) :=
-natrec m (add_comm_zero n) (λ k' ih, /* k */
-  path_trans (eq_to_succ ih) (add_comm_succ k' n) )
+natrec _ (add_comm_zero n) (λ k' ih, /* k */
+  path_trans (eq_to_succ ih) (add_comm_succ k' n) ) m
 
 def add_num_left {m n : ℕ} (k : ℕ)
 ⊢ path ℕ m n → path ℕ (add k m) (add k n) :=

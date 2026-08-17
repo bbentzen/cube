@@ -196,14 +196,15 @@ let rec eval ind_env = function
         | Core_ast.Global rec_name ->
             begin match Hashtbl.find_opt ind_env rec_name with
             | Some rec_spec ->
-                (match reduce_recursor rec_spec args with
+                begin match reduce_recursor rec_spec args with
                 | Some reduced -> eval ind_env reduced
-                | None -> App (eval ind_env e1', eval ind_env e2'))
+                | None -> full_app
+                end
             | None -> 
-              App (eval ind_env e1', eval ind_env e2')
+              full_app
             end
         | _ -> 
-          App (eval ind_env e1', eval ind_env e2')
+          full_app
         end
     end
 
@@ -237,22 +238,6 @@ let rec eval ind_env = function
       | Core_ast.Pair (_ , e2) -> e2
       | _ -> 
         Core_ast.Snd e'
-    end
-
-  | Core_ast.Succ e ->
-    let e' = eval ind_env e in
-    Core_ast.Succ e'
-
-  | Core_ast.Natrec (e, e1, e2) -> 
-    begin
-      let e' = eval ind_env e in 
-      match e' with
-      | Core_ast.Zero() -> eval ind_env e1
-      | Core_ast.Succ k -> eval ind_env (Core_ast.App (Core_ast.App (e2,k),Core_ast.Natrec(k,e1,e2)))
-      | _ -> 
-        let e1' = eval ind_env e1 in
-        let e2' = eval ind_env e2 in
-        Core_ast.Natrec (e', e1', e2')
     end
 
   | Core_ast.Pabs (x, e) -> 

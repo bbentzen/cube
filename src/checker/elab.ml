@@ -56,17 +56,17 @@ let close_bound binder body =
 let rec has_dangling_local depth = function
   | Local index -> index >= depth
   | Global _ | Int _ | I1 _ | I0 _ 
-  | Zero _ | Nat _ | Void _ | Type _ | Wild _ | Subgoal _ -> false
+  | Void _ | Type _ | Wild _ | Subgoal _ -> false
   | Abs (_, e) | Pabs (_, e) -> has_dangling_local (depth + 1) e
   | Pi (_, e1, e2) | Sigma (_, e1, e2) ->
     has_dangling_local depth e1 || has_dangling_local (depth + 1) e2
   | Coe (i, j, e1, e2) ->
     has_dangling_local depth i || has_dangling_local depth j || has_dangling_local depth e1 || has_dangling_local depth e2
-  | Hfill (e, e1, e2) | Natrec (e, e1, e2) | Pathd (e, e1, e2) ->
+  | Hfill (e, e1, e2) | Pathd (e, e1, e2) ->
     has_dangling_local depth e || has_dangling_local depth e1 || has_dangling_local depth e2
   | App (e1, e2) | Pair (e1, e2) | At (e1, e2) ->
     has_dangling_local depth e1 || has_dangling_local depth e2
-  | Fst e | Snd e | Succ e | Abort e -> has_dangling_local depth e
+  | Fst e | Snd e | Abort e -> has_dangling_local depth e
   | Hole (_, l) -> List.exists (has_dangling_local depth) l
 
 (* Checks whether the type of a given expression is the given type *)
@@ -298,82 +298,6 @@ let rec elaborate global ind_env ctx lvl sl ty ph vars = function
       Error (sa, "The term\n  " ^ Pretty.print (to_raw_expr e) ^ "\nis expected to have type\n  Σ (v0 : ?0?) ?1?" ^ "\n" ^ msg)
     end
 
-  | Zero() ->
-    begin match ty with
-    | Nat() -> 
-      Ok (Zero(), Nat(), sl)
-    | Hole _ -> 
-      Ok (Zero(), Nat(), sl)
-    | _ -> 
-      Error (sl, "Type mismatch when checking that the term 0 of type nat has type " ^ Pretty.print (to_raw_expr ty))
-     end
-
-  | Succ e ->
-    let elab = elaborate global ind_env ctx lvl sl (Nat()) ph vars e in
-    begin match elab, ty with
-    | Ok (e', _, sa), Nat() -> 
-      Ok (Succ e', Nat(), sa)
-    | Ok (e', _, sa), Hole _ ->
-      Ok (Succ e', Nat(), sa)
-    | Error msg, _ -> Error msg
-    | _, _ -> 
-      Error (sl, "Type mismatch when checking that the term succ " ^ Pretty.print (to_raw_expr e) ^ " of type nat has type " ^ Pretty.print (to_raw_expr ty))
-    end
-
-  | Natrec (e, e1, e2) ->
-      let v = (create_fresh [e; e1; e2; ty] 2) in
-      let v1 = v.(0) and v2 = v.(1) in
-      let elab = elaborate global ind_env ctx lvl sl (Nat()) ph (vars+2) e in
-      begin match elab with
-      | Ok (e', _, sa) ->  
-        begin match ty with
-        | Hole (n, l) ->
-          let elab1 = elaborate global ind_env ctx lvl sl (Hole (n, l)) ph (vars+1) e1 in
-          begin match elab1 with
-          | Ok (e1', ty0, sa1) ->
-            let h1 = Placeholder.generate (App(ty,ty0)) ph [] in
-            let ty' = fullsubst 0 (Zero()) h1 false ty0 in
-            let tys = Pi(v1, h1, shift 1 1 (Pi(v2, ty', shift 1 1 ty'))) in
-            let elab2 = elaborate global ind_env ctx lvl sl tys ph (vars+1) e2 in (* call elab with ty0' *)
-            begin match elab2 with
-            | Ok (e2', Pi(_, nat, Pi(_, _, _)), sa2) ->
-              let u = unify global ind_env ctx lvl sl ph vars (Nat(), nat, Type (Num 0)) false in
-              begin match u with
-              | Ok _ ->
-                Ok (Natrec(e', e1', e2'), ty', Stack.lappend sa sa1 sa2)
-              | Error (_, msg) ->
-                let sa' = Stack.lappend sa sa1 sa2 in
-                Error (sa', 
-                  "Don't know how to unify\n  " ^ Pretty.print (to_raw_expr nat) ^ "\nwith\n  nat\n" ^ msg)
-              end
-            | Ok (e2', ty', sa2) -> 
-              let sa' = Stack.lappend sa sa1 sa2 in
-              Error (sa',
-                "The term\n  " ^ Pretty.print (to_raw_expr e2') ^ "\nhas type\n  " ^ Pretty.print (to_raw_expr ty') ^ 
-                "\nbut is expected to have type\n  Π (v? : nat) ?0? → ?1?")  
-            | Error msg -> 
-              Error msg
-            end
-          
-          | Error msg -> 
-            Error msg
-          end
-        
-        | _ -> 
-          let elab1 = elaborate global ind_env ctx lvl sl ((fullsubst 0 e' (Zero()) true ty)) ph (vars+2) e1 in
-          let tyx = (Pi(v1, Nat(), Pi(v2, fullsubst 0 (shift 1 0 e') (Local 0) true (shift 1 0 ty), fullsubst 0 (shift 2 0 e') (Succ (Local 1)) true (shift 2 0 ty)))) in
-          let elab2 = elaborate global ind_env ctx lvl sl tyx ph (vars+2) e2 in
-          begin match elab1, elab2 with
-          | Ok (e1', _, sa1), Ok (e2', _, sa2) ->
-            Ok (Natrec (e', e1', e2'), ty, Stack.lappend sa sa1 sa2)
-          | Error msg, _| _, Error msg -> 
-            Error msg
-          end
-        end
-    | Error msg -> 
-      Error msg
-    end
-  
   | Abort e ->
     let elab = elaborate global ind_env ctx lvl sl (Void()) ph vars e in
     begin
@@ -1064,17 +988,6 @@ let rec elaborate global ind_env ctx lvl sl ty ph vars = function
         Error (sl, "Type mismatch when checking that\n  I\nhas type\n  " ^ Pretty.print (to_raw_expr ty))
     end
 
-  | Nat() ->
-    begin 
-      match ty with
-      | Type m -> 
-        Ok (Nat(), Type m, sl)
-      | Hole _ -> 
-        Ok (Nat(), Type (Num 0), sl) 
-      | _ -> 
-        Error (sl, "Type mismatch when checking that\n  nat\nhas type\n  " ^ Pretty.print (to_raw_expr ty))
-    end
-
   | Void() ->
     begin 
       match ty with
@@ -1473,8 +1386,17 @@ and unify global ind_env ctx lvl sl ph vars x lift =
                     helper ui0 ui1
 
                   | _ ->
+                    (* Try again now by evaluating both applications *)
+                    let app1 = App (e1, e2) in
+                    let app2 = App (e1', e2') in
+                    (* TODO: this is not ideal, to avoid re-evaluation, better store values in a hasthtable and look them up *)
+                    let app1' = eval ind_env app1 in
+                    let app2' = eval ind_env app2 in
+                    if app1 = app1' && app2 = app2' then
                     Error (ex, "Failed to unify the applications " ^ Pretty.printf (App (e1, e2)) ^ 
                     " and " ^ Pretty.printf (App (e1', e2')) ^ ". " ^ msg)
+                    else
+                      unify global ind_env ctx lvl sl ph vars (app1', app2', ty) lift
               end
           end
         | Error (_, msg) -> (* This case is impossible *)
@@ -1712,33 +1634,11 @@ and unify global ind_env ctx lvl sl ph vars x lift =
           Error ((Fst e, Fst e'), msg)
         end
 
-      | Succ e, Succ e', Nat() ->
-        let u = unify global ind_env ctx lvl sl ph vars (e, e', Nat()) lift in
-        begin match u with
-        | Ok s -> Ok (Succ s)
-        | Error msg -> Error msg
-        end
-
       | Abort e, Abort e', _ ->
         let u = unify global ind_env ctx lvl sl ph vars (e, e', Void()) lift in
         begin match u with
         | Ok s -> Ok (Abort s)
         | Error msg -> Error msg
-        end
-
-      | Natrec (e, e1, e2), Natrec (e', e1', e2'), ty ->
-        let u = unify global ind_env ctx lvl sl ph vars (e, e', Nat()) lift in
-        let u1 = unify global ind_env ctx lvl sl ph vars (e1, e1', fullsubst 0 e (Zero()) true ty) lift in
-        let v = create_fresh [e1; ty] 2 in
-        let v1 = v.(0) and v2 = v.(1) in
-        (* let v1 = fresh_var e e' vars in
-        let v2 = fresh_var e e' (vars+1) in *)
-        let tys = (Pi(v1, Nat(), Pi(v2, fullsubst 0 e (Local 0) true ty, shift 1 0 (fullsubst 0 e (Succ (Local 0)) true ty)))) in
-        let u2 = unify global ind_env ctx lvl sl ph vars (e2, e2', tys) lift in
-        begin match u, u1, u2 with
-        | Ok s, Ok s1, Ok s2 -> Ok (Natrec (s, s1, s2))
-        | Error msg, _, _ | _ , Error msg, _| _ , _, Error msg ->
-          Error msg
         end
 
       | Type m, Type n, _ ->

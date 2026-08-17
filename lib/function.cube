@@ -104,10 +104,6 @@ theorem pi_prod_distr {A B : type l} {C : A → type l}
 ⊢ (B × Π (x : A) C x) → (Π (x : A) B × C x) :=
 λ w x, (fst w, (snd w) x)
  
-theorem dnatrec {C : nat → type l} (c0 : C 0) (cs : Π (n : nat) C n → C (succ n))
-⊢ Π (n : nat) C n :=
-λ n, natrec n c0 cs
- 
 /* Function aplication and extensionality */
  
 def ap {A B : type l} (f : A → B) {a b : A} 

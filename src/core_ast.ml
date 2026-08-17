@@ -26,10 +26,6 @@ type expr =
   | Fst of expr
   | Snd of expr
   | Sigma of string * expr * expr
-  | Zero of unit
-  | Succ of expr
-  | Natrec of expr * expr * expr
-  | Nat of unit
   | Abort of expr
   | Void of unit
   | Pabs of string * expr
@@ -90,8 +86,6 @@ let rec parametrize_levels = function
   | Pair (l1, l2) -> Pair (parametrize_levels l1, parametrize_levels l2)
   | Fst l -> Fst (parametrize_levels l)
   | Snd l -> Snd (parametrize_levels l)
-  | Succ l -> Succ (parametrize_levels l)
-  | Natrec (l1, l2, l3) -> Natrec (parametrize_levels l1, parametrize_levels l2, parametrize_levels l3)
   | Abort l -> Abort (parametrize_levels l)
   | Pabs (s, l) -> Pabs (s, parametrize_levels l)
   | At (l1, l2) -> At (parametrize_levels l1, parametrize_levels l2)

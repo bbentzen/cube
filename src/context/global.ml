@@ -14,7 +14,7 @@ open Debruijn
 
 let rec subst_global k d x = function
   | Global y when x = y -> shift 0 k d
-  | Global _ | Local _ | Int _ | I1 _ | I0 _ | Zero _ | Nat _ | Void _ | Type _ | Wild _ | Subgoal _ as e -> e
+  | Global _ | Local _ | Int _ | I1 _ | I0 _ | Void _ | Type _ | Wild _ | Subgoal _ as e -> e
   | Coe (i, j, e1, e2) -> Coe (subst_global k d x i, subst_global k d x j, subst_global k d x e1, subst_global k d x e2)
   | Hfill (e, e1, e2) -> Hfill (subst_global k d x e, subst_global k d x e1, subst_global k d x e2)
   | Abs (y, e) -> Abs (y, subst_global (k+1) d x e)
@@ -24,8 +24,6 @@ let rec subst_global k d x = function
   | Fst e -> Fst (subst_global k d x e)
   | Snd e -> Snd (subst_global k d x e)
   | Sigma (y, e1, e2) -> Sigma (y, subst_global k d x e1, subst_global (k+1) d x e2)
-  | Succ e -> Succ (subst_global k d x e)
-  | Natrec (e, e1, e2) -> Natrec (subst_global k d x e, subst_global k d x e1, subst_global k d x e2)
   | Abort e -> Abort (subst_global k d x e)
   | Pabs (y, e) -> Pabs (y, subst_global (k+1) d x e)
   | At (e1, e2) -> At (subst_global k d x e1, subst_global k d x e2)

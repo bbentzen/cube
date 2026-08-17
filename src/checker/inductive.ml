@@ -19,13 +19,13 @@ let rec occurs_name id l = function
     begin match List.nth_opt l index with
     | Some h -> h = id | None -> false
     end
-  | Int _ | I1 _ | I0 _ | Zero _ | Nat _ | Void _ | Type _ | Wild _ | Subgoal _ -> false
+  | Int _ | I1 _ | I0 _ | Void _ | Type _ | Wild _ | Subgoal _ -> false
   | Hole (_, l') -> List.exists (occurs_name id l) l'
   | Coe (i, j, e1, e2) -> occurs_name id l i || occurs_name id l j || occurs_name id l e1 || occurs_name id l e2
   | Hfill (e, e1, e2) -> occurs_name id l e || occurs_name id l e1 || occurs_name id l e2
   | App (e1, e2) | Pair (e1, e2) | At (e1, e2) -> occurs_name id l e1 || occurs_name id l e2
-  | Fst e | Snd e | Succ e | Abort e -> occurs_name id l e
-  | Natrec (e, e1, e2) | Pathd (e, e1, e2) ->
+  | Fst e | Snd e | Abort e -> occurs_name id l e
+  | Pathd (e, e1, e2) ->
     occurs_name id l e || occurs_name id l e1 || occurs_name id l e2
 
 (* Returns the head symbol of an application tree *)

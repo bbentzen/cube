@@ -11,7 +11,8 @@ open Ast
 (* A simple pretty printer *)
 
 let rec print = function
-  
+  | Id("zero") -> "0 "
+  | Id("nat") -> "ℕ "
   | Coe (i, j, e1, e2) -> 
     String.concat "" ["coe "; par i; par j; par e1; par e2]
   
@@ -116,8 +117,6 @@ let rec print = function
   | Pair (e1, e2) -> "(" ^ par e1 ^ ", " ^ par e2 ^ ") "
   | Fst e -> "fst " ^ par e
   | Snd e -> "snd " ^ par e
-  | Succ e -> String.concat "" ["succ "; par e]
-  | Natrec (e, e1, e2) -> String.concat "" ["natrec "; par e; par e1; par e2]
   | Abort e -> String.concat "" ["abort "; par e]
   | Pabs (y, e) -> String.concat "" ["<"; y; "> "; print e]
   | At (e1, e2) -> String.concat "" [par e1; "@ "; par e2]
@@ -126,8 +125,6 @@ let rec print = function
   | I0() -> "i0 "
   | I1() -> "i1 "
   | Int() -> "I " 
-  | Zero() -> "0 "
-  | Nat() -> "nat "
   | Void() -> "void "
   | Wild n -> "?0" ^ string_of_int n ^ "? "
   | Subgoal() -> "?"
@@ -135,10 +132,8 @@ let rec print = function
 and par e = 
   let helper = function
     | Abs _ | Ast.Pabs _ | Pi _ | Sigma _ | Fst _ | Snd _ 
-    | Succ _ | Abort _ | App _ | Pair _ 
-    | At _ | Natrec _ 
-    | Pathd _ | Coe _ -> 
-      true
+    | Abort _ | App _ | Pair _ 
+    | At _ | Pathd _ | Coe _ -> true
     | _ -> false
   in
   if helper e then
@@ -232,8 +227,6 @@ let rec printc = function
   | Core_ast.Pair (e1, e2) -> "(" ^ parc e1 ^ ", " ^ parc e2 ^ ") "
   | Core_ast.Fst e -> "fst " ^ parc e
   | Core_ast.Snd e -> "snd " ^ parc e
-  | Core_ast.Succ e -> String.concat "" ["succ "; parc e]
-  | Core_ast.Natrec (e, e1, e2) -> String.concat "" ["natrec "; parc e; parc e1; parc e2]
   | Core_ast.Abort e -> String.concat "" ["abort "; parc e]
   | Core_ast.Pabs (y, e) -> String.concat "" ["<"; y; "> "; printc e]
   | Core_ast.At (e1, e2) -> String.concat "" [parc e1; "@ "; parc e2]
@@ -243,8 +236,6 @@ let rec printc = function
   | I0() -> "i0 "
   | I1() -> "i1 "
   | Int() -> "I " 
-  | Zero() -> "0 "
-  | Nat() -> "nat "
   | Void() -> "void "
   | Wild n -> "?0" ^ string_of_int n ^ "? "
   | Subgoal() -> "?"
@@ -252,9 +243,8 @@ let rec printc = function
 and parc e = 
   let helper = function
     | Core_ast.Abs _ | Pabs _ | Pi _ | Sigma _ | Fst _ | Snd _ 
-    | Succ _ | Abort _ | App _ | Pair _ 
-    | At _ | Natrec _ 
-    | Pathd _ | Coe _ -> 
+    | Abort _ | App _ | Pair _ 
+    | At _ | Pathd _ | Coe _ -> 
       true
     | _ -> false
   in

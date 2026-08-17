@@ -87,9 +87,6 @@ let rec lift n = function
   | Snd e -> Snd (lift n e)
   | Sigma (y, e1, e2) ->
     Sigma (y, lift n e1, lift n e2)
-  | Succ e -> Succ (lift n e)
-  | Natrec (e, e1, e2) -> 
-    Natrec (lift n e, lift n e1, lift n e2)
   | Abort e -> Abort (lift n e)
   | Pabs (y, e) -> 
     Pabs (y, lift n e)
@@ -169,27 +166,11 @@ let rec unfold_all env vars = function
     | Error msg -> Error msg
     end
 
-  | Succ e ->
-    begin match unfold_all env vars e with
-    | Ok e' -> 
-      Ok (Succ e')
-    | Error msg -> Error msg
-    end
-
   | Abort e -> 
     begin match unfold_all env vars e with
     | Ok e' -> 
       Ok (Abort e')
     | Error msg -> Error msg
-    end
-
-  | Natrec (e, e1, e2) ->
-    let u = unfold_all env vars e in
-    let u1 = unfold_all env vars e1 in
-    let u2 = unfold_all env vars e2 in
-    begin match u, u1, u2 with
-      | Ok e', Ok e1', Ok e2' -> Ok (Natrec (e', e1', e2'))
-      | Error msg, _, _ | _, Error msg , _ | _, _, Error msg -> Error msg
     end
 
   | Pi (x, e1, e2) -> 

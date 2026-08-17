@@ -46,14 +46,6 @@ let rec read n = function
     let r_e1 = read n e1 in
     let r_e2 = read (snd r_e1) e2 in
     Sigma (y, fst r_e1, fst r_e2), snd r_e2
-  | Succ e ->
-    let r_e = read n e in
-    Succ (fst r_e), snd r_e
-  | Natrec (e, e1, e2) ->
-    let r_e = read n e in
-    let r_e1 = read (snd r_e) e1 in
-    let r_e2 = read (snd r_e1) e2 in
-    Natrec (fst r_e, fst r_e1, fst r_e2), snd r_e2
   | Abort e ->
     let r_e = read n e in
     Abort (fst r_e), snd r_e

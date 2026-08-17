@@ -62,9 +62,6 @@ rule token = parse
   | "Σ"                { SIGMA }
   | "+"                { SUM }  
   | "0"                { ZERO }
-  | "succ"             { SUCC }
-  | "natrec"           { NATREC }
-  | "nat"              { NAT }
   | "ℕ"                { NAT }
   | "()"               { STAR }
   | "abort"            { ABORT }
