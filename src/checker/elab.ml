@@ -647,7 +647,7 @@ let rec elaborate global ind_env ctx lvl sl ty ph vars = function
               "Typehood error in path abstraction.\n" ^ msg)
             end
           | _ , Ok _ ->
-            Error (sa, "Failed to unify\n  " ^
+            Error (sa, "Error in path abstraction over " ^ i ^ ": I. Failed to unify\n  " ^
                     Pretty.print (to_raw_expr e1) ^ "\nwith\n  " ^ Pretty.print (to_raw_expr ei0) ^ "≡ " ^ Pretty.print (to_raw_expr e) ^ "[i0/" ^ i ^ "]" ^ "\n" ^
                     goal_msg ctx (Pabs (i, e')) ty) 
           | _ ->
@@ -672,22 +672,14 @@ let rec elaborate global ind_env ctx lvl sl ty ph vars = function
         let e_closed = close_bound i e' in
         let ei0 = eval ind_env (open_var 0 (I0()) e_closed) in
         let ei1 = eval ind_env (open_var 0 (I1()) e_closed) in
-        (* if has_dangling_local 0 ei0 || has_dangling_local 0 ei1 then
-          Error (saa,
-            "Pabs endpoint evaluation produced dangling locals\n" ^
-            "closed body:\n  " ^ Pretty.print (to_raw_expr e_closed) ^ "\n" ^
-            "evaluated i0 endpoint:\n  " ^ Pretty.print (to_raw_expr ei0) ^ "\n" ^
-            "evaluated i1 endpoint:\n  " ^ Pretty.print (to_raw_expr ei1) ^ "\n" ^
-            "core closed body:\n  " ^ Pretty.printc e_closed ^ "\n" ^
-            "core evaluated i0 endpoint:\n  " ^ Pretty.printc ei0 ^ "\n" ^
-            "core evaluated i1 endpoint:\n  " ^ Pretty.printc ei1)
-        else *)
         let elab1 = elaborate global ind_env ctx lvl sl (eval ind_env (App(ty1, I0()))) ph vars ei0 in
         let elab2 = elaborate global ind_env ctx lvl sl (eval ind_env (App(ty1, I1()))) ph vars ei1 in
         begin match elab1, elab2 with
         | Ok (ei0, tyi0, _), Ok (ei1, tyi1, _) ->
-          let u1 = unify global ind_env ctx lvl sl ph vars (eval ind_env ei0, eval ind_env e1, tyi0) false in
-          let u2 = unify global ind_env ctx lvl sl ph vars (eval ind_env ei1, eval ind_env e2, tyi1) false in
+          let ei0' = eval ind_env ei0 and e1' = eval ind_env e1 in
+          let ei1' = eval ind_env ei1 and e2' = eval ind_env e2 in
+          let u1 = unify global ind_env ctx lvl sl ph vars (ei0', e1', tyi0) false in
+          let u2 = unify global ind_env ctx lvl sl ph vars (ei1', e2', tyi1) false in
           begin match u1, u2 with
           | Ok ui0, Ok ui1 -> 
             Ok (Pabs (i, e_closed), Pathd (ty1, ui0, ui1), saa)
@@ -703,12 +695,12 @@ let rec elaborate global ind_env ctx lvl sl ty ph vars = function
                 | Ok _ ->
                   Ok (Pabs (i, e_closed), Pathd (ty1, ei0, ei1), saa)
                 | Error (_, msg) ->
-                  Error (saa, "Failed to unify\n  " ^ 
+                  Error (saa, "Error in path abstraction over " ^ i ^ ": I0 when attempting unification at the i0-endpoint. Failed to unify\n  " ^
                   Pretty.print (to_raw_expr e1) ^ "\nwith\n  " ^ Pretty.print (to_raw_expr ei0) ^ "≡ " ^ Pretty.print (to_raw_expr e') ^ "[i0/" ^ i ^ "]" ^ "\n" ^
                   msg ^ "\n" ^ goal_msg ctx (Pabs (i, e')) ty )
                 end
               | _ -> 
-                Error (saa, "Failed to unify\n  " ^ 
+                Error (saa, "Error in path abstraction over " ^ i ^ ": I0 when attempting unification at the i0-endpoint. Failed to unify\n  " ^ 
                         Pretty.print (to_raw_expr e1) ^ "\nwith\n  " ^ Pretty.print (to_raw_expr ei0) ^ "≡ " ^ Pretty.print (to_raw_expr e') ^ "[i0/" ^ i ^ "]" ^ "\n" ^
                         msg ^ "\n" ^ goal_msg ctx (Pabs (i, e')) ty)
               end
@@ -729,7 +721,7 @@ let rec elaborate global ind_env ctx lvl sl ty ph vars = function
                 | Ok _ -> 
                   Ok (Pabs (i, e_closed), Pathd (ty1, ei0, ei1), saa)
                 | Error (_, msg) ->
-                  Error (saa, "Failed to unify\n  " ^ 
+                  Error (saa, "Error in path abstraction over " ^ i ^ ": I0 when attempting unification at the i1-endpoint. Failed to unify\n  " ^ 
                     Pretty.print (to_raw_expr e2) ^ "\nwith\n  " ^ Pretty.print (to_raw_expr ei1) ^ "≡ " ^ Pretty.print (to_raw_expr e') ^ "[i1/" ^ i ^ "]" ^ "\n" ^
                     msg ^ "\n" ^ goal_msg ctx (Pabs (i, e')) ty )
                 end
@@ -740,9 +732,10 @@ let rec elaborate global ind_env ctx lvl sl ty ph vars = function
                         msg ^ "\n" ^ goal_msg ctx (Pabs (i, e')) ty )
               end
             | _ ->
-              Error (saa, "Failed to unify\n  " ^
-                    Pretty.print (to_raw_expr e2) ^ "\nwith\n  " ^ Pretty.print (to_raw_expr ei1) ^ "≡ " ^ Pretty.print (to_raw_expr e') ^ "[i1/" ^ i ^ "]" ^ "\n" ^
-                    msg ^ "\n" ^ goal_msg ctx (Pabs (i, e')) ty )
+              Error (saa, "Unification error at path abstraction. Failed to unify\n  " ^
+                    Pretty.print (to_raw_expr e2) ^ "\nwith\n  " ^ Pretty.print (to_raw_expr ei1) ^ "≡ " ^ Pretty.print (to_raw_expr e') ^ "[i1/" ^ i ^ "]" ^ 
+                    "\n" ^  Pretty.print (to_raw_expr ei1') ^ "\n" ^  Pretty.print (to_raw_expr e2') ^
+                    "\n" ^ msg ^ "\n" ^ goal_msg ctx (Pabs (i, e')) ty )
             end
           end
 
@@ -998,10 +991,15 @@ let rec elaborate global ind_env ctx lvl sl ty ph vars = function
       elaborate global ind_env ((x, ty1, true) :: ctx) lvl sl h1 (ph+1) vars (open_var 0 (Global x) ty2)
     in
     begin match elab1, elab2 with
-    | Ok (ty1', Type n1, sa1), Ok (ty2', Type n2, sa2) -> 
+    | Ok (ty1', Type n1, sa1), Ok (ty2', Type n2, sa2) ->
+      let max = Core_ast.unieval (Max(n1, n2)) in
       begin match ty with
+      | Type (Var par) when Universe.level_is_arbitrary par ->
+        (* Synthesize type levels placeholder *)
+        Ok (Sigma(x, ty1', close_bound x ty2'), Type (Suc(max)), Stack.append sa1 sa2)
       | Type m -> 
-        if Core_ast.leq (n1, m) && Core_ast.leq (n2, m) then 
+        (* Check if levels are compatible *)
+        if Core_ast.leq (max, m) then 
           Ok (Sigma(x, ty1', close_bound x ty2'), Type m, Stack.append sa1 sa2) 
         else 
           Error (Stack.append sa1 sa2, "Type mismatch when checking that \n  Σ ( " ^ x ^ " : " ^ Pretty.print (to_raw_expr ty1) ^ ") " ^ Pretty.print (to_raw_expr ty2) ^ 

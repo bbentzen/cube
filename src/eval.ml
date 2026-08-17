@@ -60,10 +60,10 @@ let reduce_recursor rec_spec args =
     | Core_ast.Global c_name ->
         (match List.find_opt (fun c -> c.c_name = c_name) rec_spec.constructors with
         | Some c_spec ->
-            (* Strip constructor parameters *)
+            (* Strip the type family indices in constructor *)
             let actual_c_args =
-              if List.length c_args > rec_spec.num_params then
-                snd (Base.List.split_n c_args rec_spec.num_params)
+              if List.length c_args > rec_spec.num_indices then
+                snd (Base.List.split_n c_args rec_spec.num_indices)
               else c_args
             in
             (* Return the position of the constructor corresponding to c_name *)
@@ -75,10 +75,11 @@ let reduce_recursor rec_spec args =
             
             (* Substitute constructor arguments and build IHs *)
             let reduced_args =
+              (* TODO: Catch exceptions when lengths don't match *)
               List.fold_right2
                 (fun arg is_rec acc ->
                   if is_rec then
-                    (* Generate recursive call: rec_name params motive minors indices arg *)
+                    (* Generate recursive call: rec_name indices motive minors params arg *)
                     let rec_call =
                       build_app
                         (Core_ast.Global (rec_spec.ind_name ^ "rec"))
@@ -191,20 +192,19 @@ let rec eval ind_env = function
         let e2' = eval ind_env e2 in
         let full_app = Core_ast.App (e1', e2') in
         let head, args = break_args [] full_app in
-        (match head with
+        begin match head with
         | Core_ast.Global rec_name ->
-            (* let name =
-              (* Slice the rec suffix from namerec if the string is long enough *)
-              let len = String.length namerec in
-              if len >= 3 then String.sub namerec 0 (len - 3) else namerec
-            in *)
-            (match Hashtbl.find_opt ind_env rec_name with
+            begin match Hashtbl.find_opt ind_env rec_name with
             | Some rec_spec ->
                 (match reduce_recursor rec_spec args with
-                | Some reduced -> reduced
-                | None -> full_app)
-            | None -> full_app)
-        | _ -> full_app)
+                | Some reduced -> eval ind_env reduced
+                | None -> App (eval ind_env e1', eval ind_env e2'))
+            | None -> 
+              App (eval ind_env e1', eval ind_env e2')
+            end
+        | _ -> 
+          App (eval ind_env e1', eval ind_env e2')
+        end
     end
 
   | Core_ast.Pair (e1, e2) ->

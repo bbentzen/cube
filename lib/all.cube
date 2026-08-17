@@ -11,6 +11,7 @@ import ./kan.cube
 import ./nat.cube
 import ./path.cube
 import ./product.cube
-/* import ./sum.cube */
+import ./sum.cube
 import ./unit.cube
 import ./universe.cube
+import ./sum_lemmas.cube

@@ -60,9 +60,9 @@ let rec strictly_positive ind_name = function
       | Some x -> x = ind_name
       | None -> false
 
-(* Adds inductive types, constructors, and eliminators to the context *)
+(* Loads inductive types, constructors, and eliminators to top of the context *)
 let add ind ctx =
-List.map (fun (id, ty) -> (id, ty, true)) ind @ ctx
+ctx @ (List.map (fun (id, ty) -> (id, ty, true)) ind)
 
 (* Opens a type family with abstractions matching its context *)
 
@@ -221,6 +221,14 @@ let print ctx =
 
 let rec_name id_name = id_name ^ "rec"
 
+(* Useful for testing purposes *)
+
 let print_spec id ind = 
   "\nType: " ^ id ^ "\nNum_indices: " ^ string_of_int ind.num_indices ^ "\nNum_params: " ^ string_of_int ind.num_params ^ "\nConstructors: " ^
   String.concat "" (List.map (fun c -> "\nConstructor name: " ^ c.c_name ^ "\nConstructor Num_args: " ^ string_of_int c.c_num_args ^ "\nConstructor Rec_args: " ^ String.concat "" (List.map string_of_bool c.c_rec_args)) ind.constructors)
+
+let find_print id ind_env =
+  match Hashtbl.find_opt ind_env id with
+            | Some rec_spec ->
+              print_spec id rec_spec
+            | None -> "Inductive type not found in environment"

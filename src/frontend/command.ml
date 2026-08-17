@@ -57,7 +57,7 @@ let rec compile global ind_env ind lopen filename lvl next_location = function
                     match res with 
                     | Ok (e1, ty1) ->
                       if id = "infer" then
-                        Ok (global, ind_env, ind, ("infer := " ^ Pretty.printf e1 ^ ": \n" ^ "         " ^ Pretty.printf ty1 ^ "\n", lopen))
+                        Ok (global, ind_env, ind, ("infer := " ^ Pretty.printf e1 ^ ": \n" ^ "         " ^ Pretty.printc ty1 ^ "\n", lopen))
                       else
                         compile (Env.add global id ctx' (e1, ty1)) ind_env ind lopen filename lvl next_location cmd
                     | Error msg -> 
@@ -212,7 +212,7 @@ let rec compile global ind_env ind lopen filename lvl next_location = function
                     { Core_ast.c_name = c_name; 
                     Core_ast.c_num_args = c_num_args; 
                     Core_ast.c_rec_args = c_rec_args }
-                  ) idx_constr in
+                  ) nonidx_constr in (* skips type indices *)
                   
                   Hashtbl.add ind_env (id ^ "rec") {
                     Core_ast.ind_name = id;
