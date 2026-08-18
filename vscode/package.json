@@ -1,7 +1,7 @@
 {
-  "name": "cubicle-vscode",
-  "displayName": "Cubicle Language Support",
-  "description": "Syntax highlighting and diagnostics for the Cubicle proof assistant",
+  "name": "cube-vscode",
+  "displayName": "Cube Language Support",
+  "description": "Syntax highlighting and diagnostics for the Cube proof assistant",
   "version": "0.1.0",
   "engines": {
     "vscode": "^1.80.0"
@@ -14,10 +14,10 @@
   "contributes": {
     "languages": [
       {
-        "id": "cubicle",
+        "id": "cube",
         "aliases": [
-          "Cubicle",
-          "cubicle"
+          "Cube",
+          "cube"
         ],
         "extensions": [
           ".cube"
@@ -27,18 +27,18 @@
     ],
     "grammars": [
       {
-        "language": "cubicle",
-        "scopeName": "source.cubicle",
-        "path": "./syntaxes/cubicle.tmLanguage.json"
+        "language": "cube",
+        "scopeName": "source.cube",
+        "path": "./syntaxes/cube.tmLanguage.json"
       }
     ],
     "configuration": {
-      "title": "Cubicle Configuration",
+      "title": "Cube Configuration",
       "properties": {
-        "cubicle.executablePath": {
+        "cube.executablePath": {
           "type": "string",
-          "default": "cubicle",
-          "description": "Path to the Cubicle compiler binary (assumes global PATH if left default)."
+          "default": "cube",
+          "description": "Path to the Cube compiler binary (assumes global PATH if left default)."
         }
       }
     }

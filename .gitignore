@@ -8,7 +8,7 @@
 
 /tests/examples/debruijin-port
 
-/cubicle-vscode/node_modules
-/cubicle-vscode/out
+/vscode/node_modules
+/vscode/out
 
 dune-workspace

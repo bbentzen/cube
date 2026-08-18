@@ -1,10 +1,23 @@
-# The Cubicle documentation
+# The Cube documentation
 
-This contains a short reference manual on the basics of Cubicle. Here we assume that the user is relatively familiar with cubical type theory. See <a id="1">[3]</a> for a friendly introduction. 
+Cube runs on a cubical reconstruction of extensional type theory <a id="1">[2]</a><a id="1">[3]</a> that enjoys a judgmental version of the unicity of identity proofs principle (UIP), meaning that any two elements of the same path type are the same up to judgmental identity. Below you will find a short reference manual on the basics of Cube. Here we assume that the user is relatively familiar with cubical type theory. See <a id="1">[3]</a> for a friendly introduction. 
 
 ## Usage
 
-There are essentially four main kinds of commands for entering the proof environment, importing files and modularizing proofs, declaring variables and universe levels, and extracting and priting terms from definitions and theorems:
+There are a number of commands for inductively defining type families, entering the proof environment, type inference, term evaluation, importing files for the modularizion of proofs, declaring universe levels, and extracting and priting terms from definitions and theorems:
+
+### Inductive environment
+
+The syntax for defining an indexed inductive type is:
+
+```inductive foo ⊢ type l
+| constructor1 : ... → foo
+| constructor2 : ... → foo
+...
+| constructorn : ... → foo
+```
+
+Recursors are automatically generated under the name `foorec`. 
 
 ### Proof environment
 
@@ -17,18 +30,18 @@ The proof environment is the main command where definitions are stated and theor
 
 Contexts are lists of variable declarations. Explicit variables are enclosed with `(` and `)` and must be passed as parameters when the definition or theorem is reused later. Implicit variables are enclosed with curly braces `{` and `}` and can be inferred by the elaborator. Multiple variables of the same type can be declared at the same time.
 
-Types and their terms are determined by Cubicle's core language. Currently, it contains the following type-formers, constructors, and eliminators for the function type, product type, sum type, unit type, empty type, boolean type, natural number type, dependent function type, dependent product type, dependent path type, interval, and universe types, where A and B denote arbitrary types, x arbitrary variables, and M, N arbitrary terms:
+Types and their terms are determined by Cube's core language. Currently, it contains the following type-formers, constructors, and eliminators for the function type, product type, sum type, unit type, empty type, boolean type, natural number type, dependent function type, dependent product type, dependent path type, interval, and universe types, where A and B denote arbitrary types, x arbitrary variables, C a motive, and M, N arbitrary terms:
 
 Type names | Notation | Constructors | Eliminators
 ------------ | ------------- | ------------- | -------------
-Function type | A → B |  λ x , M | app M N
+Function type | A → B |  λ x , M | M N
 Product type | A × B | ( M , N ) | fst M and snd M
-Sum type | A + B |	inl M and inr M	| case M N1 N2
-Unit type	| unit | ()	| let M N
+Sum type | A + B |	inl M and inr M	| sumrec c N1 N2 M
+Unit type	| unit | ()	| unitrec C N M
 Empty type | empty | | abort M
-Boolean type | bool | true  and  false | if M N1 N2
-Natural Numbers	| nat or ℕ | 0  and  s	| natrec	M N1 N2
-Dependent function type	| Π (x : A) B | λ x , M | app M N
+Boolean type | bool | true  and  false | boolrec C N1 N2 M
+Natural Numbers	| nat or ℕ | 0  and  s	| natrec C N1 N2 M
+Dependent function type	| Π (x : A) B | λ x , M | M N
 Dependent product type | Σ (x : A) B | ( M , N ) | fst M and snd M
 Dependent path type | pathd A x y | < x > M | M @ N
 Interval | I or 𝕀 | i0 and i1 | 
@@ -42,7 +55,23 @@ Moreover, the language also contains two primitive functions known as Kan operat
 
 - Composition. Simply put, composition states that any open box has a lid. More precisely, given any three lines M N N' : I → A such that (i) the initial point of M is judgmentally equal to the initial point of N and (ii) the terminal point of M is judgmentally equal to the initial point of N', the composition also asserts the existence of square I → I → A whose top face is M, left face is N, right face is N'. The composition is written `hfill M | i0 → N0 | i1 → N1`.
 
-Because the unicity of identity proofs holds judgmentally, Cubicle rests on a simplified version of composition in which, unlike other cubical type theories, there are no higher-dimensional composition scenarios. 
+Because the unicity of identity proofs holds judgmentally, Cube rests on a simplified version of composition in which, unlike other cubical type theories, there are no higher-dimensional composition scenarios. 
+
+### Type inference
+
+The syntax for type inference is:
+
+```
+  infer [context] ⊢ foo
+```
+
+### Evaluation
+
+The syntax for term evaluation is:
+
+```
+  eval foo
+```
 
 ### File import
 

@@ -1,6 +1,6 @@
 {
   "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
-  "name": "Cubicle",
+  "name": "Cube",
   "patterns": [
     { "include": "#comments-block" },
     { "include": "#keywords" }
@@ -8,19 +8,19 @@
   "repository": {
     "keywords": {
       "match": "\\b(definition|def|theorem|thm|lemma|lem|inductive|import|infer|eval|print|universe)\\b",
-      "name": "keyword.control.cubicle"
+      "name": "keyword.control.cube"
     },
     "comments-block": {
       "begin": "/\\*",
       "beginCaptures": {
-        "0": { "name": "punctuation.definition.comment.cubicle" }
+        "0": { "name": "punctuation.definition.comment.cube" }
       },
       "end": "\\*/",
       "endCaptures": {
-        "0": { "name": "punctuation.definition.comment.cubicle" }
+        "0": { "name": "punctuation.definition.comment.cube" }
       },
-      "name": "comment.block.cubicle"
+      "name": "comment.block.cube"
     }
   },
-  "scopeName": "source.cubicle"
+  "scopeName": "source.cube"
 }

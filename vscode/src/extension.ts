@@ -32,21 +32,21 @@ const UNICODE_ABBREVIATIONS: { [key: string]: string } = {
 };
 
 export function activate(context: vscode.ExtensionContext) {
-    diagnosticCollection = vscode.languages.createDiagnosticCollection('cubicle');
+    diagnosticCollection = vscode.languages.createDiagnosticCollection('cube');
     context.subscriptions.push(diagnosticCollection);
 
     // 1. Diagnostics on Save
     context.subscriptions.push(
         vscode.workspace.onDidSaveTextDocument((document: vscode.TextDocument) => {
-            if (document.languageId === 'cubicle') {
-                runCubicleDiagnostics(document);
+            if (document.languageId === 'cube') {
+                runCubeDiagnostics(document);
             }
         })
     );
 
     // 2. Unicode Abbreviation Completion Provider
     const unicodeProvider = vscode.languages.registerCompletionItemProvider(
-        'cubicle',
+        'cube',
         {
             provideCompletionItems(document: vscode.TextDocument, position: vscode.Position) {
                 const lineText = document.lineAt(position.line).text;
@@ -92,24 +92,24 @@ export function activate(context: vscode.ExtensionContext) {
     context.subscriptions.push(unicodeProvider);
 }
 
-function runCubicleDiagnostics(document: vscode.TextDocument) {
-    const config = vscode.workspace.getConfiguration('cubicle');
-    let cubiclePath = config.get<string>('executablePath') || 'cubicle';
+function runCubeDiagnostics(document: vscode.TextDocument) {
+    const config = vscode.workspace.getConfiguration('cube');
+    let cubePath = config.get<string>('executablePath') || 'cube';
 
-    if (cubiclePath === 'cubicle' && vscode.workspace.workspaceFolders) {
+    if (cubePath === 'cube' && vscode.workspace.workspaceFolders) {
         const workspaceDir = vscode.workspace.workspaceFolders[0].uri.fsPath;
-        const siblingCubicleRoot = path.resolve(workspaceDir, '..', 'cubicle');
+        const siblingCubeRoot = path.resolve(workspaceDir, '..', 'cube');
         
         const possiblePaths = [
-            path.join(siblingCubicleRoot, 'cubicle'),
-            path.join(siblingCubicleRoot, '_build', 'default', 'src', 'main.exe'),
-            path.join(siblingCubicleRoot, '_build', 'default', 'src', 'cubicle.exe'),
-            path.join(siblingCubicleRoot, '_build', 'default', 'bin', 'main.exe')
+            path.join(siblingCubeRoot, 'cube'),
+            path.join(siblingCubeRoot, '_build', 'default', 'src', 'main.exe'),
+            path.join(siblingCubeRoot, '_build', 'default', 'src', 'cube.exe'),
+            path.join(siblingCubeRoot, '_build', 'default', 'bin', 'main.exe')
         ];
 
         for (const p of possiblePaths) {
             if (fs.existsSync(p)) {
-                cubiclePath = p;
+                cubePath = p;
                 break;
             }
         }
@@ -118,14 +118,14 @@ function runCubicleDiagnostics(document: vscode.TextDocument) {
     const filePath = document.uri.fsPath;
     diagnosticCollection.clear();
 
-    exec(`"${cubiclePath}" "${filePath}"`, (error, stdout, stderr) => {
+    exec(`"${cubePath}" "${filePath}"`, (error, stdout, stderr) => {
         const output = (stdout + "\n" + stderr).trim();
-        const normalizedOutput = normalizeCubicleOutput(output);
+        const normalizedOutput = normalizeCubeOutput(output);
         const isCommandFailure = !!error;
 
         if (error && ((error as any).code === 127 || error.message.includes('ENOENT'))) {
             vscode.window.showErrorMessage(
-                `Cubicle binary could not be located. Ensure it is compiled or set its absolute location via 'cubicle.executablePath' in your VS Code settings.`
+                `Cube binary could not be located. Ensure it is compiled or set its absolute location via 'cube.executablePath' in your VS Code settings.`
             );
             return;
         }
@@ -163,13 +163,13 @@ function runCubicleDiagnostics(document: vscode.TextDocument) {
             0,
             0,
             10,
-            isCommandFailure ? `Cubicle Error:\n${normalizedOutput}` : `Cubicle Output:\n${normalizedOutput}`,
+            isCommandFailure ? `Cube Error:\n${normalizedOutput}` : `Cube Output:\n${normalizedOutput}`,
             isCommandFailure ? vscode.DiagnosticSeverity.Error : vscode.DiagnosticSeverity.Information
         );
     });
 }
 
-function normalizeCubicleOutput(output: string): string {
+function normalizeCubeOutput(output: string): string {
     const failurePrefix = 'Fatal error: exception Failure("';
 
     if (output.startsWith(failurePrefix) && output.endsWith('")')) {

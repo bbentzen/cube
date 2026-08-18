@@ -11,6 +11,8 @@ open Core_ast
 open Debruijn
 open Eval
 
+(* TODO: Retool vars as a list of used globals *)
+
 let rec decl2 lvl = function
 | Core_ast.Num _ -> Ok ()
 | Core_ast.Var name ->
@@ -177,12 +179,12 @@ let rec elaborate global ind_env ctx lvl sl ty ph vars = function
       let h1 = Placeholder.generate ty ph [] in
       let v1 = (create_fresh [e1; ty] 1).(0) in 
       let h2 = Placeholder.generate ty (ph+1) [] in
-      let elab1 = elaborate global ind_env ctx lvl sl (Pi(v1, h1, h2)) (ph+2) (vars+2) e1 in
+      let elab1 = elaborate global ind_env ctx lvl sl (Pi(v1, h1, h2)) (ph+2) vars e1 in
       begin match elab1 with
       | Ok (e1', Pi(_, ty1, ty2), sa1) ->
         (* Evaluates the inferred domain before type checking *)
         let ty1' = eval ind_env ty1 in
-        let elab2 = elaborate global ind_env ctx lvl sl ty1' (ph+2) (vars+2) e2 in
+        let elab2 = elaborate global ind_env ctx lvl sl ty1' (ph+2) vars e2 in
         begin
           match elab2 with
           | Ok (e2', _, sa2) ->
@@ -243,7 +245,7 @@ let rec elaborate global ind_env ctx lvl sl ty ph vars = function
       let v1 = (create_fresh [e1; e2; ty] 1).(0) in 
       let h1 = Placeholder.generate ty 0 [] in
       let h2 = Placeholder.generate ty 1 [] in
-      elaborate global ind_env ctx lvl sl (Sigma(v1, h1, h2)) (ph+2) (vars+1) (Pair (e1, e2))
+      elaborate global ind_env ctx lvl sl (Sigma(v1, h1, h2)) (ph+2) vars (Pair (e1, e2))
     | _ ->
       Error (sl, "Type mismatch when checking that the term (" ^ 
       Pretty.print (to_raw_expr e1) ^ ", " ^ Pretty.print (to_raw_expr e2) ^ ") of type Σ (v? : ?0?) ?1? has type " ^ Pretty.print (to_raw_expr ty))
@@ -251,7 +253,7 @@ let rec elaborate global ind_env ctx lvl sl ty ph vars = function
     
   | Fst e ->
     let h1 = Placeholder.generate ty 0 [] in
-    let elab = elaborate global ind_env ctx lvl sl h1 (ph+1) (vars+1) e in
+    let elab = elaborate global ind_env ctx lvl sl h1 (ph+1) vars e in
     begin match elab with
     | Ok (e', Sigma(_, ty', _), sa) ->
       let elabTy = elaborate global ind_env ctx lvl sl h1 ph vars ty in
@@ -275,7 +277,7 @@ let rec elaborate global ind_env ctx lvl sl ty ph vars = function
 
   | Snd e ->
     let h1 = Placeholder.generate ty 0 [] in
-    let elab = elaborate global ind_env ctx lvl sl h1 (ph+1) (vars+1) e in
+    let elab = elaborate global ind_env ctx lvl sl h1 (ph+1) vars e in
     begin match elab with
     | Ok (e', Sigma(_, _, ty2), sa) ->
       let ty' = open_var 0 (Fst e') ty2 in
@@ -1248,13 +1250,13 @@ and unify global ind_env ctx lvl sl ph vars x lift =
         end
       
       | Pi (x, ty1, ty2), Pi (x', ty1', ty2'), ty -> 
-        let u1 = unify global ind_env ctx lvl sl ph (vars+1) (ty1, ty1', ty) lift in
+        let u1 = unify global ind_env ctx lvl sl ph vars (ty1, ty1', ty) lift in
         begin match u1 with
         | Ok s1 -> 
           let v1 = (create_fresh [ty2; ty2'; ty] 1).(0) in
           let ty2_open = fullsubst 0 ty1 s1 true (open_bound x (Global v1) ty2) in
           let ty2'_open = fullsubst 0 ty1' s1 true (open_bound x' (Global v1) ty2') in
-          let u2 = unify global ind_env ((v1, s1, true) :: ctx) lvl sl ph (vars+1) (ty2_open, ty2'_open, ty) lift in
+          let u2 = unify global ind_env ((v1, s1, true) :: ctx) lvl sl ph vars (ty2_open, ty2'_open, ty) lift in
           begin match u2 with
           | Ok s2 -> 
             Ok (Pi (v1, s1, close_bound v1 s2))
@@ -1265,13 +1267,13 @@ and unify global ind_env ctx lvl sl ph vars x lift =
         end
 
       | Sigma (x, ty1, ty2), Sigma (x', ty1', ty2'), ty ->
-        let u1 = unify global ind_env ctx lvl sl ph (vars+1) (ty1, ty1', ty) lift in
+        let u1 = unify global ind_env ctx lvl sl ph vars (ty1, ty1', ty) lift in
         begin match u1 with
         | Ok s1 -> 
           let v1 = (create_fresh [ty2; ty2'; ty] 1).(0) in
           let ty2_open = fullsubst 0 ty1 s1 true (open_bound x (Global v1) ty2) in
           let ty2'_open = fullsubst 0 ty1' s1 true (open_bound x' (Global v1) ty2') in
-          let u2 = unify global ind_env ((v1, s1, true) :: ctx) lvl sl ph (vars+1) (ty2_open, ty2'_open, ty) lift in
+          let u2 = unify global ind_env ((v1, s1, true) :: ctx) lvl sl ph vars (ty2_open, ty2'_open, ty) lift in
           begin match u2 with
           | Ok s2 -> Ok (Sigma (v1, s1, close_bound v1 s2))
           | Error (s, msg) -> Error (s, "Don't know how to unify\n  " ^ Pretty.print (to_raw_expr ty2_open) ^ "\nwith\n  " ^ Pretty.print (to_raw_expr ty2'_open) ^ "\n" ^ msg)
@@ -1312,8 +1314,8 @@ and unify global ind_env ctx lvl sl ph vars x lift =
               let elab1' = elaborate global ind_env ctx lvl sl tyi1 ph vars (open_var 0 (I1()) e') in
               begin match elab0, elab0', elab1, elab1' with
               | Ok (ei0, _, _), Ok (ei0', _, _), Ok (ei1, _, _), Ok (ei1', _, _) -> 
-                let u0 = unify global ind_env ctx lvl sl ph (vars+1) (ei0, ei0', tyi0) lift in
-                let u1 = unify global ind_env ctx lvl sl ph (vars+1) (ei1, ei1', tyi1) lift in
+                let u0 = unify global ind_env ctx lvl sl ph vars (ei0, ei0', tyi0) lift in
+                let u1 = unify global ind_env ctx lvl sl ph vars (ei1, ei1', tyi1) lift in
                 begin match u0, u1 with
                 | Ok _, Ok _ -> Ok (Abs (x, e))
                 | Error msg, _ | _, Error msg -> Error msg
@@ -1332,7 +1334,7 @@ and unify global ind_env ctx lvl sl ph vars x lift =
             let ev1 = open_var 0 (Global v1) e in
             let ev1' = open_var 0 (Global v1) e' in
             let tyv1 = open_var 0 (Global v1) ty2 in
-            let u = unify global ind_env ((v1, ty1, true) :: ctx) lvl sl ph (vars+1) (ev1, ev1', tyv1) lift in
+            let u = unify global ind_env ((v1, ty1, true) :: ctx) lvl sl ph vars (ev1, ev1', tyv1) lift in
             begin match u with
             | Ok s -> Ok (Abs (v1, s))
             | Error msg -> Error msg
@@ -1653,8 +1655,9 @@ and unify global ind_env ctx lvl sl ph vars x lift =
         | _, Var par when Universe.level_is_arbitrary par -> Ok (Type m)
         | m, n -> compare m n
         end
+      
       | e , e', _ -> 
         if eval ind_env e = eval ind_env e' then 
           Ok e 
         else 
-          Error ((e, e'), "The terms\n  " ^ Pretty.print (to_raw_expr e) ^ "\nand\n  " ^ Pretty.print (to_raw_expr e') ^ "\nare not equal")
+          Error ((e, e'), "The two terms\n  " ^ Pretty.print (to_raw_expr e) ^ "\nand\n  " ^ Pretty.print (to_raw_expr e') ^ "\nare not equal")
