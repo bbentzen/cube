@@ -37,7 +37,7 @@ def mult
 /* Numerical equations */
  
 def add_zero (m : nat)
-⊢ path nat ((add 0) m) m :=
+⊢ path nat (add 0 m) m :=
 natrec _ (<_> 0) (λ n p , <i> succ (p @ i)) m
 
 def succ_iff_eq {n m : nat}
@@ -79,15 +79,12 @@ def add_comm_zero (m : ℕ)
 natrec _ (<_> 0) (λ k ih, eq_to_succ ih) m
 
 def add_comm_succ (l n : ℕ)
-⊢ path ℕ (succ (add l n)) (add (succ l) n) :=
-natrec _ (<_> succ l) (λ _ ih, eq_to_succ ih) n
-
-/* BROKEN PROOFS TO BE FIXED: */
+⊢ path ℕ (add (succ l) n) (succ (add l n)) :=
+natrec _ (<_> succ l) (λ _ ih, eq_to_succ ih) n 
 
 def add_comm (m n : ℕ) 
 ⊢ path ℕ (add m n) (add n m) :=
-natrec _ (add_comm_zero n) (λ k' ih, /* k */
-  path_trans (eq_to_succ ih) (add_comm_succ k' n) ) m
+natrec _ (add_zero n) (λ k ih, (add_comm_succ k n) · (eq_to_succ ih)) m
 
 def add_num_left {m n : ℕ} (k : ℕ)
 ⊢ path ℕ m n → path ℕ (add k m) (add k n) :=
@@ -111,7 +108,7 @@ def add_two {m n k l : ℕ}
 
 def add_num_inj {m n k : ℕ}
 ⊢ path ℕ (add m k) (add n k) → path ℕ m n :=
-natrec k id (λ i ih p, ih (succ_to_eq p))
+natrec _ id (λ i ih p, ih (succ_to_eq p)) k
 
 /* def add_path_inj {m n k' l : ℕ} (p : path ℕ k' l)
 ⊢ path ℕ (add m k') (add n l) → path ℕ m n :=
@@ -119,7 +116,7 @@ natrec k id (λ i ih p, ih (succ_to_eq p))
 
 def add_comm2 (m n k' : ℕ) /* k */
 ⊢ path ℕ (add (add m n) k') (add (add m k') n) :=
-(add_assoc m n k') · (add_num_left m (add_comm n k')) · (add_assoc m n k')⁻¹
+(add_assoc m n k') · (add_num_left m (add_comm n k')) · (add_assoc m k' n)⁻¹
 
 def add_pair_symm (m n : ℕ) {x y : ℕ} 
 ⊢ path ℕ (add (add m x) (add n y))  (add (add m n) (add x y)) :=
@@ -139,13 +136,11 @@ def leq_add (m n k' : ℕ) /* k */
 
 def nat_code (n m : nat)
 ⊢ type 1 :=
-natrec n 
-  (natrec m (path nat 0 0) (λ _ _, void)) 
-  (λ n' C, natrec m void (λ m' _, path nat succ n' succ m'))
+natrec _ (natrec _ (path nat 0 0) (λ _ _, void) m) 
+(λ n' C, natrec _ void (λ m' _, path nat (succ n') (succ m')) m) n
  
 def nat_eq {n m : nat}
 ⊢ path nat n m ↔ nat_code n m :=
-natrec n
- (natrec m id_iff_id (λ k _, (nat_neq, absurd)))
- (λ k _, natrec m (nat_neq', absurd) (λ k' _, id_iff_id))
+natrec _ (natrec _ id_iff_id (λ k _, (nat_neq, absurd)) m)
+(λ k _, natrec _ (nat_neq', absurd) (λ k' _, id_iff_id) m) n
 
