@@ -99,7 +99,7 @@ let reduce_recursor rec_spec args =
 
 (* Eager evaluation with locally nameless representation *)
 
-let rec eval ind_env = function
+(* let rec eval ind_env = function
   | Core_ast.Coe (i, j, Core_ast.Abs(k, Pi(x, ty1, ty2)), e) ->  
     let v1 = (create_fresh [Pi(x, ty1, ty2); e] 1).(0) in
     let i' = shift 0 1 (eval ind_env i) in
@@ -288,50 +288,50 @@ let rec eval ind_env = function
   | Core_ast.Type l ->
     Core_ast.Type (Core_ast.unieval l)
     
-  | e -> e
+  | e -> e *)
 
-(* Weak head normal form reduction *)
+(* Weak head reduction *)
 
-let rec whnf ind_env = function
+let rec reduce ind_env = function
   | Core_ast.Coe (i, j, Core_ast.Abs(k, Pi(x, ty1, ty2)), e) ->  
     let v1 = (create_fresh [Pi(x, ty1, ty2); e] 1).(0) in
-    let i' = shift 0 1 (whnf ind_env i) in
-    let j' = shift 0 1 (whnf ind_env j) in
+    let i' = shift 0 1 (reduce ind_env i) in
+    let j' = shift 0 1 (reduce ind_env j) in
     Core_ast.Abs(v1, Core_ast.Coe (i', j', Core_ast.Abs(k, 
-    (shift 2 1 (whnf ind_env (Debruijn.open_var 0
+    (shift 2 1 (reduce ind_env (Debruijn.open_var 0
     (Core_ast.Coe (j', Local 0, Core_ast.Abs(k, shift 1 1 ty1), Local 1)) ty2)))),
-    (whnf ind_env (Core_ast.App(shift 0 1 e, Coe (j', i', Core_ast.Abs(k, shift 1 1 ty1), Local 0))))))
+    (reduce ind_env (Core_ast.App(shift 0 1 e, Coe (j', i', Core_ast.Abs(k, shift 1 1 ty1), Local 0))))))
 
   | Core_ast.Coe (i, j, Core_ast.Abs(k, Sigma(_, ty1, ty2)), e) ->
-    let i' = whnf ind_env i in
-    let j' = whnf ind_env j in
+    let i' = reduce ind_env i in
+    let j' = reduce ind_env j in
     (* let c x = Coe (i', x, Abs(k, ty1), Fst e) in *)
     Pair(Coe (i', j', Abs(k, ty1), Fst e), 
     Coe (i', j', Abs(k, 
-    whnf ind_env (Debruijn.open_var 0 (shift 1 1 (Coe (i', Local 0, Abs(k, ty1), Fst e))) ty2)),
-    Snd (whnf ind_env e)))
+    reduce ind_env (Debruijn.open_var 0 (shift 1 1 (Coe (i', Local 0, Abs(k, ty1), Fst e))) ty2)),
+    Snd (reduce ind_env e)))
 
   | Core_ast.Coe (i, j, Core_ast.Abs(k, Pathd(ty, e1, e2)), e) ->
       let v = create_fresh [ty; e1; e2; e] 3 in
       let v1 = v.(0) and v2 = v.(1) and v3 = v.(2) in
-      let i' = shift 0 2 (whnf ind_env i) in
-      let j' = shift 0 2 (whnf ind_env j) in
+      let i' = shift 0 2 (reduce ind_env i) in
+      let j' = shift 0 2 (reduce ind_env j) in
       let ty' = shift 1 2 ty and e' = shift 0 2 e in
       Pabs(v1, App(App (Hfill(
-      Abs(v2, Coe (i', j', (Abs(k, (whnf ind_env (App(ty', Local 1))))), whnf ind_env (At(e', Local 0)))), 
-      Abs(v3, Coe (Local 0, j', (Abs(k, (whnf ind_env (App(ty', I0()))))), whnf ind_env (shift 1 1 e1))),
-      Abs(v3, Coe (Local 0, j', (Abs(k, (whnf ind_env (App(ty', I1()))))), whnf ind_env (shift 1 1 e2)))),
+      Abs(v2, Coe (i', j', (Abs(k, (reduce ind_env (App(ty', Local 1))))), reduce ind_env (At(e', Local 0)))), 
+      Abs(v3, Coe (Local 0, j', (Abs(k, (reduce ind_env (App(ty', I0()))))), reduce ind_env (shift 1 1 e1))),
+      Abs(v3, Coe (Local 0, j', (Abs(k, (reduce ind_env (App(ty', I1()))))), reduce ind_env (shift 1 1 e2)))),
       I1()), Local 0))
 
   | Core_ast.Coe (i, j, e1, e2) ->
     begin
-      let i' = whnf ind_env i in
-      let j' = whnf ind_env j in
-      let e2' = whnf ind_env e2 in
+      let i' = reduce ind_env i in
+      let j' = reduce ind_env j in
+      let e2' = reduce ind_env e2 in
       if i' = j' then
         e2'
       else
-        let e1' = whnf ind_env e1 in
+        let e1' = reduce ind_env e1 in
         match e1' with
         | Core_ast.Abs(_, e) ->
           if occurs_index 0 0 e then
@@ -343,122 +343,91 @@ let rec whnf ind_env = function
     end
   
   | Core_ast.Hfill (e, e1, e2) ->
-    let e' = whnf ind_env e in
-    let e1' = whnf ind_env e1 in
-    let e2' = whnf ind_env e2 in
+    let e' = reduce ind_env e in
+    let e1' = reduce ind_env e1 in
+    let e2' = reduce ind_env e2 in
     Core_ast.Hfill (e', e1', e2')
   
   | Core_ast.App (Core_ast.Hfill (e, _, _), Core_ast.I0()) -> 
-    whnf ind_env e
+    reduce ind_env e
 
   | Core_ast.App (Core_ast.App (Core_ast.Hfill (_, e1, _), i), Core_ast.I0()) -> 
-    whnf ind_env (Core_ast.App(e1, i))
+    reduce ind_env (Core_ast.App(e1, i))
 
   | Core_ast.App (Core_ast.App (Core_ast.Hfill (_, _, e2), i), Core_ast.I1()) -> 
-    whnf ind_env (Core_ast.App(e2, i))
+    reduce ind_env (Core_ast.App(e2, i))
+
+  | Core_ast.Abs (x, App (e , Local 0)) -> 
+    if not (occurs_index 0 0 e) && not (Placeholder.has e) then
+      reduce ind_env (shift 0 (-1) e) (* eta reduction *)
+    else
+      Core_ast.Abs (x, App (e , Local 0))
   
-  | Core_ast.Abs (x, e) -> 
-    begin
-      match e with
-      | Core_ast.App (e1 , e2) ->
-          begin
-          match e2 with 
-          | Local 0 ->
-            if not (occurs_index 0 0 e1) && not (Placeholder.has e1) then
-              let e1' = whnf ind_env e1 in
-              shift 0 (-1) e1' (* eta reduction *)
-            else
-              Core_ast.Abs (x, e)
-          | _ -> Core_ast.Abs (x, e)
-          end
-      | _ ->
-        Core_ast.Abs (x, e)
-    end
-
   | Core_ast.App (e1, e2) -> 
-    begin
-      let e1' = whnf ind_env e1 in
-      match e1' with
-      | Core_ast.Abs (_, e) ->
-          whnf ind_env (beta e e2)
-      | _ ->
-        let full_app = Core_ast.App (e1', e2) in
-        let head, args = break_args [] full_app in
-        begin match head with
-        | Core_ast.Global rec_name ->
-            begin match Hashtbl.find_opt ind_env rec_name with
-            | Some rec_spec ->
-                begin match reduce_recursor rec_spec args with
-                | Some reduced -> whnf ind_env reduced
-                | None -> full_app
-                end
-            | None -> 
-              full_app
-            end
-        | _ -> 
-          full_app
-        end
+    let e1' = reduce ind_env e1 in
+    begin match e1' with
+    | Core_ast.Abs (_, e) ->
+        reduce ind_env (beta e e2)
+    | _ ->
+      let e2' = reduce ind_env e2 in
+      let full_app = Core_ast.App (e1', e2') in
+      let head, args = break_args [] full_app in
+      begin match head with
+      | Core_ast.Global rec_name ->
+          begin match Hashtbl.find_opt ind_env rec_name with
+          | Some rec_spec ->
+              begin match reduce_recursor rec_spec args with
+              | Some reduced -> reduce ind_env reduced
+              | None -> full_app
+              end
+          | None -> 
+            full_app
+          end
+      | _ -> 
+        full_app
+      end
     end
 
-  | Core_ast.Pair (e1, e2) ->
-    begin
-      match e1, e2 with
-      | Core_ast.Fst e11, Core_ast.Snd e22 ->
-        if e11 = e22 then
-          e11
-        else
-          Core_ast.Pair (e1, e2)
-      | _ ->
-        Core_ast.Pair (e1, e2)
-    end
+  | Core_ast.Pair (Fst e1, Snd e2) ->
+      if e1 = e2 then
+        reduce ind_env e1
+      else
+        Core_ast.Pair (Fst e1, Snd e2)
 
   | Core_ast.Fst e ->
-    begin
-      let e' = whnf ind_env e in
-      match e' with
-      | Core_ast.Pair (e1 , _) -> e1
-      | _ -> 
-        Core_ast.Fst e'
+    let e' = reduce ind_env e in
+    begin match e' with
+    | Core_ast.Pair (e1 , _) -> e1
+    | _ -> Core_ast.Fst e'
     end
 
   | Core_ast.Snd e -> 
-    begin
-      let e' = whnf ind_env e in
-      match e' with
-      | Core_ast.Pair (_ , e2) -> e2
-      | _ -> 
-        Core_ast.Snd e'
+    let e' = reduce ind_env e in
+    begin match e' with
+    | Core_ast.Pair (_ , e2) -> e2
+    | _ -> Core_ast.Snd e'
     end
-
-  | Core_ast.Pabs (x, e) -> 
-    begin
-      let e' = whnf ind_env e in
-      match e' with
-      | Core_ast.At (e1 , e2) ->
-        begin
-        match e2 with 
-          | Local 0 ->
-            if not (occurs_index 0 0 e1) then 
-              shift 0 (-1) e1 (* eta reduction *)
-            else
-              Core_ast.Pabs (x, e')
-          | _ -> Core_ast.Pabs (x, e')
-          end
-      | _ ->
-        Core_ast.Pabs (x, e')
-    end
+  
+  | Core_ast.Pabs (x, At (e , Local 0)) -> 
+    if not (occurs_index 0 0 e) && not (Placeholder.has e) then
+      reduce ind_env (shift 0 (-1) e) (* eta reduction *)
+    else
+      Core_ast.Pabs (x, At (e , Local 0))
 
   | Core_ast.At (e1, e2) -> 
     begin
-      let e1' = whnf ind_env e1 in
+      let e1' = reduce ind_env e1 in
       match e1' with
       | Core_ast.Pabs (_ , e) ->
-          whnf ind_env (beta e e2)
+          reduce ind_env (beta e e2)
       | _ ->
-        Core_ast.At (e1', e2)
+        let e2' = reduce ind_env e2 in
+        Core_ast.At (e1', e2')
     end
 
   | Core_ast.Type l ->
     Core_ast.Type (Core_ast.unieval l)
     
   | e -> e
+
+let eval ind_env = reduce ind_env
