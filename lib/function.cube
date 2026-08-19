@@ -8,120 +8,120 @@ universe l
 
 /* function type */
 
-def id {A : type l}
-⊢ A → A :=
+def id {A : type l} : 
+  A → A :=
 λ x, x
  
-def id_iff_id {A : type l}
-⊢ A ↔ A :=
+def id_iff_id {A : type l} : 
+  A ↔ A :=
 (id, id)
 
-def k_combinator {A B : type l}
-⊢ A → B → A :=
+def k_combinator {A B : type l} : 
+  A → B → A :=
 λ x y, x
  
-def s_combinator {A B C : type l}
-⊢ (A → B → C) → (A → B) → (A → C) :=
+def s_combinator {A B C : type l} : 
+  (A → B → C) → (A → B) → (A → C) :=
 λ f g x, (f x) (g x)
  
-def b_combinator {A B C : type l}
-⊢ (B → C) → (A → B) → (A → C) :=
+def b_combinator {A B C : type l} : 
+  (B → C) → (A → B) → (A → C) :=
 λ f g x, f (g x)
  
-def arg_exg {A B C : type l}
-⊢ (A → B → C) → (B → A → C) :=
+def arg_exg {A B C : type l} : 
+  (A → B → C) → (B → A → C) :=
 λ f y x, (f x) y
  
-def w_combinator {A B : type l} 
-⊢ (A → A → B) → (A → B) :=
+def w_combinator {A B : type l}  : 
+  (A → A → B) → (A → B) :=
 λ f x, (f x) x
  
-def comp {A B C : type l} 
-⊢ (A → B) → (B → C) → (A → C) :=
+def comp {A B C : type l}  : 
+  (A → B) → (B → C) → (A → C) :=
 λf g x, g (f x)
  
 /* Negation & Empty type */
  
-def not_false
-⊢ ¬ void :=
+def not_false : 
+  ¬ void :=
 λx, x
  
-def dni {A : type l}
-⊢ A → ¬¬A :=
+def dni {A : type l} : 
+  A → ¬¬A :=
 λx f, f x
  
-def tne {A : type l}
-⊢ ¬¬¬A → ¬A :=
+def tne {A : type l} : 
+  ¬¬¬A → ¬A :=
 λf x, f (λnx, nx x)
  
-def contrap {A B : type l}
-⊢ (A → B) → (¬ B → ¬ A) :=
+def contrap {A B : type l} : 
+  (A → B) → (¬ B → ¬ A) :=
 λf g x, g (f x)
  
-def neg_distr {A B : type l}
-⊢ ¬ (A → B) → (A → ¬ B) :=
+def neg_distr {A B : type l} : 
+  ¬ (A → B) → (A → ¬ B) :=
 λf _ y, f (λ_, y)
  
-def neg_ant {A B : type l}
-⊢ (A → B) → (A → ¬ B) → ¬ A :=
+def neg_ant {A B : type l} : 
+  (A → B) → (A → ¬ B) → ¬ A :=
 λ f g, (λ x, (g x) (f x))
  
-def ex_falso {A B : type l}
-⊢ A → ¬ A → B :=
+def ex_falso {A B : type l} : 
+  A → ¬ A → B :=
 λ x f, abort (f x)
  
-def absurd {A : type l}
-⊢ void → A :=
+def absurd {A : type l} : 
+  void → A :=
 λ x, abort x
 
 /* Dependent function type */
 
-def dcombinator_s {A : type l} {B C : A → type l}
-⊢ (Π (x : A) B x → C x) → (Π (x : A) B x) → (Π (x : A) C x) :=
+def dcombinator_s {A : type l} {B C : A → type l} : 
+  (Π (x : A) B x → C x) → (Π (x : A) B x) → (Π (x : A) C x) :=
 λ f g x, (f x) (g x)
  
-theorem pi_comm {A : type l} {B : A → A → type l}
-⊢ (Π (x : A) (y : A) B x y) → Π (y : A) (x : A) B x y :=
+theorem pi_comm {A : type l} {B : A → A → type l} : 
+  (Π (x : A) (y : A) B x y) → Π (y : A) (x : A) B x y :=
 λ f y x, f x y
  
-theorem pi_fun_distr1 {A B : type l} {C : A → type l}
-⊢ (B → (Π (x : A) C x)) → (Π (x : A) (B → C x)) :=
+theorem pi_fun_distr1 {A B : type l} {C : A → type l} : 
+  (B → (Π (x : A) C x)) → (Π (x : A) (B → C x)) :=
 λ f y x, (f x) y
  
-theorem pi_fun_distr2 {A B : type l} {C : A → type l}
-⊢ (Π (x : A) (B → C x)) → (B → (Π (x : A) C x)) :=
+theorem pi_fun_distr2 {A B : type l} {C : A → type l} : 
+  (Π (x : A) (B → C x)) → (B → (Π (x : A) C x)) :=
 λ f y x, (f x) y
  
-theorem dprod_up_2_fst {A : type l} {B C : A → type l}
-⊢ (Π (x : A) B x × C x) → (Π (x : A) B x) :=
+theorem dprod_up_2_fst {A : type l} {B C : A → type l} : 
+  (Π (x : A) B x × C x) → (Π (x : A) B x) :=
 λ f x, fst (f x)
  
-theorem dprod_up_2_snd {A : type l} {B C : A → type l}
-⊢ (Π (x : A) B x × C x) → (Π (x : A) C x) :=
+theorem dprod_up_2_snd {A : type l} {B C : A → type l} : 
+  (Π (x : A) B x × C x) → (Π (x : A) C x) :=
 λ f x, snd (f x)
  
-theorem pi_prod_distr {A B : type l} {C : A → type l}
-⊢ (B × Π (x : A) C x) → (Π (x : A) B × C x) :=
+theorem pi_prod_distr {A B : type l} {C : A → type l} : 
+  (B × Π (x : A) C x) → (Π (x : A) B × C x) :=
 λ w x, (fst w, (snd w) x)
  
 /* Function aplication and extensionality */
  
-def ap {A B : type l} (f : A → B) {a b : A} 
-⊢ path A a b → path B (f a) (f b) :=
+def ap {A B : type l} (f : A → B) {a b : A}  : 
+  path A a b → path B (f a) (f b) :=
 λp, <i> f (p @ i)
  
-def apd {A : type l} {B : A → type l} (f : Π (x : A) B x) {a b : A} (p : path A a b)
-⊢ pathd (λi, B (p @ i)) (f a) (f b) :=
+def apd {A : type l} {B : A → type l} (f : Π (x : A) B x) {a b : A} (p : path A a b) : 
+  pathd (λi, B (p @ i)) (f a) (f b) :=
 <i> f (p @ i)	
  
-def funext {A : type l} {B : A → type l} (f g : Π (x : A) B x) 
-⊢ (Π (x : A) path (B x) (f x) (g x)) → path (Π (x : A) B x) f g :=
+def funext {A : type l} {B : A → type l} (f g : Π (x : A) B x)  : 
+  (Π (x : A) path (B x) (f x) (g x)) → path (Π (x : A) B x) f g :=
 λh, <i> (λ x, (h x) @ i)
 
 /* Homogeneous composition */
 
-def function_hcom {A : type l} {B : A → type l} {f f' g g' : Π (x : A) B x} (p : path (Π (x : A) B x) f g) (q : path (Π (x : A) B x) f f') (r : path (Π (x : A) B x) g g') (i : I)
-⊢ path (Π (x : A) B x) 
+def function_hcom {A : type l} {B : A → type l} {f f' g g' : Π (x : A) B x} (p : path (Π (x : A) B x) f g) (q : path (Π (x : A) B x) f f') (r : path (Π (x : A) B x) g g') (i : I) : 
+  path (Π (x : A) B x) 
   ((hcom (λ i, p @ i) | i0 → λ j, q @ j | i1 → λ j, r @ j) i) 
   (λ x, (hcom (λ j, (p @ j) x) | i0 → λ j, (q @ j) x | i1 → λ j, (r @ j) x) i) := 
 <_> (hcom (λ i, p @ i) | i0 → λ j, q @ j | i1 → λ j, r @ j) i

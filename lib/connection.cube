@@ -10,8 +10,8 @@ universe l
 
 /* Connections for paths */
  
-def meet {A : type l} {a b : A} (p : path A a b) 
-⊢ pathd (λ i, path A a (p @ i)) (<_> a) p  := 
+def meet {A : type l} {a b : A} (p : path A a b)  :
+  pathd (λ i, path A a (p @ i)) (<_> a) p  := 
 <j> <i> (hfill (λ _, a) 
  | i0 → λ _, a 
  | i1 → λ j, p @ j) j i
@@ -29,8 +29,8 @@ def meet {A : type l} {a b : A} (p : path A a b)
                 p @ i
 */
  
-def join {A : type l} {a b : A} (p : path A a b) 
-⊢ pathd (λ i, path A (p @ i) b) p (<_> b)  := 
+def join {A : type l} {a b : A} (p : path A a b)  :
+  pathd (λ i, path A (p @ i) b) p (<_> b)  := 
 <j> <i> (hfill (λ i, p @ i) 
  | i0 → λ j, p @ j 
  | i1 → λ _, b) j i
@@ -48,8 +48,8 @@ def join {A : type l} {a b : A} (p : path A a b)
                  b
 */
  
-def both {A : type l} {a b c : A} (p : path A a b) (q : path A b c) 
-⊢ pathd (λ i, path A (p @ i) (q @ i)) p q := 
+def both {A : type l} {a b c : A} (p : path A a b) (q : path A b c)  :
+  pathd (λ i, path A (p @ i) (q @ i)) p q := 
 <j> <i> (hfill (λ i, p @ i) 
  | i0 → λ j, p @ j 
  | i1 → λ j, q @ j) j i

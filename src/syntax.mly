@@ -43,7 +43,7 @@ let single_id = function
 %token <string> FILENAME
 %token <string> NUMBER
 %token EVAL IMPORT IND UNIVERSE DEF PRINT INFER LBRACE RBRACE
-%token TYPE MAX NEXT COLON VDASH
+%token TYPE MAX NEXT COLON
 %token I0 I1 INTERVAL COE HCOM HFILL FILL COM BAR
 %token ABS APP RARROW LRARROW PI
 %token LPAREN RPAREN COMMA FST SND PROD SIGMA
@@ -103,7 +103,7 @@ constr:
 ctx: 
   | LPAREN ids COLON expr RPAREN ctx                         {(($2, $4), true) :: $6}
   | LBRACE ids COLON expr RBRACE ctx                         {(($2, $4), false) :: $6}
-  | VDASH                                                   {([])}
+  | COLON                                                   {([])}
 
 ids:
   | ID                                                      { [$1] }

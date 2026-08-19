@@ -82,8 +82,6 @@ rule token = parse
   | "max"              { MAX }
   | "next"             { NEXT }
   | ":"                { COLON }
-  | "|-"               { VDASH }
-  | "⊢"                { VDASH }
   | "{"                { LBRACE }
   | "}"                { RBRACE }
   | "import"           { IMPORT }

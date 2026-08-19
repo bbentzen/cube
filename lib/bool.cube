@@ -10,94 +10,94 @@ universe l
 
 /* Boolean type, constructors and eliminator */
 
-inductive bool ⊢ type 0 :=
+inductive bool : type 0 :=
 | true : bool
 | false : bool
 
-def if {C : bool → type l} (b : bool) (ct : C true) (cf : C false)
-⊢ C b :=
+def if {C : bool → type l} (b : bool) (ct : C true) (cf : C false) :
+  C b :=
 boolrec C ct cf b
 
 /* Boolean operations */
  
-def bneg
-⊢ bool → bool :=
+def bneg :
+  bool → bool :=
 λ b, if b false true
  
-def band
-⊢ bool → bool → bool :=
+def band :
+  bool → bool → bool :=
 λ b b', if b (if b' true false) (if b' false false)
 
-def bor
-⊢ bool → bool → bool :=
+def bor :
+  bool → bool → bool :=
 λ b b', if b (if b' true true) (if b' true false)
  
-def bimpl
-⊢ bool → bool → bool :=
+def bimpl :
+  bool → bool → bool :=
 λ b b', if b (if b' true false) (if b' true true)
  
-def bnand
-⊢ bool → bool → bool :=
+def bnand :
+  bool → bool → bool :=
 λ b b', if b (if b' false true) (if b' true true)
  
-def bnor
-⊢ bool → bool → bool :=
+def bnor :
+  bool → bool → bool :=
 λ b b', if b (if b' false false) (if b' false true)
  
 /* Boolean equations */
 
 import ./unit.cube
 
-def bool_neq 
-⊢ ¬ path bool true false :=
+def bool_neq  :
+  ¬ path bool true false :=
 λ p, coe i0 i1 (λ i, if (p @ i) unit void) ()
 
-def bool_neq'
-⊢ ¬ path bool false true :=
+def bool_neq' :
+  ¬ path bool false true :=
 λ p, coe i1 i0 (λ i, if (p @ i) unit void) ()
  
-def bneg_inv (b : bool)
-⊢ path bool (bneg (bneg b)) b :=
+def bneg_inv (b : bool) :
+  path bool (bneg (bneg b)) b :=
 if b (<i> true) (<i> false)
  
-def band_comm (b b' : bool)
-⊢ path bool (band b b') (band b' b) :=
+def band_comm (b b' : bool) :
+  path bool (band b b') (band b' b) :=
 if b (if b' (<_> true) (<_> false)) (if b' (<_> false) (<_> false))
  
-def band_assoc (b b' b'' : bool)
-⊢ path bool (band b (band b' b'')) (band (band b b') b'') :=
+def band_assoc (b b' b'' : bool) :
+  path bool (band b (band b' b'')) (band (band b b') b'') :=
 if b 
   (if b' (if b'' (<_> true) (<_> false)) (if b'' (<_> false) (<_> false))) 
   (if b' (if b'' (<_> false) (<_> false)) (if b'' (<_> false) (<_> false)))
  
-def bor_comm (b b' : bool)
-⊢ path bool (bor b b') (bor b' b) :=
+def bor_comm (b b' : bool) :
+  path bool (bor b b') (bor b' b) :=
 if b (if b' (<_> true) (<_> true)) (if b' (<_> true) (<_> false))
  
-def bor_assoc (b b' b'' : bool)
-⊢ path bool (bor b (bor b' b'')) (bor (bor b b') b'') :=
+def bor_assoc (b b' b'' : bool) :
+  path bool (bor b (bor b' b'')) (bor (bor b b') b'') :=
 if b 
   (if b' (if b'' (<_> true) (<_> true)) (if b'' (<_> true) (<_> true))) 
   (if b' (if b'' (<_> true) (<_> true)) (if b'' (<_> true) (<_> false)))
 
-def band_distr (b b' b'' : bool)
-⊢ path bool (band b (bor b' b'')) (bor (band b b') (band b b'')) :=
+def band_distr (b b' b'' : bool) :
+  path bool (band b (bor b' b'')) (bor (band b b') (band b b'')) :=
 if b (if b' (if b'' (<_> true) (<_> true)) (if b'' (<_> true) (<_> false)))
   (if b' (if b'' (<_> false) (<_> false)) (if b'' (<_> false) (<_> false)))
 
-def bor_distr (b b' b'' : bool)
-⊢ path bool (bor b (band b' b'')) (band (bor b b') (bor b b'')) :=
+def bor_distr (b b' b'' : bool) :
+  path bool (bor b (band b' b'')) (band (bor b b') (bor b b'')) :=
 if b (if b' (if b'' (<_> true) (<_> true)) (if b'' (<_> true) (<_> true)))
   (if b' (if b'' (<_> true) (<_> false)) (if b'' (<_> false) (<_> false)))
 
 /* Path structure (code-decode) */
 
-def bool_code (b b' : bool)
-⊢ type 1 :=
+def bool_code (b b' : bool) :
+  type 1 :=
 if b (if b' (path bool true true) void) (if b' void (path bool false false))
  
-def bool_eq (b b' : bool)
-⊢ path bool b b' ↔ bool_code b b' :=
+def bool_eq (b b' : bool) :
+  path bool b b' ↔ bool_code b b' :=
 if b 
   (if b' id_iff_id (bool_neq, absurd)) 
   (if b' (bool_neq', absurd) id_iff_id)

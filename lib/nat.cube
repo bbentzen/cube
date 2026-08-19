@@ -12,135 +12,135 @@ universe k
 
 /* Sum type former, constructors and eliminator */
 
-inductive nat ⊢ type 0 :=
+inductive nat : type 0 :=
 | zero : nat
 | succ : nat → nat
 
-def rec {C : nat → type k} (n : nat) 
-⊢ Π (c : C zero) (d : Π (k : nat) C k → C (succ k)) C n :=
+def rec {C : nat → type k} (n : nat)  :
+  Π (c : C zero) (d : Π (k : nat) C k → C (succ k)) C n :=
 λ c d, natrec _ c d n
 
 /* Basic arithmetic operations */
  
-def pred
-⊢ nat → nat :=
+def pred :
+  nat → nat :=
 λ n, natrec _ 0 (λ k _, k) n
  
-def add
-⊢ nat → nat → nat :=
+def add :
+  nat → nat → nat :=
 λ m n, natrec _  m (λ k res, succ res) n
 
-def mult 
-⊢ nat → nat → nat := 
+def mult  :
+  nat → nat → nat := 
 λ m n, natrec _ 0 (λ k res, (natrec _ m (λ k, λ g, succ g) res)) n
  
 /* Numerical equations */
  
-def add_zero (m : nat)
-⊢ path nat (add 0 m) m :=
+def add_zero (m : nat) :
+  path nat (add 0 m) m :=
 natrec _ (<_> 0) (λ n p , <i> succ (p @ i)) m
 
-def succ_iff_eq {n m : nat}
-⊢ path nat (succ n) (succ m) ↔ path nat n m :=
+def succ_iff_eq {n m : nat} :
+  path nat (succ n) (succ m) ↔ path nat n m :=
 (λ p, <i> natrec _ n (λ k _, k) (p @ i), λ p, <i> succ (p @ i))
 
-def succ_to_eq {n m : nat}
-⊢ path nat (succ n) (succ m) → path nat n m :=
+def succ_to_eq {n m : nat} :
+  path nat (succ n) (succ m) → path nat n m :=
 fst succ_iff_eq
 
-def eq_to_succ {n m : nat}
-⊢ path nat n m → path nat (succ n) (succ m) :=
+def eq_to_succ {n m : nat} :
+  path nat n m → path nat (succ n) (succ m) :=
 snd succ_iff_eq
 
-def pred_succ {n : nat}
-⊢ path nat (pred (succ n)) n :=
+def pred_succ {n : nat} :
+  path nat (pred (succ n)) n :=
 <_> n
 
-def succ_pred {n : nat} (w : Σ (k : nat) path nat (succ k) n)
-⊢ path nat (succ (pred n)) n :=
+def succ_pred {n : nat} (w : Σ (k : nat) path nat (succ k) n) :
+  path nat (succ (pred n)) n :=
 coe i0 i1 (λ i, path nat (succ (pred (snd w @ i))) (snd w @ i)) (<_> succ (fst w))
  
-def nat_neq {n : nat}
-⊢ ¬ path nat 0 (succ n) :=
+def nat_neq {n : nat} :
+  ¬ path nat 0 (succ n) :=
 λ p, coe i0 i1 (λ i, natrec _ unit (λ _ _, void) (p @ i)) ()
 
-def nat_neq' {n : nat}
-⊢ ¬ path nat (succ n) 0 :=
+def nat_neq' {n : nat} :
+  ¬ path nat (succ n) 0 :=
 λ p, coe i1 i0 (λ i, natrec _ unit (λ _ _, void) (p @ i) ) ()
 
 /* Basic arithmetical laws */
 
-def add_assoc (m n k : ℕ)
-⊢ path ℕ (add (add m n) k) (add m (add n k)) :=
+def add_assoc (m n k : ℕ) :
+  path ℕ (add (add m n) k) (add m (add n k)) :=
 natrec _ (<_> add m n) (λ k ih, eq_to_succ ih) k
 
-def add_comm_zero (m : ℕ)
-⊢ path ℕ m (add 0 m) :=
+def add_comm_zero (m : ℕ) :
+  path ℕ m (add 0 m) :=
 natrec _ (<_> 0) (λ k ih, eq_to_succ ih) m
 
-def add_comm_succ (l n : ℕ)
-⊢ path ℕ (add (succ l) n) (succ (add l n)) :=
+def add_comm_succ (l n : ℕ) :
+  path ℕ (add (succ l) n) (succ (add l n)) :=
 natrec _ (<_> succ l) (λ _ ih, eq_to_succ ih) n 
 
-def add_comm (m n : ℕ) 
-⊢ path ℕ (add m n) (add n m) :=
+def add_comm (m n : ℕ)  :
+  path ℕ (add m n) (add n m) :=
 natrec _ (add_zero n) (λ k ih, (add_comm_succ k n) · (eq_to_succ ih)) m
 
-def add_num_left {m n : ℕ} (k : ℕ)
-⊢ path ℕ m n → path ℕ (add k m) (add k n) :=
+def add_num_left {m n : ℕ} (k : ℕ) :
+  path ℕ m n → path ℕ (add k m) (add k n) :=
 λ p, <i> add k (p @ i)
 
-def add_num_right {m n : ℕ} (k : ℕ)
-⊢ path ℕ m n → path ℕ (add m k) (add n k) :=
+def add_num_right {m n : ℕ} (k : ℕ) :
+  path ℕ m n → path ℕ (add m k) (add n k) :=
 λ p, <i> add (p @ i) k
 
-def add_path_left {m n k l : ℕ} (p : path ℕ k l)
-⊢ path ℕ m n → path ℕ (add k m) (add l n) :=
+def add_path_left {m n k l : ℕ} (p : path ℕ k l) :
+  path ℕ m n → path ℕ (add k m) (add l n) :=
 λ q, <j> (add_num_left (p @ j) q) @ j
 
-def add_path_right {m n k l : ℕ} (p : path ℕ k l)
-⊢ path ℕ m n → path ℕ (add m k) (add n l) :=
+def add_path_right {m n k l : ℕ} (p : path ℕ k l) :
+  path ℕ m n → path ℕ (add m k) (add n l) :=
 λ q, <j> (add_num_right (p @ j) q) @ j
 
-def add_two {m n k l : ℕ}
-⊢ path ℕ m n → path ℕ k l → path ℕ (add m k) (add n l) :=
+def add_two {m n k l : ℕ} :
+  path ℕ m n → path ℕ k l → path ℕ (add m k) (add n l) :=
 λ p q, <i> add (p @ i) (q @ i)
 
-def add_num_inj {m n k : ℕ}
-⊢ path ℕ (add m k) (add n k) → path ℕ m n :=
+def add_num_inj {m n k : ℕ} :
+  path ℕ (add m k) (add n k) → path ℕ m n :=
 natrec _ id (λ i ih p, ih (succ_to_eq p)) k
 
-/* def add_path_inj {m n k' l : ℕ} (p : path ℕ k' l)
-⊢ path ℕ (add m k') (add n l) → path ℕ m n :=
+/* def add_path_inj {m n k' l : ℕ} (p : path ℕ k' l) :
+  path ℕ (add m k') (add n l) → path ℕ m n :=
 λ q, add_num_inj (coe i1 i0 (λ i', path ℕ (add m k') (add n (p @ i'))) q) */
 
-def add_comm2 (m n k' : ℕ) /* k */
-⊢ path ℕ (add (add m n) k') (add (add m k') n) :=
+def add_comm2 (m n k' : ℕ) /* k */ :
+  path ℕ (add (add m n) k') (add (add m k') n) :=
 (add_assoc m n k') · (add_num_left m (add_comm n k')) · (add_assoc m k' n)⁻¹
 
-def add_pair_symm (m n : ℕ) {x y : ℕ} 
-⊢ path ℕ (add (add m x) (add n y))  (add (add m n) (add x y)) :=
+def add_pair_symm (m n : ℕ) {x y : ℕ}  :
+  path ℕ (add (add m x) (add n y))  (add (add m n) (add x y)) :=
 ((add_assoc m x (add n y)) · (add_num_left m (add_assoc x n y)⁻¹)) ·
 ((add_num_left m (add_num_right y (add_comm x n))) · (add_assoc m (add n x) y)⁻¹) ·
  ((add_assoc (add m n) x y)⁻¹ · (add_assoc (add m n) x y))
 
-def leq (m n : ℕ)
-⊢ type 1 :=
+def leq (m n : ℕ) :
+  type 1 :=
 Σ (i : ℕ) path ℕ (add m i) n
 
-def leq_add (m n k' : ℕ) /* TODO: address renaming issue with k p */
-⊢ leq m n → leq (add m k') (add n k') :=
+def leq_add (m n k' : ℕ) /* TODO: address renaming issue with k p */ :
+  leq m n → leq (add m k') (add n k') :=
 λ pp, (fst pp, add_comm2 m (fst pp) k' · (<i> add ((snd pp) @ i) k') )
 
 /* Code-decode */
 
-def nat_code (n m : nat)
-⊢ type 1 :=
+def nat_code (n m : nat) :
+  type 1 :=
 natrec _ (natrec _ (path nat 0 0) (λ _ _, void) m) 
 (λ n' C, natrec _ void (λ m' _, path nat (succ n') (succ m')) m) n
  
-def nat_eq {n m : nat}
-⊢ path nat n m ↔ nat_code n m :=
+def nat_eq {n m : nat} :
+  path nat n m ↔ nat_code n m :=
 natrec _ (natrec _ id_iff_id (λ k _, (nat_neq, absurd)) m)
 (λ k _, natrec _ (nat_neq', absurd) (λ k' _, id_iff_id) m) n
 

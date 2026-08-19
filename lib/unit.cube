@@ -8,17 +8,17 @@ universe l
 
 /* Unit type, constructors and eliminator */
 
-inductive unit ⊢ type 0 :=
+inductive unit : type 0 :=
 | star : unit
 
-theorem let {C : unit → type l} (u : unit) (c : C ())
-⊢ C u :=
+theorem let {C : unit → type l} (u : unit) (c : C ()) :
+  C u :=
 unitrec C c u
 
 /* Paths */
  
-def unit_eq (u : unit)
-⊢ path unit u () :=
+def unit_eq (u : unit) :
+  path unit u () :=
 let u (<_> ())
 
 
