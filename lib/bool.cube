@@ -57,25 +57,25 @@ def bool_neq'
 λ p, coe i1 i0 (λ i, if (p @ i) unit void) ()
  
 def bneg_inv (b : bool)
-⊢ path bool (app bneg (app bneg b)) b :=
+⊢ path bool (bneg (bneg b)) b :=
 if b (<i> true) (<i> false)
  
 def band_comm (b b' : bool)
-⊢ path bool (app (app band b) b') (app (app band b') b) :=
+⊢ path bool (band b b') (band b' b) :=
 if b (if b' (<_> true) (<_> false)) (if b' (<_> false) (<_> false))
  
 def band_assoc (b b' b'' : bool)
-⊢ path bool (app (app band b) (app (app band b') b'')) (app (app band (app (app band b) b')) b'') :=
+⊢ path bool (band b (band b' b'')) (band (band b b') b'') :=
 if b 
   (if b' (if b'' (<_> true) (<_> false)) (if b'' (<_> false) (<_> false))) 
   (if b' (if b'' (<_> false) (<_> false)) (if b'' (<_> false) (<_> false)))
  
 def bor_comm (b b' : bool)
-⊢ path bool (app (app bor b) b') (app (app bor b') b) :=
+⊢ path bool (bor b b') (bor b' b) :=
 if b (if b' (<_> true) (<_> true)) (if b' (<_> true) (<_> false))
  
 def bor_assoc (b b' b'' : bool)
-⊢ path bool (app (app bor b) (app (app bor b') b'')) (app (app bor (app (app bor b) b')) b'') :=
+⊢ path bool (bor b (bor b' b'')) (bor (bor b b') b'') :=
 if b 
   (if b' (if b'' (<_> true) (<_> true)) (if b'' (<_> true) (<_> true))) 
   (if b' (if b'' (<_> true) (<_> true)) (if b'' (<_> true) (<_> false)))
@@ -97,7 +97,7 @@ def bool_code (b b' : bool)
 if b (if b' (path bool true true) void) (if b' void (path bool false false))
  
 def bool_eq (b b' : bool)
-⊢ path bool b b' ↔ app app bool_code b b' :=
+⊢ path bool b b' ↔ bool_code b b' :=
 if b 
   (if b' id_iff_id (bool_neq, absurd)) 
   (if b' (bool_neq', absurd) id_iff_id)
