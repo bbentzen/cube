@@ -173,8 +173,13 @@ let generate_recursor ind_name ind_ty constrs ctx ctx_rev = (*ind_ty *)
   in
   (* Prefix the recursor with the index of the inductive type and its parameters *)
   let abs_params x = abs_par_args x ind_ty in
-  let abs_indices x = abs_ctx_args x (Ctx.parametrize_levels ctx_rev) in
+  let abs_indices x = abs_ctx_args x ctx_rev in
   abs_indices (Pi (motive_name, abs_params motive_ty, Debruijn.close_var 0 motive_name (add_minor_premises constrs)))
+
+(* Generates type family *)
+
+let generate_type_family id ctx ty =
+  snd (snd (Context.Env.function_of_def id ctx (Core_ast.Global id, ty) 0))
 
 (* Extracts universe level l if expr is Type l *)
 

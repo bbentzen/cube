@@ -70,27 +70,27 @@ let rec unieval = function
       Max (unieval n, unieval m)
   | l -> l
 
-let rec parametrize_level = function
+let rec placeholder_level = function
   | Num l -> Num l 
   | Var s -> Var ("?" ^ s)
-  | Suc l -> Suc (parametrize_level l)
-  | Max (l1, l2) -> Max (parametrize_level l1, parametrize_level l2)
+  | Suc l -> Suc (placeholder_level l)
+  | Max (l1, l2) -> Max (placeholder_level l1, placeholder_level l2)
 
-let rec parametrize_levels = function
-  | Type lvl -> Type (parametrize_level lvl)
-  | Pi (x, l1, l2) -> Pi (x, parametrize_levels l1, parametrize_levels l2)
-  | Sigma (x, l1, l2) -> Sigma (x, parametrize_levels l1, parametrize_levels l2)
-  | Coe (i, j, l1, l2) -> Coe (parametrize_levels i, parametrize_levels j, parametrize_levels l1, parametrize_levels l2)
-  | Hfill (l1, l2, l3) -> Hfill (parametrize_levels l1, parametrize_levels l2, parametrize_levels l3)
-  | App (l1, l2) -> App (parametrize_levels l1, parametrize_levels l2)
-  | Pair (l1, l2) -> Pair (parametrize_levels l1, parametrize_levels l2)
-  | Fst l -> Fst (parametrize_levels l)
-  | Snd l -> Snd (parametrize_levels l)
-  | Abort l -> Abort (parametrize_levels l)
-  | Pabs (s, l) -> Pabs (s, parametrize_levels l)
-  | At (l1, l2) -> At (parametrize_levels l1, parametrize_levels l2)
-  | Pathd (l1, l2, l3) -> Pathd (parametrize_levels l1, parametrize_levels l2, parametrize_levels l3)
-  | Hole (s, ls) -> Hole (s, List.map parametrize_levels ls)
+let rec placeholder_levels = function
+  | Type lvl -> Type (placeholder_level lvl)
+  | Pi (x, l1, l2) -> Pi (x, placeholder_levels l1, placeholder_levels l2)
+  | Sigma (x, l1, l2) -> Sigma (x, placeholder_levels l1, placeholder_levels l2)
+  | Coe (i, j, l1, l2) -> Coe (placeholder_levels i, placeholder_levels j, placeholder_levels l1, placeholder_levels l2)
+  | Hfill (l1, l2, l3) -> Hfill (placeholder_levels l1, placeholder_levels l2, placeholder_levels l3)
+  | App (l1, l2) -> App (placeholder_levels l1, placeholder_levels l2)
+  | Pair (l1, l2) -> Pair (placeholder_levels l1, placeholder_levels l2)
+  | Fst l -> Fst (placeholder_levels l)
+  | Snd l -> Snd (placeholder_levels l)
+  | Abort l -> Abort (placeholder_levels l)
+  | Pabs (s, l) -> Pabs (s, placeholder_levels l)
+  | At (l1, l2) -> At (placeholder_levels l1, placeholder_levels l2)
+  | Pathd (l1, l2, l3) -> Pathd (placeholder_levels l1, placeholder_levels l2, placeholder_levels l3)
+  | Hole (s, ls) -> Hole (s, List.map placeholder_levels ls)
   | e -> e
 
 (* Hash table for tracking inductive type information *)

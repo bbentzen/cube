@@ -140,7 +140,7 @@ let rec compile global ind_env ind lopen filename lvl next_location = function
         begin match h1, h2 with
         | Ok (ctx_checked, ctx_univ), Ok (ty', _) ->
             let ctx' = List.rev ctx_checked in
-            let ty_fam =  snd (snd (Env.function_of_def id ctx' (Core_ast.Global id, ty') 0)) in
+            let ty_fam = Inductive.generate_type_family id ctx' ty' in
 
             (* Validates all constructors and stores the universes their types live in *)
             let cons_checked ind' =
@@ -169,11 +169,15 @@ let rec compile global ind_env ind lopen filename lvl next_location = function
               ) constrs_raw
             in
 
+            (* Generalize universe levels as placeholder levels *)
+            let pctx = Ctx.placeholder_levels ctx' in
+            let pty_fam = Inductive.generate_type_family id pctx (Core_ast.placeholder_levels ty') in
+
             (* Add inductive type to the type environment *)
-            let ind_ty = (id, ty_fam) :: ind in
+            let ind_ty = (id, pty_fam) :: ind in
 
             (* Add each constructor to the type environment *)
-            let idx_constr = List.map (fun (x, _, _) -> x) (cons_checked ind_ty) in
+            let idx_constr = List.map (fun ((id, c_ty), _, _) -> (id, Core_ast.placeholder_levels c_ty)) (cons_checked ind_ty) in
             let ind_cons =
               List.fold_left (fun l (c_name, c_ty) ->
                 (c_name, c_ty) :: l) ind_ty idx_constr (* needs to turn into a list of exprs*)
@@ -186,7 +190,7 @@ let rec compile global ind_env ind lopen filename lvl next_location = function
                 ("Naming conflict: generated eliminator '" ^ rec_name ^ "' already exists.")
             else
               let nonidx_constr = List.map (fun (_, y, _) -> y) (cons_checked ind_ty) in
-              let rec_ty = Inductive.generate_recursor id ty' nonidx_constr ctx_checked ctx' in (* use ctx_checked to print the ctx in order *)
+              let rec_ty = Inductive.generate_recursor id ty' nonidx_constr ctx_checked pctx in (* use ctx_checked to print the ctx in order *)
               let ind_all =
                 (rec_name, rec_ty) :: ind_cons
               in
@@ -232,7 +236,8 @@ let rec compile global ind_env ind lopen filename lvl next_location = function
                   end
                 else
                   failwith_at location
-                  ("Universe level error: Parameter level at '" ^ id ^ "' exceeds target universe level.")
+                  ("Universe level error: levels at indices or constructors of '" ^ id ^ "' may exceed target universe level " ^ 
+                  Pretty.printc_level target_lvl ^ ":\n" ^ Global.printf ctx_univ ^ Inductive.print univ_constr ^ "\n")
               | None ->
                 failwith_at location
                 ("Universe level error: Could not extract universe level from type of inductive '" ^ id ^ "'.")

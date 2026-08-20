@@ -107,8 +107,8 @@ let print ctx =
   let rec printrev = function
     | [] -> "" 
     | (id, ty, _) :: ctx -> 
-      " " ^ id ^ " : " ^ Pretty.print ty ^ "\n" ^ printrev ctx
+      " " ^ id ^ " : " ^ Pretty.printf ty ^ "\n" ^ printrev ctx
   in
   printrev (List.rev ctx)
 
-let printf ctx = print (Debruijn.to_raw_ctx ctx)
+let printf ctx = print ctx
