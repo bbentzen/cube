@@ -60,7 +60,7 @@ let rec compile global ind_env ind lopen filename lvl next_location = function
                     match res with 
                     | Ok (e1, ty1) ->
                       if id = "infer" then
-                        Ok (global, ind_env, ind, ("infer := " ^ Pretty.printf e1 ^ ": \n" ^ "         " ^ Pretty.printc ty1 ^ "\n", lopen))
+                        Ok (global, ind_env, ind, ("infer := " ^ Pretty.printf e1 ^ ": \n" ^ "         " ^ Pretty.printf ty1 ^ "\n", lopen))
                       else
                         compile (Env.add global id ctx' (e1, ty1)) ind_env ind lopen filename lvl next_location cmd
                     | Error msg -> 
