@@ -4,5 +4,7 @@
  * Author: Bruno Bentzen
  */
 
-import ./core.cube
-import ./data.cube
+import ./data/nat.cube
+import ./data/sum.cube
+import ./data/unit.cube 
+import ./data/bool.cube 

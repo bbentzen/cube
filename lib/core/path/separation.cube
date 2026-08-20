@@ -1,0 +1,35 @@
+/*
+ * Copyright (c) 2019 Bruno Bentzen. All rights reserved.
+ * Released under the Apache License 2.0 (see "License");
+ * Author: Bruno Bentzen
+ */
+ 
+import ./basic.cube
+
+universe l 
+
+/** Boundary separation proof irrelevance **/
+
+def irrel_uip {A : type l} {a b : A} (p q : path A a b) :
+  path (path A a b) p q :=
+<_> _
+ 
+def irrel_line {A : type l} {a b : A} (p q : path A a b) :
+  path (Π (x : I) A) (λ i, p @ i) (λ j, q @ j) :=
+<_> (λ i, p @ i)
+ 
+def irrel_k {A : type l} {a : A} (p : path A a a) :
+  path (path A a a) p (<_> a) :=
+<_> _
+ 
+def irrel_example {A : type l} {a b : A} {B : path A a b → (Π (x : I) A) → type l} (p q : path A a b)  :
+  B p (λ i, p @ i) → B q (λ j, q @ j) :=
+id
+ 
+def irrel_example2 {A : type l} (i j : I) {a b : A} (p q : I → path A a b) :
+  path (path A a b) (p i) (q j) :=
+<_> _ i
+
+def path_bs {A : type 1} {a b : A} (p q : path A a b) {C : path A a b → type 1}  :
+  C p ↔ C q := 
+id_iff_id

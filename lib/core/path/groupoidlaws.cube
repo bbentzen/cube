@@ -1,0 +1,35 @@
+/*
+ * Copyright (c) 2019 Bruno Bentzen. All rights reserved.
+ * Released under the Apache License 2.0 (see "License");
+ * Author: Bruno Bentzen
+ */
+
+import ./basic.cube
+
+universe l 
+ 
+/** Strict groupoid structure **/
+ 
+def path_trans_lc {A : type l} {a b : A} (p : path A a b)  :
+  path (path A a a) (p · p⁻¹) (<_> a) := 
+<_> <_> a
+ 
+def path_trans_rc {A : type l} {a b : A} (p : path A a b)  :
+  path (path A b b) (p⁻¹ · p) (<_> b) := 
+<_> <_> b
+ 
+def path_trans_lu {A : type l} {a b : A} (p : path A a b)  :
+  path (path A a b) p ((<_> a) · p) := 
+<_> _
+ 
+def path_trans_ru {A : type l} {a b : A} (p : path A a b)  :
+  path (path A a b) p (p · <_> b) := 
+<_> _
+ 
+def path_symm_inv {A : type l} {a b : A} (p : path A a b) :
+  path (path A a b) p (p ⁻¹⁻¹) := 
+<_> _
+
+def path_trans_assoc {A : type l} {a b c d : A} (p : path A a b) (q : path A b c) (r : path A c d) :
+  path (path A a d) (p · q · r) ((p · q) · r) := 
+<_> p · q · r

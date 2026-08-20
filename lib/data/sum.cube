@@ -4,5 +4,5 @@
  * Author: Bruno Bentzen
  */
 
-import ./core.cube
-import ./data.cube
+import ./sum/lemmas.cube
+import ./sum/path.cube

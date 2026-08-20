@@ -1,0 +1,45 @@
+/*
+ * Copyright (c) 2019 Bruno Bentzen. All rights reserved.
+ * Released under the Apache License 2.0 (see "License");
+ * Author: Bruno Bentzen
+ */
+ 
+import ../../core/function.cube
+
+universe l
+
+/* Boolean type, constructors and eliminator */
+
+inductive bool : type 0 :=
+| true : bool
+| false : bool
+
+def if {C : bool → type l} (b : bool) (ct : C true) (cf : C false) :
+  C b :=
+boolrec C ct cf b
+
+/* Boolean operations */
+ 
+def bneg :
+  bool → bool :=
+λ b, if b false true
+ 
+def band :
+  bool → bool → bool :=
+λ b b', if b (if b' true false) (if b' false false)
+
+def bor :
+  bool → bool → bool :=
+λ b b', if b (if b' true true) (if b' true false)
+ 
+def bimpl :
+  bool → bool → bool :=
+λ b b', if b (if b' true false) (if b' true true)
+ 
+def bnand :
+  bool → bool → bool :=
+λ b b', if b (if b' false true) (if b' true true)
+ 
+def bnor :
+  bool → bool → bool :=
+λ b b', if b (if b' false false) (if b' false true)

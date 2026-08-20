@@ -3,38 +3,14 @@
  * Released under the Apache License 2.0 (see "License");
  * Author: Bruno Bentzen
  */
- 
-import ./function.cube
-import ./path.cube
-import ./unit.cube
+
+import ../../core/path.cube
+import ../unit.cube
+import ./basic.cube
 
 universe k
 
-/* Sum type former, constructors and eliminator */
-
-inductive nat : type 0 :=
-| zero : nat
-| succ : nat → nat
-
-def rec {C : nat → type k} (n : nat)  :
-  Π (c : C zero) (d : Π (k : nat) C k → C (succ k)) C n :=
-λ c d, natrec _ c d n
-
-/* Basic arithmetic operations */
- 
-def pred :
-  nat → nat :=
-λ n, natrec _ 0 (λ k _, k) n
- 
-def add :
-  nat → nat → nat :=
-λ m n, natrec _  m (λ k res, succ res) n
-
-def mult  :
-  nat → nat → nat := 
-λ m n, natrec _ 0 (λ k res, (natrec _ m (λ k, λ g, succ g) res)) n
- 
-/* Numerical equations */
+/* Some numerical equations */
  
 def add_zero (m : nat) :
   path nat (add 0 m) m :=
@@ -60,6 +36,8 @@ def succ_pred {n : nat} (w : Σ (k : nat) path nat (succ k) n) :
   path nat (succ (pred n)) n :=
 coe i0 i1 (λ i, path nat (succ (pred (snd w @ i))) (snd w @ i)) (<_> succ (fst w))
  
+/* Inequalities */
+
 def nat_neq {n : nat} :
   ¬ path nat 0 (succ n) :=
 λ p, coe i0 i1 (λ i, natrec _ unit (λ _ _, void) (p @ i)) ()
@@ -123,14 +101,6 @@ def add_pair_symm (m n : ℕ) {x y : ℕ}  :
 ((add_assoc m x (add n y)) · (add_num_left m (add_assoc x n y)⁻¹)) ·
 ((add_num_left m (add_num_right y (add_comm x n))) · (add_assoc m (add n x) y)⁻¹) ·
  ((add_assoc (add m n) x y)⁻¹ · (add_assoc (add m n) x y))
-
-def leq (m n : ℕ) :
-  type 1 :=
-Σ (i : ℕ) path ℕ (add m i) n
-
-def leq_add (m n k' : ℕ) /* TODO: address renaming issue with k p */ :
-  leq m n → leq (add m k') (add n k') :=
-λ pp, (fst pp, add_comm2 m (fst pp) k' · (<i> add ((snd pp) @ i) k') )
 
 /* Code-decode */
 

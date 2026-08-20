@@ -1,0 +1,27 @@
+/*
+ * Copyright (c) 2019 Bruno Bentzen. All rights reserved.
+ * Released under the Apache License 2.0 (see "License");
+ * Author: Bruno Bentzen
+ */
+ 
+import ./basic.cube
+
+universe l 
+
+/** Regularity **/
+ 
+def coe_boundary {C : I → type l} (i : I) (c : C i)  :
+  path (C i) (coe i i C c) c :=
+<_> c
+ 
+def coe_regularity {A : type l} (i j : I) (a : A)  :
+  path A (coe i j (λ _, A) a) a :=
+<_> a
+ 
+def hcom_regularity {A : type l} {a b : A} (p : path A a b) :
+  path (path A a b) p 
+  (<k> (hcom (λ i, p @ i)
+   | i0 → λ j, a 
+   | i1 → λ j, b 
+  ) k) := 
+<_> p

@@ -33,12 +33,6 @@ com i0 i1 A (λ i, p @ i)
  
 /* Coercion structure */
  
-def function_coe (A : I → type l) (B : Π (i : I) A i → type l) (f : Π (x : A i0) B i0 x)  :
-  path (Π (x : A i1) B i1 x) 
-  (coe i0 i1 (λ i, Π (x : A i) B i x) f)
-  (λ a, coe i0 i1 (λ i, B i (coe i1 i (λ i, A i) a)) (f (coe i1 i0 (λ i, A i) a))) :=
-<_> coe i0 i1 (λ i, Π (x : A i) B i x) f
- 
 def product_coe (A : I → type l) (B : Π (i : I) A i → type l) (w : Σ (x : A i0) B i0 x)  :
   path (Σ (x : A i1) B i1 x) 
   (coe i0 i1 (λ i, Σ (x : A i) B i x) w)

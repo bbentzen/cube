@@ -109,33 +109,5 @@ def sigma_not_to_not_pi {A : type l} {C : A → type l} :
 λ w f, (snd w) (f (fst w))
 
 def sigma_pi_exchg {A B : type l} {C : A → B → type l} :
-  (Σ (x : A) (Π (y : B) C x y)) -> (Π (y : B) (Σ (x : A) C x y)) :=
+  (Σ (x : A) (Π (y : B) C x y)) → (Π (y : B) (Σ (x : A) C x y)) :=
 λ w y, (fst w, (snd w) y)
-
-/* Paths */
-
-def prod_eta {A B : type l} (w : A × B) :
-  path (A × B) w (fst w, snd w) :=
-<_> _
-
-def pair_iff_eq {A B : type l} {a a' : A} {b b' : B} :
-  path (A × B) (a, b) (a', b') ↔ path A a a' × path B b b' :=
-(λ p, (<i> fst (p @ i), <j> snd (p @ j)),
- λ w, <i> (fst w @ i, snd w @ i))
-
-def pair_to_eq {A B : type l} {a a' : A} {b b' : B} :
-  path (A × B) (a, b) (a', b') → path A a a' × path B b b' :=
-fst pair_iff_eq
-
-def eq_to_pair {A B : type l} {a a' : A} {b b' : B} :
-  path A a a' × path B b b' → path (A × B) (a, b) (a', b') :=
-snd pair_iff_eq
-
-/* Homogeneous composition */
- 
-def product_hcom {A B : type l} {w1 w1' w2 w2' : A × B} (p : path (A × B) w1 w2) (q : path (A × B) w1 w1') (r : path (A × B) w2 w2') (i : I) :
-  path (A × B) 
-  ((hcom (λ i, p @ i) | i0 → λ j, q @ j | i1 → λ j, r @ j) i) 
-  ((hcom (λ i, fst (p @ i)) | i0 → λ j, fst (q @ j) | i1 → λ j, fst (r @ j)) i, 
-   (hcom (λ i, snd (p @ i)) | i0 → λ j, snd (q @ j) | i1 → λ j, snd (r @ j)) i) := 
-<_> (hcom (λ i, p @ i) | i0 → λ j, q @ j | i1 → λ j, r @ j) i 

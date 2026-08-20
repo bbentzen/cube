@@ -6,7 +6,7 @@
 
 universe l 
 
-/* function type */
+/* Function type */
 
 def id {A : type l} : 
   A → A :=
@@ -15,6 +15,12 @@ def id {A : type l} :
 def id_iff_id {A : type l} : 
   A ↔ A :=
 (id, id)
+
+def comp {A B C : type l}  : 
+  (A → B) → (B → C) → (A → C) :=
+λf g x, g (f x)
+
+/* Combinatory logic */
 
 def k_combinator {A B : type l} : 
   A → B → A :=
@@ -35,11 +41,7 @@ def arg_exg {A B C : type l} :
 def w_combinator {A B : type l}  : 
   (A → A → B) → (A → B) :=
 λ f x, (f x) x
- 
-def comp {A B C : type l}  : 
-  (A → B) → (B → C) → (A → C) :=
-λf g x, g (f x)
- 
+
 /* Negation & Empty type */
  
 def not_false : 
@@ -103,25 +105,3 @@ theorem dprod_up_2_snd {A : type l} {B C : A → type l} :
 theorem pi_prod_distr {A B : type l} {C : A → type l} : 
   (B × Π (x : A) C x) → (Π (x : A) B × C x) :=
 λ w x, (fst w, (snd w) x)
- 
-/* Function aplication and extensionality */
- 
-def ap {A B : type l} (f : A → B) {a b : A}  : 
-  path A a b → path B (f a) (f b) :=
-λp, <i> f (p @ i)
- 
-def apd {A : type l} {B : A → type l} (f : Π (x : A) B x) {a b : A} (p : path A a b) : 
-  pathd (λi, B (p @ i)) (f a) (f b) :=
-<i> f (p @ i)	
- 
-def funext {A : type l} {B : A → type l} (f g : Π (x : A) B x)  : 
-  (Π (x : A) path (B x) (f x) (g x)) → path (Π (x : A) B x) f g :=
-λh, <i> (λ x, (h x) @ i)
-
-/* Homogeneous composition */
-
-def function_hcom {A : type l} {B : A → type l} {f f' g g' : Π (x : A) B x} (p : path (Π (x : A) B x) f g) (q : path (Π (x : A) B x) f f') (r : path (Π (x : A) B x) g g') (i : I) : 
-  path (Π (x : A) B x) 
-  ((hcom (λ i, p @ i) | i0 → λ j, q @ j | i1 → λ j, r @ j) i) 
-  (λ x, (hcom (λ j, (p @ j) x) | i0 → λ j, (q @ j) x | i1 → λ j, (r @ j) x) i) := 
-<_> (hcom (λ i, p @ i) | i0 → λ j, q @ j | i1 → λ j, r @ j) i

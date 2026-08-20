@@ -1,0 +1,118 @@
+/*
+ * Copyright (c) 2019 Bruno Bentzen. All rights reserved.
+ * Released under the Apache License 2.0 (see "License");
+ * Author: Bruno Bentzen
+ */
+ 
+import ./basic.cube
+
+universe l k
+
+/* Sum type */
+
+def de_morgan_prod_1 {A B : type l} :
+  (A × B) → ¬ (¬A + ¬B) :=
+λ w v, sumrec (¬A) (¬B) _ (λ f, f (fst w)) (λ g, g (snd w)) v
+ 
+def de_morgan_prod_2 {A B : type l} :
+   (¬ A × ¬ B) → ¬ (A + B) :=
+λ w v, sumrec A B _ (λ x, (fst w) x) (λ y, (snd w) y) v
+ 
+def prod_elim_sum {A B C : type l} :
+   (A × B) → ((A → C) + (B → C)) → C :=
+λ w v, sumrec (A → C) (B → C) _ (λ f, f (fst w)) (λ g, g (snd w)) v
+ 
+def weak_1 {A B : type l} :
+  A → A + B :=
+λ x, inl A B x
+ 
+def weak_2 {A B : type l} :
+  B → A + B :=
+λ y, inr A B y
+ 
+def sum_swap {A B : type l}  :
+  (A + B) → (B + A) :=
+λ v, sumrec A B _ (λ x, inr B A x) (λ y, inl B A y) v
+
+def sum_assoc {A B C : type l} :
+  (A + (B + C)) ↔ ((A + B) + C) :=
+(λ v, sumrec A (B + C) _ (λ x, inl (A + B) C (inl A B x)) (λ v', sumrec B C _ (λ y, inl (A + B) C (inr A B y)) (λ z, inr (A + B) C z) v') v,
+ λ v, sumrec (A + B) C _ (λ v', sumrec A B _ (λ x, inl A (B + C) x) (λ y, inr A (B + C) (inl B C y)) v') (λ z, inr A (B + C) (inr B C z)) v)
+ 
+def sum_distrib_1 {A B C : type l}  :
+  ((A + B) → C) → ((A → C) + (B → C)) :=
+λ f, inl (A → C) (B → C) (λ x, f (inl A B x))
+ 
+def sum_distrib_2 {A B C : type l}  :
+  ((A + B) → C) → ((A → C) + (B → C)) :=
+λ f, inr (A → C) (B → C) (λ y, f (inr A B y))
+ 
+def disj_syll_1 {A B C : type l}  :
+  (A + B) → (¬A) → B  :=
+λ v f, sumrec _ _ _ (λ x, abort (f x)) (λ y, y) v
+ 
+def disj_syll_2 {A B : type l} :
+  (A + B) → (¬B) → A  :=
+λ v g, sumrec _ _ _ (λ x, x) (λ y, abort (g y)) v
+ 
+def not_not_lem {A : type l} :
+  ¬¬ (A + ¬A) :=
+λ f, f (inr A (¬A) (λ x, f (inl A (¬A) x)))
+ 
+def lem_implies_dne {A : type l} (v : A + ¬A) :
+  ¬¬A → A :=
+λ f, sumrec _ (¬A) _ id (λ nx, abort (f nx)) v
+ 
+def dne_implies_lem {A : type l} (dne : ¬¬(A + ¬A) → (A + ¬A)) :
+  A + ¬A :=
+dne (λ f, f (inr _ (¬A) (λ x, f (inl _ (¬A) x))))
+ 
+def sum_up_1 {A B C : type l} :
+  (A → C) → (B → C) → ((A + B) → C) :=
+λ f g v, sumrec _ _ _ f g v
+ 
+def sum_up_2 {A B C : type l} :
+  ((A + B) → C) → (A → C) :=
+λ f x, f (inl _ _ x)
+ 
+def sum_up_3 {A B C : type l} :
+  ((A + B) → C) → (B → C) :=
+λ f y, f (inr _ _ y) 
+ 
+def sum_to_fun {A B : type l} :
+  (A + B) → (¬ A → B) :=
+λ v, sumrec A B _  (λ x, (λ f, abort (f x))) (λ y f, y) v
+ 
+def sum_neg_to_fun {A B : type l} :
+  (¬ A + B) → (A → B) :=
+λ v x, sumrec (¬ A) _ _ (λ nx, abort (nx x)) (λ y, y) v
+ 
+def de_morgan_sum_1 {A B : type l} :
+  (A + B) → ¬ (¬ A × ¬ B) :=
+λ v w, sumrec _ _ _ (λ x, (fst w) x) (λ y, (snd w) y) v
+ 
+def de_morgan_sum_2 {A B : type l} :
+  ¬(A + B) → (¬A × ¬B) :=
+λ f, (λ x, f (inl A B x) , λ y, f (inr A B y))
+ 
+def de_morgan_sum_3 {A B : type l} :
+  (¬ A + ¬ B) → (¬ (A × B)) :=
+λ v w, sumrec (¬A) (¬B) _ (λ f, f (fst w)) (λ g, g (snd w)) v
+ 
+def sum_elim {A B C : type l} :
+  (A + B) → ((A → C) × (B → C)) → C :=
+λ v f, sumrec _ _ _ (λ x, (fst f) x) (λ y, (snd f) y) v
+
+/* Distribution over dependent types */
+
+def sigma_sum_distrb {A B : type l} {C : A → type l} :
+  (Σ (x : A) B + C x) → (B + Σ (x : A) C x) :=
+λ w, sumrec B (C (fst w)) _ (λ x, inl B (Σ (x : A) C x) x) (λ y, inr B (Σ (x : A) C x) (fst w, y)) (snd w)
+
+theorem pi_sum_distr {A : type l} {B C : A → type l} :
+  ((Π (x : A) B x) + (Π (x : A) C x)) → (Π (x : A) B x + C x) :=
+λ w x, sumrec (Π (x : A) B x) (Π (x : A) C x) _ (λ f, inl (B x) (C x) (f x)) (λ g, inr (B x) (C x) (g x)) w
+
+theorem pi_sum_distrb {A B : type l} {C : A → type l} :
+  (B + (Π (x : A) C x)) → (Π (x : A) B + C x) :=
+λ w x, sumrec B (Π (x : A) C x) _ (λ y, inl B (C x) y) (λ f, inr B (C x) (f x)) w

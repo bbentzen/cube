@@ -4,5 +4,7 @@
  * Author: Bruno Bentzen
  */
 
-import ./core.cube
-import ./data.cube
+import ./core/function.cube
+import ./core/product.cube
+import ./core/path.cube
+import ./core/universe.cube

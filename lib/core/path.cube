@@ -1,0 +1,12 @@
+/*
+ * Copyright (c) 2019 Bruno Bentzen. All rights reserved.
+ * Released under the Apache License 2.0 (see "License");
+ * Author: Bruno Bentzen
+ */
+
+import ./path/basic.cube
+import ./path/induction.cube
+import ./path/regularity.cube
+import ./path/groupoidlaws.cube
+import ./path/separation.cube
+import ./path/kan.cube

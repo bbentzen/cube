@@ -1,0 +1,61 @@
+/*
+ * Copyright (c) 2019 Bruno Bentzen. All rights reserved.
+ * Released under the Apache License 2.0 (see "License");
+ * Author: Bruno Bentzen
+ */
+
+import ../function.cube
+
+universe l
+
+/* Path introduction and elimination */
+
+def pathd_abs {A : I → type l} (p : Π (i : I) A i) :
+  pathd A (p i0) (p i1) :=
+<i> p i
+ 
+def pathd_app {A : I → type l} (a : A i0) (b : A i1) (p : pathd A a b) :
+  Π (i : I) A i :=
+λ i, p @ i
+ 
+/* Reflexivity, symmetry and transitivity */
+ 
+def path_rfl {A : type l} {a : A}  :
+  path A a a :=
+<_> _
+ 
+def path_symm {A : type l} {a b : A} (p : path A a b) :
+  path A b a := 
+<k> (hcom (λ i, a)
+ | i0 → λ j, p @ j
+ | i1 → λ _, a) k
+
+def path_trans {A : type l} {a b c : A} (p : path A a b) (q : path A b c) :
+  path A a c := 
+<k> (hcom (λ i, p @ i) 
+ | i0 → λ _, a 
+ | i1 → λ j, q @ j) k
+
+def path_symmtrans_hfill {A : type l} {a b c d : A} (p : path A b a) (q : path A b c) (r : path A c d)  :
+  I → I → A := 
+(hfill (λ i, q @ i) 
+ | i0 → λ j, p @ j 
+ | i1 → λ j, r @ j)
+
+def path_symmtrans {A : type l} {a b c d : A} (p : path A b a) (q : path A b c) (r : path A c d)  :
+  path A a d := 
+<i> path_symmtrans_hfill p q r i1 i
+
+def path_symmtrans_path {A : type l} {a b c d : A} (p : path A b a) (q : path A b c) (r : path A c d)  :
+  pathd (λ i, path A (p @ i) (r @ i)) q ((p⁻¹) · q · r) := 
+<j> <i> path_symmtrans_hfill p q r j i
+
+/* Other lemmas */
+
+def path_eq_i0 {A : type l} {a b c : A} (p : path A a b) :
+  path A a c → path A b c :=
+λ q, coe i0 i1 (λ i, path A (p @ i) c) q
+
+def path_eq_i1 {A : type l} {a b c : A} (p : path A a b) :
+  path A c a → path A c b :=
+λ q, coe i0 i1 (λ i, path A c (p @ i)) q

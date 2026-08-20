@@ -1,0 +1,25 @@
+/*
+ * Copyright (c) 2019 Bruno Bentzen. All rights reserved.
+ * Released under the Apache License 2.0 (see "License");
+ * Author: Bruno Bentzen
+ */
+
+import ../sum/basic.cube
+import ../bool/basic.cube
+import ./basic.cube
+
+/* The unit type */
+
+def lem_unit :
+  unit + ¬unit :=
+inl unit (¬unit) ()
+
+/* Interaction with units */
+
+def unit_to_bool :
+  (unit + unit) → bool :=
+λ v, sumrec unit unit _ (λ u, let u true) (λ u, let u false) v
+ 
+theorem bool_to_unit :
+  bool → (unit + unit) :=
+λ b, if b (inl unit unit ()) (inr unit unit ())

@@ -3,50 +3,13 @@
  * Released under the Apache License 2.0 (see "License");
  * Author: Bruno Bentzen
  */
- 
-import ./function.cube
+
+import ../unit.cube 
+import ./basic.cube
 
 universe l
 
-/* Boolean type, constructors and eliminator */
-
-inductive bool : type 0 :=
-| true : bool
-| false : bool
-
-def if {C : bool → type l} (b : bool) (ct : C true) (cf : C false) :
-  C b :=
-boolrec C ct cf b
-
-/* Boolean operations */
- 
-def bneg :
-  bool → bool :=
-λ b, if b false true
- 
-def band :
-  bool → bool → bool :=
-λ b b', if b (if b' true false) (if b' false false)
-
-def bor :
-  bool → bool → bool :=
-λ b b', if b (if b' true true) (if b' true false)
- 
-def bimpl :
-  bool → bool → bool :=
-λ b b', if b (if b' true false) (if b' true true)
- 
-def bnand :
-  bool → bool → bool :=
-λ b b', if b (if b' false true) (if b' true true)
- 
-def bnor :
-  bool → bool → bool :=
-λ b b', if b (if b' false false) (if b' false true)
- 
 /* Boolean equations */
-
-import ./unit.cube
 
 def bool_neq  :
   ¬ path bool true false :=
@@ -89,15 +52,3 @@ def bor_distr (b b' b'' : bool) :
   path bool (bor b (band b' b'')) (band (bor b b') (bor b b'')) :=
 if b (if b' (if b'' (<_> true) (<_> true)) (if b'' (<_> true) (<_> true)))
   (if b' (if b'' (<_> true) (<_> false)) (if b'' (<_> false) (<_> false)))
-
-/* Path structure (code-decode) */
-
-def bool_code (b b' : bool) :
-  type 1 :=
-if b (if b' (path bool true true) void) (if b' void (path bool false false))
- 
-def bool_eq (b b' : bool) :
-  path bool b b' ↔ bool_code b b' :=
-if b 
-  (if b' id_iff_id (bool_neq, absurd)) 
-  (if b' (bool_neq', absurd) id_iff_id)

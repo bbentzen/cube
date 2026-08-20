@@ -1,0 +1,33 @@
+/*
+ * Copyright (c) 2019 Bruno Bentzen. All rights reserved.
+ * Released under the Apache License 2.0 (see "License");
+ * Author: Bruno Bentzen
+ */
+
+import ../../core/function.cube
+
+universe k
+
+/* The natural number type */
+
+inductive nat : type 0 :=
+| zero : nat
+| succ : nat → nat
+
+def rec {C : nat → type k} (n : nat)  :
+  Π (c : C zero) (d : Π (k : nat) C k → C (succ k)) C n :=
+λ c d, natrec _ c d n
+
+/* Basic arithmetic operations */
+ 
+def pred :
+  nat → nat :=
+λ n, natrec _ 0 (λ k _, k) n
+ 
+def add :
+  nat → nat → nat :=
+λ m n, natrec _  m (λ k res, succ res) n
+
+def mult  :
+  nat → nat → nat := 
+λ m n, natrec _ 0 (λ k res, (natrec _ m (λ k, λ g, succ g) res)) n
