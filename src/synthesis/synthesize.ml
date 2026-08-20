@@ -12,10 +12,10 @@ open Checker
 
 (* Iterated synthesization attempts *)
 
-let rec check global ind_env ctx lvl sl e ty max =
+let rec check global ind_env ctx lvl sl e ty max vars =
   let e' = eval ind_env e in
   let ty' = eval ind_env ty in
-  let elab = Elab.elaborate global ind_env ctx lvl sl ty' 0 0 e' in
+  let elab = Elab.elaborate global ind_env ctx lvl sl ty' 0 vars e' in
   begin
     match elab with
     | Ok (e', ty', sl') ->
@@ -25,10 +25,10 @@ let rec check global ind_env ctx lvl sl e ty max =
       else
         Error ("Untrustworthy synthesization attempt with " ^ Attempt.printfst (fst sl') ^ "\nYou should not see this message, please report.")      
     | Error (sl', msg) ->
-      iter sl' msg global ind_env ctx lvl e ty (max+1)
+      iter sl' msg global ind_env ctx lvl e ty (max+1) vars
   end
 
-and iter sl' msg global ind_env ctx lvl e ty max =
+and iter sl' msg global ind_env ctx lvl e ty max vars =
   if max > 100 then
     Error "Maximum number of synthetization steps reached
       \n(You should not see this message, please report)"
@@ -38,14 +38,14 @@ and iter sl' msg global ind_env ctx lvl e ty max =
     | [] -> Error msg
     | (n, id, _) :: current' ->
       let e' = Debruijn.fullsubst 0 (Wild n) (Global id) true e in
-      let w = check global ind_env ctx lvl ([], past) e' ty max in
+      let w = check global ind_env ctx lvl ([], past) e' ty max vars in
       begin 
         match w with
         | Ok (e', ty') ->
           Ok (e', ty')
         | Error _ ->
-          check global ind_env ctx lvl (current', (n, id) :: past) e ty max
+          check global ind_env ctx lvl (current', (n, id) :: past) e ty max vars
       end
 
-let init global ind_env ctx lvl e ty =
-  check global ind_env ctx lvl ([], []) e ty 0
+let init global ind_env ctx lvl e ty vars =
+  check global ind_env ctx lvl ([], []) e ty 0 vars

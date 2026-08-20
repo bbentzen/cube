@@ -182,21 +182,22 @@ let rec elaborate global ind_env ctx lvl sl ty ph vars = function
     | None -> 
       (* Otherwise infer the type of e1 and check its evaluated domain against e2 *)
       let h1 = Placeholder.generate ty ph [] in
-      let v1 = (create_fresh [e1; ty] 1).(0) in 
+      (* let v1 = (create_fresh [e1; ty] 1).(0) in  *)
+      let v1 = init_fresh vars in
       let h2 = Placeholder.generate ty (ph+1) [] in
-      let elab1 = elaborate global ind_env ctx lvl sl (Pi(v1, h1, h2)) (ph+2) vars e1 in
+      let elab1 = elaborate global ind_env ctx lvl sl (Pi(v1, h1, h2)) (ph+2) (vars+1) e1 in
       begin match elab1 with
       | Ok (e1', Pi(_, ty1, ty2), sa1) ->
         (* Evaluates the inferred domain before type checking *)
         let ty1' = eval ind_env ty1 in
-        let elab2 = elaborate global ind_env ctx lvl sl ty1' (ph+2) vars e2 in
+        let elab2 = elaborate global ind_env ctx lvl sl ty1' (ph+2) (vars+1) e2 in
         begin
           match elab2 with
           | Ok (e2', _, sa2) ->
             let ty2' = eval ind_env (open_var 0 e2' ty2) in
             let h3 = Placeholder.generate ty2' (ph+3) [] in 
             (* Unify both types possibly lifting the universe level when needed *)
-            let u = unify global ind_env ctx lvl sl (ph+3) vars (eval ind_env ty, eval ind_env ty2', h3) true in
+            let u = unify global ind_env ctx lvl sl (ph+3) (vars+1) (eval ind_env ty, eval ind_env ty2', h3) true in
             begin match u with
             | Ok _ -> 
               Ok (App (e1', e2'), ty2', Stack.append sa1 sa2)
@@ -245,10 +246,11 @@ let rec elaborate global ind_env ctx lvl sl ty ph vars = function
         Error msg
       end
     | Hole _ -> 
-      let v1 = (create_fresh [e1; e2; ty] 1).(0) in 
+      (* let v1 = (create_fresh [e1; e2; ty] 1).(0) in *)
+      let v1 = init_fresh vars in
       let h1 = Placeholder.generate ty 0 [] in
       let h2 = Placeholder.generate ty 1 [] in
-      elaborate global ind_env ctx lvl sl (Sigma(v1, h1, h2)) (ph+2) vars (Pair (e1, e2))
+      elaborate global ind_env ctx lvl sl (Sigma(v1, h1, h2)) (ph+2) (vars+1) (Pair (e1, e2))
     | _ ->
       Error (sl, "Type mismatch when checking that the term (" ^ 
       Pretty.print (to_raw_expr e1) ^ ", " ^ Pretty.print (to_raw_expr e2) ^ ") of type Σ (v? : ?0?) ?1? has type " ^ Pretty.printf ty)
@@ -564,15 +566,15 @@ let rec elaborate global ind_env ctx lvl sl ty ph vars = function
           let u2 = unify global ind_env ctx lvl sl ph vars (eval ind_env ei1, eval ind_env e2, tyi1) false in
           begin match u1, u2 with
           | Ok ui0, Ok ui1 ->
-            (* let v1 = fresh_var (App(tyi0, tyi1)) ty vars in *)
-            let v1 = (create_fresh [tyi0; tyi1; ty] 1).(0) in
+            (* let v1 = (create_fresh [tyi0; tyi1; ty] 1).(0) in *)
+            let v1 = init_fresh vars in
             let ty' = fullsubst 0 (I0()) (Global v1) true tyi0 in
             let ty'' = fullsubst 0 (I1()) (Global v1) true tyi1 in
-            let elabTy = elaborate global ind_env ctx lvl sl h0 ph vars ty in
+            let elabTy = elaborate global ind_env ctx lvl sl h0 ph (vars+1) ty in
 
             begin match elabTy with
             | Ok (_, tTy, _) ->
-              let u = unify global ind_env ctx lvl sl ph vars (ty', ty'', tTy) false in
+              let u = unify global ind_env ctx lvl sl ph (vars+1) (ty', ty'', tTy) false in
               begin match u with
               | Ok st ->
                 Ok (Pabs (i, e_closed), Pathd (Abs(v1,st), ui0, ui1), sa)
@@ -704,17 +706,17 @@ let rec elaborate global ind_env ctx lvl sl ty ph vars = function
         let elab1 = elaborate global ind_env ctx lvl sl h1 (ph+1) vars ei1 in
         match elab0, elab1 with
         | Ok (_, tyi0, _), Ok (_, tyi1, _) ->
-          (* let v1 = fresh_var (App(tyi0, tyi1)) ty vars in *)
-          let v1 = (create_fresh [tyi0; tyi1; ty] 1).(0) in 
+          (* let v1 = (create_fresh [tyi0; tyi1; ty] 1).(0) in *)
+          let v1 = init_fresh vars in
           let ty' = fullsubst 0 (I0()) (Global v1) true tyi0 in
           let ty'' = fullsubst 0 (I1()) (Global v1) true tyi1 in
           begin 
-            match elaborate global ind_env ctx lvl sl h1 (ph+1) vars ty' with
+            match elaborate global ind_env ctx lvl sl h1 (ph+1) (vars+1) ty' with
             | Ok (ty', tTy', _) ->
-              let u = unify global ind_env ctx lvl sl ph vars (ty', ty'', tTy') false in
+              let u = unify global ind_env ctx lvl sl ph (vars+1) (ty', ty'', tTy') false in
               begin match u with
               | Ok st ->
-                elaborate global ind_env ctx lvl sl (Pathd(Abs(v1,st), ei0, ei1)) (ph+1) vars (Pabs (i, e))
+                elaborate global ind_env ctx lvl sl (Pathd(Abs(v1,st), ei0, ei1)) (ph+1) (vars+1) (Pabs (i, e))
               | Error (_, msg) ->
                 Error (sl, "Failed to unify the types\n  " ^ Pretty.print (to_raw_expr ty') ^ "\nand\n  " ^ Pretty.print (to_raw_expr ty'') ^ "\n" ^ msg)
                 
@@ -1270,12 +1272,13 @@ and unify global ind_env ctx lvl sl ph vars x lift =
         let u1 = unify global ind_env ctx lvl sl ph vars (ty1, ty1', ty) lift in
         begin match u1 with
         | Ok s1 -> 
-          let v1 = (create_fresh [ty2; ty2'; ty] 1).(0) in
+          (* let v1 = (create_fresh [ty2; ty2'; ty] 1).(0) in *)
+          let v1 = init_fresh vars in
           let ty2_open = fullsubst 0 ty1 s1 true (open_bound x (Global v1) ty2) in
           let ty2'_open = fullsubst 0 ty1' s1 true (open_bound x' (Global v1) ty2') in
           let ty2_open = eval ind_env ty2_open in
           let ty2'_open = eval ind_env ty2'_open in
-          let u2 = unify global ind_env ((v1, s1, true) :: ctx) lvl sl ph vars (ty2_open, ty2'_open, ty) lift in
+          let u2 = unify global ind_env ((v1, s1, true) :: ctx) lvl sl ph (vars+1) (ty2_open, ty2'_open, ty) lift in
           begin match u2 with
           | Ok s2 -> 
             Ok (Pi (v1, s1, close_bound v1 s2))
@@ -1288,11 +1291,12 @@ and unify global ind_env ctx lvl sl ph vars x lift =
       | Sigma (x, ty1, ty2), Sigma (x', ty1', ty2'), ty ->
         let u1 = unify global ind_env ctx lvl sl ph vars (ty1, ty1', ty) lift in
         begin match u1 with
-        | Ok s1 -> 
-          let v1 = (create_fresh [ty2; ty2'; ty] 1).(0) in
+        | Ok s1 ->
+          let v1 = init_fresh vars in
+          (* let v1 = (create_fresh [ty2; ty2'; ty] 1).(0) in *)
           let ty2_open = fullsubst 0 ty1 s1 true (open_bound x (Global v1) ty2) in
           let ty2'_open = fullsubst 0 ty1' s1 true (open_bound x' (Global v1) ty2') in
-          let u2 = unify global ind_env ((v1, s1, true) :: ctx) lvl sl ph vars (ty2_open, ty2'_open, ty) lift in
+          let u2 = unify global ind_env ((v1, s1, true) :: ctx) lvl sl ph (vars+1) (ty2_open, ty2'_open, ty) lift in
           begin match u2 with
           | Ok s2 -> Ok (Sigma (v1, s1, close_bound v1 s2))
           | Error (s, msg) -> Error (s, "Don't know how to unify the codomains of the dependent product type\n  " ^ Pretty.printf ty2_open ^ "\nwith\n  " ^ Pretty.printf ty2'_open ^ "\n" ^ msg)
@@ -1351,12 +1355,12 @@ and unify global ind_env ctx lvl sl ph vars x lift =
               Error ((Abs (x, e), Abs (x', e')), msg)
             end
           | _ ->
-            (* let v1 = fresh_var e e' vars in *)
-            let v1 = (create_fresh [e; e'] 1).(0) in
+            (* let v1 = (create_fresh [e; e'] 1).(0) in *)
+            let v1 = init_fresh vars in
             let ev1 = open_var 0 (Global v1) e in
             let ev1' = open_var 0 (Global v1) e' in
             let tyv1 = open_var 0 (Global v1) ty2 in
-            let u = unify global ind_env ((v1, ty1, true) :: ctx) lvl sl ph vars (ev1, ev1', tyv1) lift in
+            let u = unify global ind_env ((v1, ty1, true) :: ctx) lvl sl ph (vars+1) (ev1, ev1', tyv1) lift in
             begin match u with
             | Ok s -> Ok (Abs (v1, s))
             | Error msg -> Error msg
@@ -1370,8 +1374,9 @@ and unify global ind_env ctx lvl sl ph vars x lift =
           match elab2 with
           | Ok (_, ty2, _) ->
             let u2 = unify global ind_env ctx lvl sl ph vars (e2, e2', ty2) lift in
-            let v1 = (create_fresh [e1; e1'; ty] 1).(0) in
-            let u1 = unify global ind_env ctx lvl sl ph vars (e1, e1', Pi(v1, ty2, fullsubst 0 e2 (Local 0) true ty)) lift in
+            (* let v1 = (create_fresh [e1; e1'; ty] 1).(0) in *)
+            let v1 = init_fresh vars in
+            let u1 = unify global ind_env ctx lvl sl ph (vars+1) (e1, e1', Pi(v1, ty2, fullsubst 0 e2 (Local 0) true ty)) lift in
             begin 
               match u1, u2 with
               | Ok s1, Ok s2 -> Ok (App (s1, s2))
@@ -1391,22 +1396,22 @@ and unify global ind_env ctx lvl sl ph vars x lift =
                   | Global _, Global _, Int() ->
                     let i0 x = eval ind_env (App (x, I0())) in
                     let i1 x = eval ind_env (App (x, I1())) in
-                    let ui0 = unify global ind_env ctx lvl sl ph vars (i0 e1, i0 e1', ty2) lift in
-                    let ui1 = unify global ind_env ctx lvl sl ph vars (i1 e1, i1 e1', ty2) lift in
+                    let ui0 = unify global ind_env ctx lvl sl ph (vars+1) (i0 e1, i0 e1', ty2) lift in
+                    let ui1 = unify global ind_env ctx lvl sl ph (vars+1) (i1 e1, i1 e1', ty2) lift in
                     helper ui0 ui1
                   
                   | _, Global _, Int() ->
                     let i0 x = eval ind_env (App (x, I0())) in
                     let i1 x = eval ind_env (App (x, I1())) in
-                    let ui0 = unify global ind_env ctx lvl sl ph vars (App (e1, e2), i0 e1', ty2) lift in
-                    let ui1 = unify global ind_env ctx lvl sl ph vars (App (e1, e2), i1 e1', ty2) lift in
+                    let ui0 = unify global ind_env ctx lvl sl ph (vars+1) (App (e1, e2), i0 e1', ty2) lift in
+                    let ui1 = unify global ind_env ctx lvl sl ph (vars+1) (App (e1, e2), i1 e1', ty2) lift in
                     helper ui0 ui1
                   
                   | Global _, _, Int() ->
                     let i0 x = eval ind_env (App (x, I0())) in
                     let i1 x = eval ind_env (App (x, I1())) in
-                    let ui0 = unify global ind_env ctx lvl sl ph vars (i0 e1, App (e1', e2'), ty2) lift in
-                    let ui1 = unify global ind_env ctx lvl sl ph vars (i1 e1, App (e1', e2'), ty2) lift in
+                    let ui0 = unify global ind_env ctx lvl sl ph (vars+1) (i0 e1, App (e1', e2'), ty2) lift in
+                    let ui1 = unify global ind_env ctx lvl sl ph (vars+1) (i1 e1, App (e1', e2'), ty2) lift in
                     helper ui0 ui1
 
                   | _ ->
@@ -1420,7 +1425,7 @@ and unify global ind_env ctx lvl sl ph vars x lift =
                     Error (ex, "Failed to unify the applications " ^ Pretty.printf (App (e1, e2)) ^ 
                     " and " ^ Pretty.printf (App (e1', e2')) ^ ". " ^ msg)
                     else
-                      unify global ind_env ctx lvl sl ph vars (app1', app2', ty) lift
+                      unify global ind_env ctx lvl sl ph (vars+1) (app1', app2', ty) lift
               end
           end
         | Error (_, msg) -> (* This case is impossible *)
@@ -1517,12 +1522,12 @@ and unify global ind_env ctx lvl sl ph vars x lift =
         let u2 = unify global ind_env ctx lvl sl ph vars (e2, e2', Int()) lift in
         let h1 = Placeholder.generate ty ph [] in
         let h2 = Placeholder.generate ty (ph+2) [] in
-        (* let i = fresh_var (App(e1, e1')) ty vars in *)
-        let i = (create_fresh [e1; e1'; ty] 1).(0) in 
-        let elab1 = elaborate global ind_env ctx lvl sl (Pathd (Pi(i, Int(), fullsubst 0 e2 (Local 0) true ty), h1, h2)) ph vars e1 in
+        (* let i = (create_fresh [e1; e1'; ty] 1).(0) in  *)
+        let v1 = init_fresh vars in
+        let elab1 = elaborate global ind_env ctx lvl sl (Pathd (Pi(v1, Int(), fullsubst 0 e2 (Local 0) true ty), h1, h2)) ph (vars+1) e1 in
         begin match elab1 with
         | Ok (_, ety, _) ->
-          let u1 = unify global ind_env ctx lvl sl ph vars (e1, e1', ety) lift in
+          let u1 = unify global ind_env ctx lvl sl ph (vars+1) (e1, e1', ety) lift in
           begin match u1, u2 with
           | Ok s1, Ok s2 -> Ok (At (s1, s2))
           | Error msg, _ | _, Error msg -> Error msg
@@ -1636,13 +1641,13 @@ and unify global ind_env ctx lvl sl ph vars x lift =
           end
 
       | Fst e, Fst e', ty ->
-        (* let v1 = fresh_var e e' vars in *)
-        let v1 = (create_fresh [e; e'] 1).(0) in
+        (* let v1 = (create_fresh [e; e'] 1).(0) in *)
+        let v1 = init_fresh vars in
         let h1 = Placeholder.generate ty ph [] in
-        let elab = elaborate global ind_env ctx lvl sl (Sigma(v1, ty, h1)) ph vars e in
+        let elab = elaborate global ind_env ctx lvl sl (Sigma(v1, ty, h1)) ph (vars+1) e in
         begin match elab with
         | Ok (_, ety, _) ->
-          let u = unify global ind_env ctx lvl sl ph vars (e, e', ety) lift in
+          let u = unify global ind_env ctx lvl sl ph (vars+1) (e, e', ety) lift in
           begin match u with
           | Ok s -> Ok (Fst s)
           | Error msg -> Error msg
@@ -1650,16 +1655,15 @@ and unify global ind_env ctx lvl sl ph vars x lift =
         | Error (_, msg) -> (* This case is impossible *)
           Error ((Fst e, Fst e'), msg)
         end
-        
 
       | Snd e, Snd e', ty ->
-        (* let v1 = fresh_var e e' vars in *)
-        let v1 = (create_fresh [e; e'] 1).(0) in
+        (* let v1 = (create_fresh [e; e'] 1).(0) in *)
+        let v1 = init_fresh vars in
         let h1 = Placeholder.generate ty ph [] in
-        let elab = elaborate global ind_env ctx lvl sl (Sigma(v1, h1, fullsubst 0 (Fst e) (Local 0) true ty)) ph vars e in
+        let elab = elaborate global ind_env ctx lvl sl (Sigma(v1, h1, fullsubst 0 (Fst e) (Local 0) true ty)) ph (vars+1) e in
         begin match elab with
         | Ok (_, ety, _) ->
-          let u = unify global ind_env ctx lvl sl ph vars (e, e', ety) lift in
+          let u = unify global ind_env ctx lvl sl ph (vars+1) (e, e', ety) lift in
           begin match u with
           | Ok s -> Ok (Snd s)
           | Error msg -> Error msg

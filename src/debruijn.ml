@@ -72,7 +72,95 @@ let rec of_raw_expr_with_env env = function
   | Ast.Wild n -> Core_ast.Wild n
   | Ast.Subgoal() -> Core_ast.Subgoal()
 
-let of_raw_expr e = of_raw_expr_with_env [] e
+(* let of_raw_expr e = of_raw_expr_with_env [] e *)
+
+(* Returns a core expression with a list of used variable identifiers *)
+
+let rec of_raw_expr_with_vars env = function
+  | Ast.Id x ->
+    (* Stores integers n for every identifier of the form "v" ^ n *)
+    let e = 
+      begin match index_of x env with
+      | Some index -> Core_ast.Local index
+      | None -> Core_ast.Global x
+      end 
+    and n = 
+      if x.[0] = 'v' then
+        let s = Base.String.drop_prefix x 1 in
+        begin match int_of_string_opt s with
+            | Some n -> [n]
+            | None -> []
+        end
+      else 
+        []
+    in
+    e, n
+  | Ast.Int () -> Core_ast.Int (), []
+  | Ast.I1 () -> Core_ast.I1 (), []
+  | Ast.I0 () -> Core_ast.I0 (), []
+  | Ast.Coe (i, j, e1, e2) ->
+    let i', vi = of_raw_expr_with_vars env i in
+    let j', vj = of_raw_expr_with_vars env j in
+    let e1', v1 = of_raw_expr_with_vars env e1 in
+    let e2', v2 = of_raw_expr_with_vars env e2 in
+    Core_ast.Coe (i', j', e1', e2'), vi @ vj @ v1 @ v2
+  | Ast.Hfill (e, e1, e2) ->
+    let e', ve = of_raw_expr_with_vars env e in
+    let e1', v1 = of_raw_expr_with_vars env e1 in
+    let e2', v2 = of_raw_expr_with_vars env e2 in
+    Core_ast.Hfill (e', e1', e2'), ve @ v1 @ v2
+  | Ast.Abs (x, e) ->
+    let e', v = of_raw_expr_with_vars (x :: env) e in
+    Core_ast.Abs (x, e'), v
+  | Ast.App (e1, e2) ->
+    let e1', v1 = of_raw_expr_with_vars env e1 in
+    let e2', v2 = of_raw_expr_with_vars env e2 in
+    Core_ast.App (e1', e2'), v1 @ v2
+  | Ast.Pi (x, e1, e2) ->
+    let e1', v1 = of_raw_expr_with_vars env e1 in
+    let e2', v2 = of_raw_expr_with_vars (x :: env) e2 in
+    Core_ast.Pi (x, e1', e2'), v1 @ v2
+  | Ast.Pair (e1, e2) ->
+    let e1', v1 = of_raw_expr_with_vars env e1 in
+    let e2', v2 = of_raw_expr_with_vars env e2 in
+    Core_ast.Pair (e1', e2'), v1 @ v2
+  | Ast.Fst e ->
+    let e', v = of_raw_expr_with_vars env e in
+    Core_ast.Fst e', v
+  | Ast.Snd e ->
+    let e', v = of_raw_expr_with_vars env e in
+    Core_ast.Snd e', v
+  | Ast.Sigma (x, e1, e2) ->
+    let e1', v1 = of_raw_expr_with_vars env e1 in
+    let e2', v2 = of_raw_expr_with_vars (x :: env) e2 in
+    Core_ast.Sigma (x, e1', e2'), v1 @ v2
+  | Ast.Abort e ->
+    let e', v = of_raw_expr_with_vars env e in
+    Core_ast.Abort e', v
+  | Ast.Void () -> Core_ast.Void (), []
+  | Ast.Pabs (x, e) ->
+    let e', v = of_raw_expr_with_vars (x :: env) e in
+    Core_ast.Pabs (x, e'), v
+  | Ast.At (e1, e2) ->
+    let e1', v1 = of_raw_expr_with_vars env e1 in
+    let e2', v2 = of_raw_expr_with_vars env e2 in
+    Core_ast.At (e1', e2'), v1 @ v2
+  | Ast.Pathd (e, e1, e2) ->
+    let e', v = of_raw_expr_with_vars env e in
+    let e1', v1 = of_raw_expr_with_vars env e1 in
+    let e2', v2 = of_raw_expr_with_vars env e2 in
+    Core_ast.Pathd (e', e1', e2'), v @ v1 @ v2
+  | Ast.Type l -> Core_ast.Type (level_of_raw l), []
+  | Ast.Hole (n, l) -> 
+    let of_raw_expr_with_vars_fst = fun x -> fst (of_raw_expr_with_vars env x) in
+    Core_ast.Hole (n, List.map of_raw_expr_with_vars_fst l), []
+  | Ast.Wild n -> Core_ast.Wild n, []
+  | Ast.Subgoal() -> Core_ast.Subgoal(), []
+
+let fresh_var_list l =
+  List.fold_left (fun acc n -> n + acc) 0 l
+
+let of_raw_expr e = fst (of_raw_expr_with_vars [] e)
 
 let rec to_raw_expr_with_env env = function
   | Core_ast.Local index -> Ast.Id (name_at index env)
@@ -286,3 +374,5 @@ let create_fresh_char c es n =
   helper 0 (list_to_expr es) n
 
 let create_fresh es n = create_fresh_char "v" es n
+
+let init_fresh n = "v" ^ string_of_int n

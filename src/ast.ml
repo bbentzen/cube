@@ -37,9 +37,6 @@ type expr =
 type proof = 
   | Prf of string * (((string list * expr) * bool) list) * expr * expr
 
-(* type constr = 
-  | Constr of (string * expr) list *)
-
 type command = 
     | Import of command * string
     | Thm of command * proof

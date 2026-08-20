@@ -27,8 +27,11 @@ let rec compile global ind_env ind lopen filename lvl next_location = function
   | Ast.Thm (cmd, Prf (id, l, ty_raw, e_raw)) ->
     let location = next_location () in
     begin
-      let ty = Debruijn.of_raw_expr ty_raw in
-      let e = Debruijn.of_raw_expr e_raw in
+      (* Convert expressions storing the index of available fresh variable *)
+      let ty, v = Debruijn.of_raw_expr_with_vars [] ty_raw in
+      let e, v' = Debruijn.of_raw_expr_with_vars [] e_raw in
+      let fresh_vars = Debruijn.fresh_var_list (v @ v') + 1 in
+      (* Unfold all used global environtment identifiers *)
       match Env.unfold_all global 0 (Implicit.convert ty) with
       | Ok hty ->
         let ctx = Global.create_ctx l in
@@ -53,7 +56,7 @@ let rec compile global ind_env ind lopen filename lvl next_location = function
                     (* Evaluate expressions and temporarily add inductive types to the context for type checking *)
                     let ictx = Inductive.add ind ctx' in
                     let e' = eval ind_env e' and ty' = eval ind_env ty' in
-                    let res = Synthesize.init global ind_env ictx lvl e' ty' in
+                    let res = Synthesize.init global ind_env ictx lvl e' ty' fresh_vars in
                     match res with 
                     | Ok (e1, ty1) ->
                       if id = "infer" then
@@ -97,9 +100,11 @@ let rec compile global ind_env ind lopen filename lvl next_location = function
     begin
       let e = Debruijn.of_raw_expr e_raw in
       match (Env.unfold_all global 0 e) with
-      | Ok e' ->
+      (* | Ok e' -> *)
+      | Ok _ ->
         Ok (global, ind_env, ind, ("eval " ^ Pretty.print e_raw ^ " := " ^ 
-        Pretty.printf (eval ind_env e'), lopen))
+        Pretty.printf (Debruijn.of_raw_expr e_raw) ^ "\n", 
+        lopen))
       | Error msg -> 
         failwith_at location msg
     end

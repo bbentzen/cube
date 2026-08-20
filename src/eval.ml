@@ -101,7 +101,7 @@ let reduce_recursor rec_spec args =
 
 let rec reduce ind_env = function
   | Core_ast.Coe (i, j, Core_ast.Abs(k, Pi(x, ty1, ty2)), e) ->  
-    let v1 = (create_fresh [Pi(x, ty1, ty2); e] 1).(0) in
+    let v1 = (create_fresh [Pi(x, ty1, ty2); e] 1).(0) in (* TODO: replace, passing vars param *)
     let i' = shift 0 1 (reduce ind_env i) in
     let j' = shift 0 1 (reduce ind_env j) in
     Core_ast.Abs(v1, Core_ast.Coe (i', j', Core_ast.Abs(k, 
@@ -119,7 +119,7 @@ let rec reduce ind_env = function
     Snd (reduce ind_env e)))
 
   | Core_ast.Coe (i, j, Core_ast.Abs(k, Pathd(ty, e1, e2)), e) ->
-      let v = create_fresh [ty; e1; e2; e] 3 in
+      let v = create_fresh [ty; e1; e2; e] 3 in (* TODO: replace, passing vars param *)
       let v1 = v.(0) and v2 = v.(1) and v3 = v.(2) in
       let i' = shift 0 2 (reduce ind_env i) in
       let j' = shift 0 2 (reduce ind_env j) in

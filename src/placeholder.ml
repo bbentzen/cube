@@ -23,7 +23,10 @@ let rec count = function
 let generate e hole l = 
   Hole ((string_of_int ((count e) + hole)), l)
 
-(* Returns the type of a term variable when it has been declared *)
+(* let generate e num_holes l = 
+  Hole (string_of_int num_holes, e::l) *)
+
+  (* Returns the type of a term variable when it has been declared *)
 
 let rec candidates = function (* TODO: remove duplicates *)
   | Hole (n, l) ->
