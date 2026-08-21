@@ -88,15 +88,15 @@ def add_num_inj {m n k : ℕ} :
   path ℕ (add m k) (add n k) → path ℕ m n :=
 natrec _ id (λ i ih p, ih (succ_to_eq p)) k
 
-/* def add_path_inj {m n k' l : ℕ} (p : path ℕ k' l) :
-  path ℕ (add m k') (add n l) → path ℕ m n :=
-λ q, add_num_inj (coe i1 i0 (λ i', path ℕ (add m k') (add n (p @ i'))) q) */
+/* def add_path_inj {m n k l : ℕ} (p : path ℕ k l) :
+  path ℕ (add m k) (add n l) → path ℕ m n :=
+λ q, add_num_inj (coe i1 i0 (λ i', path ℕ (add m k) (add n (p @ i'))) q) */
 
-def add_comm2 (m n k' : ℕ) /* k */ :
-  path ℕ (add (add m n) k') (add (add m k') n) :=
-(add_assoc m n k') · (add_num_left m (add_comm n k')) · (add_assoc m k' n)⁻¹
+def add_comm2 (m n k : ℕ) :
+  path ℕ (add (add m n) k) (add (add m k) n) :=
+(add_assoc m n k) · (add_num_left m (add_comm n k)) · (add_assoc m k n)⁻¹
 
-def add_pair_symm (m n : ℕ) {x y : ℕ}  :
+def add_pair_symm (m n : ℕ) {x y : ℕ} :
   path ℕ (add (add m x) (add n y))  (add (add m n) (add x y)) :=
 ((add_assoc m x (add n y)) · (add_num_left m (add_assoc x n y)⁻¹)) ·
 ((add_num_left m (add_num_right y (add_comm x n))) · (add_assoc m (add n x) y)⁻¹) ·

@@ -14,6 +14,6 @@ def leq (m n : ℕ) :
   type 1 :=
 Σ (i : ℕ) path ℕ (add m i) n
 
-def leq_add (m n k' : ℕ) /* TODO: address renaming issue with k p */ :
-  leq m n → leq (add m k') (add n k') :=
-λ pp, (fst pp, add_comm2 m (fst pp) k' · (<i> add ((snd pp) @ i) k') )
+def leq_add (m n k : ℕ) :
+  leq m n → leq (add m k) (add n k) :=
+λ p, (fst p, add_comm2 m (fst p) k · (<i> add ((snd p) @ i) k) )

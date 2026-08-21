@@ -105,18 +105,16 @@ let rec reduce ind_env = function
     let i' = shift 0 1 (reduce ind_env i) in
     let j' = shift 0 1 (reduce ind_env j) in
     Core_ast.Abs(v1, Core_ast.Coe (i', j', Core_ast.Abs(k, 
-    (shift 2 1 (reduce ind_env (Debruijn.open_var 0
-    (Core_ast.Coe (j', Local 0, Core_ast.Abs(k, shift 1 1 ty1), Local 1)) ty2)))),
-    (reduce ind_env (Core_ast.App(shift 0 1 e, Coe (j', i', Core_ast.Abs(k, shift 1 1 ty1), Local 0))))))
+    (shift 2 1 (Debruijn.open_var 0
+    (Core_ast.Coe (j', Local 0, Core_ast.Abs(k, shift 1 1 ty1), Local 1)) ty2))),
+    (Core_ast.App(shift 0 1 e, Coe (j', i', Core_ast.Abs(k, shift 1 1 ty1), Local 0)))))
 
   | Core_ast.Coe (i, j, Core_ast.Abs(k, Sigma(_, ty1, ty2)), e) ->
-    let i' = reduce ind_env i in
-    let j' = reduce ind_env j in
-    (* let c x = Coe (i', x, Abs(k, ty1), Fst e) in *)
-    Pair(Coe (i', j', Abs(k, ty1), Fst e), 
-    Coe (i', j', Abs(k, 
-    reduce ind_env (Debruijn.open_var 0 (shift 1 1 (Coe (i', Local 0, Abs(k, ty1), Fst e))) ty2)),
-    Snd (reduce ind_env e)))
+    (* let i' = reduce ind_env i in
+    let j' = reduce ind_env j in *)
+    Pair(Coe (i, j, Abs(k, ty1), Fst e), 
+    Coe (i, j, Abs(k, 
+    Debruijn.open_var 0 (shift 1 1 (Coe (i, Local 0, Abs(k, ty1), Fst e))) ty2), Snd (e)))
 
   | Core_ast.Coe (i, j, Core_ast.Abs(k, Pathd(ty, e1, e2)), e) ->
       let v = create_fresh [ty; e1; e2; e] 3 in (* TODO: replace, passing vars param *)
@@ -125,28 +123,28 @@ let rec reduce ind_env = function
       let j' = shift 0 2 (reduce ind_env j) in
       let ty' = shift 1 2 ty and e' = shift 0 2 e in
       Pabs(v1, App(App (Hfill(
-      Abs(v2, Coe (i', j', (Abs(k, (reduce ind_env (App(ty', Local 1))))), reduce ind_env (At(e', Local 0)))), 
-      Abs(v3, Coe (Local 0, j', (Abs(k, (reduce ind_env (App(ty', I0()))))), reduce ind_env (shift 1 1 e1))),
-      Abs(v3, Coe (Local 0, j', (Abs(k, (reduce ind_env (App(ty', I1()))))), reduce ind_env (shift 1 1 e2)))),
+      Abs(v2, Coe (i', j', (Abs(k, (App(ty', Local 1)))), At(e', Local 0))), 
+      Abs(v3, Coe (Local 0, j', (Abs(k, App(ty', I0()))), shift 1 1 e1)),
+      Abs(v3, Coe (Local 0, j', (Abs(k, App(ty', I1()))), shift 1 1 e2))),
       I1()), Local 0))
 
   | Core_ast.Coe (i, j, e1, e2) ->
     begin
       let i' = reduce ind_env i in
       let j' = reduce ind_env j in
-      let e2' = reduce ind_env e2 in
+      (* let e2' = reduce ind_env e2 in *)
       if i' = j' then
-        e2'
+        e2
       else
         let e1' = reduce ind_env e1 in
         match e1' with
         | Core_ast.Abs(_, e) ->
           if occurs_index 0 0 e then
-            Core_ast.Coe (i', j', e1', e2')
+            Core_ast.Coe (i', j', e1', e2)
           else
-            e2'  (* coercion regularity *)
+            e2  (* coercion regularity *)
         | _ ->
-          Core_ast.Coe (i', j', e1', e2')
+          Core_ast.Coe (i', j', e1', e2)
     end
   
   | Core_ast.Hfill (e, e1, e2) ->
