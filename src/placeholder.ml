@@ -20,55 +20,45 @@ let is = function
 (* Tail-recursive recursion with stack for placeholder tracking  *)
 
 let has_placeholder term =
-  let rec aux stack =
+  let rec helper stack =
     match stack with
     | [] -> false
     | x :: rest ->
       match x with
       | Hole _ -> true
-
       | Abs (_, e) | Pabs (_, e)
       | Fst e | Snd e | Abort e ->
-          aux (e :: rest)
-
+          helper (e :: rest)
       | Pi (_, e1, e2) | Sigma (_, e1, e2)
       | App (e1, e2) | Pair (e1, e2) | At (e1, e2) ->
-          aux (e1 :: e2 :: rest)
-
+          helper (e1 :: e2 :: rest)
       | Pathd (e, e1, e2) | Hfill (e, e1, e2) ->
-          aux (e :: e1 :: e2 :: rest)
-
+          helper (e :: e1 :: e2 :: rest)
       | Coe (i, j, e1, e2) ->
-          aux (i :: j :: e1 :: e2 :: rest)
-
-      | _ -> aux rest
+          helper (i :: j :: e1 :: e2 :: rest)
+      | _ -> helper rest
   in
-  aux [term]
+  helper [term]
 
 (* Determines whether an expression has placeholders or underscores *)
 
 let has term =
-  let rec aux stack =
+  let rec helper stack =
     match stack with
     | [] -> false
     | x :: rest ->
       match x with
        Wild _ | Hole _ -> true
-
       | Abs (_, e) | Pabs (_, e)
       | Fst e | Snd e | Abort e ->
-          aux (e :: rest)
-
+          helper (e :: rest)
       | Pi (_, e1, e2) | Sigma (_, e1, e2)
       | App (e1, e2) | Pair (e1, e2) | At (e1, e2) ->
-          aux (e1 :: e2 :: rest)
-
+          helper (e1 :: e2 :: rest)
       | Pathd (e, e1, e2) | Hfill (e, e1, e2) ->
-          aux (e :: e1 :: e2 :: rest)
-
+          helper (e :: e1 :: e2 :: rest)
       | Coe (i, j, e1, e2) ->
-          aux (i :: j :: e1 :: e2 :: rest)
-
-      | _ -> aux rest
+          helper (i :: j :: e1 :: e2 :: rest)
+      | _ -> helper rest
   in
-  aux [term]
+  helper [term]

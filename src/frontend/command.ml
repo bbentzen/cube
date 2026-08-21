@@ -100,11 +100,9 @@ let rec compile global ind_env ind lopen filename lvl next_location = function
     begin
       let e = Debruijn.of_raw_expr e_raw in
       match (Env.unfold_all global 0 e) with
-      (* | Ok e' -> *)
-      | Ok _ ->
+      | Ok e' ->
         Ok (global, ind_env, ind, ("eval " ^ Pretty.print e_raw ^ " := " ^ 
-        Pretty.printf (Debruijn.of_raw_expr e_raw) ^ "\n", 
-        lopen))
+        Pretty.printf (eval ind_env e'), lopen))
       | Error msg -> 
         failwith_at location msg
     end
