@@ -251,7 +251,7 @@ let rec elaborate global ind_env ctx lvl sl ty ph vars = function
         let elabTy = elaborate global ind_env ctx lvl sl h1 (ph+1) vars ty in
         begin match elabTy with
         | Ok (_, tTy, _) ->
-          let u = unify global ind_env ctx lvl sl (ph+1) vars (eval ind_env ty, eval ind_env ty', tTy) false in
+          let u = unify global ind_env ctx lvl sl (ph+1) vars (eval ind_env ty, ty', tTy) false in
           begin match u with
           | Ok _ ->
             Ok (Fst e', ty', sa) 
@@ -328,7 +328,7 @@ let rec elaborate global ind_env ctx lvl sl ty ph vars = function
             "Failed to unify the terms\n  " ^ Pretty.print (to_raw_expr tyj) ^ "\nand\n  " ^ Pretty.print (to_raw_expr ty') ^ 
             "\nof expected type\n  " ^ Pretty.print (to_raw_expr eTy) ^
             "\nwhen checking that the coercion\n  " ^ Pretty.print (to_raw_expr (Coe(i, j, ety, e))) ^
-            "\nhas type\n  " ^ Pretty.print (to_raw_expr (eval ind_env ty)) ^
+            "\nhas type\n  " ^ Pretty.printf ty ^
             "\n" ^ msg)
         end
       | Error (sa, msg), _ ->
@@ -360,7 +360,8 @@ let rec elaborate global ind_env ctx lvl sl ty ph vars = function
   | Hfill(e, e1, e2) ->
     begin match ty with
     | Pi(i, int, Pi(j, int', ty')) ->
-      if eval ind_env int = Int() && eval ind_env int = eval ind_env int' then
+      let int = eval ind_env int in
+      if int = Int() && int = eval ind_env int' then
         begin
           (* Determine the target type for the cap and tubes *)
           let ty0 = open_var 0 (I0()) ty' in
@@ -797,8 +798,10 @@ let rec elaborate global ind_env ctx lvl sl ty ph vars = function
     end
 
   | Pi(x, ty1, ty2) ->
+    let ty1 = eval ind_env ty1 in
     let h1 = Placeholder.generate ph [] in
     let elab1 = elaborate global ind_env ctx lvl sl h1 (ph+1) vars ty1 in
+    let ty2 = eval ind_env ty2 in
     let ty2' = (open_var 0 (Global x) ty2) in
     let elab2 = elaborate global ind_env ((x, ty1, true) :: ctx) lvl sl h1 (ph+1) vars ty2'
     in
@@ -811,7 +814,7 @@ let rec elaborate global ind_env ctx lvl sl ty ph vars = function
         Ok (Pi(x, ty1', close_bound x ty2'), Type (Suc(max)), Stack.append sa1 sa2)
       | Type m ->
         (* Check if levels are compatible *)
-        if Core_ast.leq (max, m) then 
+        if Core_ast.leq max m then 
           Ok (Pi(x, ty1', close_bound x ty2'), Type m, Stack.append sa1 sa2)
         else 
           Error (Stack.append sa1 sa2, 
@@ -826,8 +829,8 @@ let rec elaborate global ind_env ctx lvl sl ty ph vars = function
 
     | Ok (ty1', Type n, sa), Ok (Hole (k,l), _, _) -> 
       begin match ty with
-      | Type m -> 
-        if Core_ast.leq (n, m) then 
+      | Type m ->
+        if Core_ast.leq n m then 
           Ok (Pi(x, ty1', Hole (k,l)), Type m, sa) 
         else 
           Error (sa, "Type mismatch when checking that the type\n  " ^ Pretty.printf (Pi(x, ty1, ty2)) ^ 
@@ -839,8 +842,8 @@ let rec elaborate global ind_env ctx lvl sl ty ph vars = function
       end
     | Ok (Hole (k,l), _, _), Ok (ty2', Type n, sa) -> 
       begin match ty with
-      | Type m -> 
-        if Core_ast.leq (n, m) then 
+      | Type m ->
+        if Core_ast.leq n m then 
           Ok (Pi(x, Hole (k,l), close_bound x ty2'), Type m, sa) 
         else 
           Error (sa, "Type mismatch when checking that \n  " ^ Pretty.printf (Pi(x, ty1, ty2)) ^ 
@@ -872,10 +875,11 @@ let rec elaborate global ind_env ctx lvl sl ty ph vars = function
     end
   
   | Sigma(x, ty1, ty2) ->
+    let ty1 = eval ind_env ty1 in
     let h1 = Placeholder.generate ph [] in
     let elab1 = elaborate global ind_env ctx lvl sl h1 (ph+1) vars ty1 in
-    let elab2 = 
-      elaborate global ind_env ((x, ty1, true) :: ctx) lvl sl h1 (ph+1) vars (open_var 0 (Global x) ty2)
+    let ty2 = eval ind_env ty2 in
+    let elab2 = elaborate global ind_env ((x, ty1, true) :: ctx) lvl sl h1 (ph+1) vars (open_var 0 (Global x) ty2)
     in
     begin match elab1, elab2 with
     | Ok (ty1', Type n1, sa1), Ok (ty2', Type n2, sa2) ->
@@ -886,13 +890,13 @@ let rec elaborate global ind_env ctx lvl sl ty ph vars = function
         Ok (Sigma(x, ty1', close_bound x ty2'), Type (Suc(max)), Stack.append sa1 sa2)
       | Type m -> 
         (* Check if levels are compatible *)
-        if Core_ast.leq (max, m) then 
+        if Core_ast.leq max m then 
           Ok (Sigma(x, ty1', close_bound x ty2'), Type m, Stack.append sa1 sa2) 
         else 
           Error (Stack.append sa1 sa2, "Type mismatch when checking that \n  Σ ( " ^ x ^ " : " ^ Pretty.print (to_raw_expr ty1) ^ ") " ^ Pretty.print (to_raw_expr ty2) ^ 
             "\nof type \n  " ^ Pretty.print (to_raw_expr (eval ind_env (Type (Max(n1, n2))))) ^ "\n has type\n  " ^ Pretty.print (to_raw_expr (Type m)))
       | Hole _ -> 
-        Ok (Sigma(x, ty1', close_bound x ty2'), Type (Core_ast.unieval (Max(n1, n2))), Stack.append sa1 sa2)
+        Ok (Sigma(x, ty1', close_bound x ty2'), Type max, Stack.append sa1 sa2)
       | _ ->
         Error (Stack.append sa1 sa2, "Type mismatch when checking that\n  Σ ( " ^ x ^ " : " ^ 
           Pretty.print (to_raw_expr ty1) ^ ") " ^ Pretty.print (to_raw_expr ty2) ^ "\nhas type\n  " ^ Pretty.print (to_raw_expr ty))
@@ -900,8 +904,8 @@ let rec elaborate global ind_env ctx lvl sl ty ph vars = function
     
     | Ok (ty1', Type n, sa), Ok (Hole (k,l), _, _) -> 
       begin match ty with
-      | Type m -> 
-        if Core_ast.leq (n, m) then 
+      | Type m ->
+        if Core_ast.leq n m then 
           Ok (Sigma(x, ty1', Hole (k,l)), Type m, sa) 
         else 
           Error (sa, "Type mismatch when checking that \n  Σ ( " ^ x ^ " : " ^ Pretty.print (to_raw_expr ty1) ^ ") " ^ Pretty.print (to_raw_expr ty2) ^ 
@@ -914,7 +918,7 @@ let rec elaborate global ind_env ctx lvl sl ty ph vars = function
     | Ok (Hole (k,l), _, _), Ok (ty2', Type n, sa) -> 
       begin match ty with
       | Type m -> 
-        if Core_ast.leq (n, m) then 
+        if Core_ast.leq n m then 
           Ok (Sigma(x, Hole (k,l), close_bound x ty2'), Type m, sa) 
         else 
           Error (sa, "Type mismatch when checking that \n  Σ ( " ^ x ^ " : " ^ Pretty.print (to_raw_expr ty1) ^ ") " ^ Pretty.print (to_raw_expr ty2) ^ 
@@ -926,7 +930,7 @@ let rec elaborate global ind_env ctx lvl sl ty ph vars = function
       end
     | Ok (Hole (k1,l1), _, _), Ok (Hole (k2,l2), _, _) ->
       begin match ty with
-      | Type m -> 
+      | Type m ->
           Ok (Sigma(x, Hole (k1,l1), Hole (k2,l2)), Type m, sl)
       | Hole (k, l) ->
           Ok (Sigma(x, Hole (k1,l1), Hole (k2,l2)), Hole(k, l), sl)
@@ -1073,15 +1077,15 @@ let rec elaborate global ind_env ctx lvl sl ty ph vars = function
     begin match decl2 lvl n with
     | Ok _ ->
       begin match ty with
-      | Type m -> 
-        if Core_ast.leq (n, m) then 
+      | Type m ->
+        if Core_ast.leq n m then 
           Ok (Type n, Type m, sl) 
         else if Universe.arbitrary_level m then 
           Ok (Type n, Type m, sl)
         else
           Error (sl, "Universe inconsistency: the universe level of\n  " ^ Pretty.printf (Type n) ^ 
           "\nmust be inferior to the universe level of\n  " ^ Pretty.printf (Type m) ^ 
-          "\nFailed to prove that" ^ Pretty.print_level (to_raw_level n) ^ "≤" ^ Pretty.print_level (to_raw_level m))
+          "\nFailed to prove that " ^ Pretty.print_level (to_raw_level n) ^ " ≤ " ^ Pretty.print_level (to_raw_level m))
       | Hole _ -> 
         Ok (Type n, Type (Suc n), sl)
       | _ -> 
@@ -1553,7 +1557,7 @@ and unify global ind_env ctx lvl sl ph vars x lift =
 
       | Type m, Type n, _ ->
         (* Helper compare function *)
-        let compare m n = if lift then if Core_ast.leq (n, m) then Ok (Type n) else
+        let compare m n = if lift then if Core_ast.leq n m then Ok (Type n) else
             Error ((Type m, Type n), "Could not unify after lifting the universe levels of the types\n  " ^ Pretty.printf (Type m) ^ "\nand\n  " ^ Pretty.printf (Type n))
           else
             Error ((Type m, Type n), "The types\n  " ^ Pretty.printf (Type m) ^ "\nand\n  " ^ Pretty.printf (Type n) ^ "\nhave incompatible universe levels")

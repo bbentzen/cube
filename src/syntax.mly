@@ -121,6 +121,7 @@ blocks:
 
 level:
   | ID                                                     { Var ($1) }
+  | ZERO                                                   { Num 0 }
   | NUMBER                                                 { Num (int_of_string ($1)) }
   | NEXT level                                             { Suc ($2) }
   | MAX level level                                        { Max ($2, $3) }
@@ -143,7 +144,7 @@ app_expr:
 head_expr:
   | atom                                                    { $1 }
   | APP head_expr head_expr                                 { App($2,$3) }
-  | COE head_expr head_expr head_expr head_expr             { Coe($2,$3,$4,$5) }
+  | COE atom atom head_expr head_expr                       { Coe($2,$3,$4,$5) }
   | COM head_expr head_expr head_expr head_expr
     BAR I0 RARROW face_expr
     BAR I1 RARROW face_expr                                 { App (fill_def ($2) ($3) ($4) ($5) ($9) ($13), I1()) }
@@ -183,7 +184,7 @@ face_expr:
 face_head:
   | atom %prec NEG                                          { $1 }
   | APP face_head face_head                                 { App($2,$3) }
-  | COE face_head face_head face_head face_head             { Coe($2,$3,$4,$5) }
+  | COE atom atom face_head face_head                       { Coe($2,$3,$4,$5) }
   | COM face_head face_head face_head face_head
     BAR I0 RARROW face_expr
     BAR I1 RARROW face_expr                                 { App (fill_def ($2) ($3) ($4) ($5) ($9) ($13), I1()) }
@@ -221,7 +222,6 @@ atom:
   | STAR                                                    { Id("star") }
   | VOID                                                    { Void() }
   | REFL                                                    { Pabs("v?", Wild 0) }
-  | TYPE ZERO                                               { Type(Num 0) }
   | TYPE level                                              { Type ($2) }
   | PLACEHOLDER NUMBER                                      { Hole($2, []) }
   | WILDCARD                                                { Wild 0 }

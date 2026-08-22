@@ -196,7 +196,7 @@ let check_universe_levels ctx_univ constrs_univs target_lvl =
   | (_, univ, _) :: ctx_univ ->
     match extract_universe_level univ with
       | Some lvl ->
-          (leq (lvl, target_lvl)) && 
+          leq lvl target_lvl && 
           helper_ctx target_lvl ctx_univ
       | None -> false
   in
@@ -205,7 +205,7 @@ let check_universe_levels ctx_univ constrs_univs target_lvl =
   | (_, c_univ) :: constrs_univs ->
     match extract_universe_level c_univ with
       | Some lvl ->
-          (leq (lvl, target_lvl)) && 
+          leq lvl target_lvl && 
           helper_constrs target_lvl constrs_univs
       | None -> false 
   in 

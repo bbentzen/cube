@@ -97,21 +97,20 @@ let reduce_recursor rec_spec args =
         | None -> None)
     | _ -> None
 
-(* Weak head reduction *)
+(* Weak head reduction: note that we dliberately never reduce i and j in 
+   coercions and compositions either since users can only input atoms in 
+   the raw syntax *)
 
 let rec reduce ind_env = function
   | Core_ast.Coe (i, j, Core_ast.Abs(k, Pi(x, ty1, ty2)), e) ->  
     let v1 = (create_fresh [Pi(x, ty1, ty2); e] 1).(0) in (* TODO: replace, passing vars param *)
-    let i' = shift 0 1 (reduce ind_env i) in
-    let j' = shift 0 1 (reduce ind_env j) in
+    let i' = shift 0 1 i and j' = shift 0 1 j in
     Core_ast.Abs(v1, Core_ast.Coe (i', j', Core_ast.Abs(k, 
     (shift 2 1 (Debruijn.open_var 0
     (Core_ast.Coe (j', Local 0, Core_ast.Abs(k, shift 1 1 ty1), Local 1)) ty2))),
     (Core_ast.App(shift 0 1 e, Coe (j', i', Core_ast.Abs(k, shift 1 1 ty1), Local 0)))))
 
   | Core_ast.Coe (i, j, Core_ast.Abs(k, Sigma(_, ty1, ty2)), e) ->
-    (* let i' = reduce ind_env i in
-    let j' = reduce ind_env j in *)
     Pair(Coe (i, j, Abs(k, ty1), Fst e), 
     Coe (i, j, Abs(k, 
     Debruijn.open_var 0 (shift 1 1 (Coe (i, Local 0, Abs(k, ty1), Fst e))) ty2), Snd (e)))
@@ -119,8 +118,7 @@ let rec reduce ind_env = function
   | Core_ast.Coe (i, j, Core_ast.Abs(k, Pathd(ty, e1, e2)), e) ->
       let v = create_fresh [ty; e1; e2; e] 3 in (* TODO: replace, passing vars param *)
       let v1 = v.(0) and v2 = v.(1) and v3 = v.(2) in
-      let i' = shift 0 2 (reduce ind_env i) in
-      let j' = shift 0 2 (reduce ind_env j) in
+      let i' = shift 0 2 i and j' = shift 0 2 j in
       let ty' = shift 1 2 ty and e' = shift 0 2 e in
       Pabs(v1, App(App (Hfill(
       Abs(v2, Coe (i', j', (Abs(k, (App(ty', Local 1)))), At(e', Local 0))), 
@@ -129,29 +127,25 @@ let rec reduce ind_env = function
       I1()), Local 0))
 
   | Core_ast.Coe (i, j, e1, e2) ->
-    begin
-      let i' = reduce ind_env i in
-      let j' = reduce ind_env j in
-      (* let e2' = reduce ind_env e2 in *)
-      if i' = j' then
-        e2
-      else
-        let e1' = reduce ind_env e1 in
-        match e1' with
-        | Core_ast.Abs(_, e) ->
-          if occurs_index 0 0 e then
-            Core_ast.Coe (i', j', e1', e2)
-          else
-            e2  (* coercion regularity *)
-        | _ ->
-          Core_ast.Coe (i', j', e1', e2)
-    end
+    if i = j then
+      e2
+    else
+      let e1' = reduce ind_env e1 in
+      begin match e1' with
+      | Core_ast.Abs(_, e) ->
+        if occurs_index 0 0 e then
+          Core_ast.Coe (i, j, e1', e2)
+        else
+          e2  (* coercion regularity *)
+      | _ ->
+        Core_ast.Coe (i, j, e1', e2)
+      end
   
-  | Core_ast.Hfill (e, e1, e2) ->
+  (* | Core_ast.Hfill (e, e1, e2) ->
     let e' = reduce ind_env e in
     let e1' = reduce ind_env e1 in
     let e2' = reduce ind_env e2 in
-    Core_ast.Hfill (e', e1', e2')
+    Core_ast.Hfill (e', e1', e2') *)
   
   | Core_ast.App (Core_ast.Hfill (e, _, _), Core_ast.I0()) -> 
     reduce ind_env e
@@ -195,21 +189,21 @@ let rec reduce ind_env = function
 
   | Core_ast.Pair (Fst e1, Snd e2) ->
       if e1 = e2 then
-        reduce ind_env e1
+        reduce ind_env e1 (* eta reduction *)
       else
         Core_ast.Pair (Fst e1, Snd e2)
 
   | Core_ast.Fst e ->
     let e' = reduce ind_env e in
     begin match e' with
-    | Core_ast.Pair (e1 , _) -> e1
+    | Core_ast.Pair (e1 , _) -> reduce ind_env e1
     | _ -> Core_ast.Fst e'
     end
 
   | Core_ast.Snd e -> 
     let e' = reduce ind_env e in
     begin match e' with
-    | Core_ast.Pair (_ , e2) -> e2
+    | Core_ast.Pair (_ , e2) -> reduce ind_env e2
     | _ -> Core_ast.Snd e'
     end
   

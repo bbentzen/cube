@@ -156,8 +156,8 @@ and print_level = function
   | Num n -> string_of_int n
   | Suc n -> print_level n ^ "+ 1"
   | Var l -> l
-  | Max (n, Num m) | Max (Num m, n) -> print_level n ^ " + " ^ string_of_int m
-  | Max (n, m) -> "max(" ^ print_level n ^ "," ^ print_level m ^ ")"
+  | Max (n, Num m) | Max (Num m, n) -> "max(" ^ print_level n ^ ", " ^ string_of_int m ^ ")"
+  | Max (n, m) -> "max(" ^ print_level n ^ ", " ^ print_level m ^ ")"
 
 (* Translates expressions back to raw syntax and prints them *)
 
@@ -269,4 +269,4 @@ and printc_level = function
   | Suc n -> printc_level n ^ "+ 1"
   | Var l -> l
   | Max (n, Num m) | Max (Num m, n) -> printc_level n ^ " + " ^ string_of_int m
-  | Max (n, m) -> "max(" ^ printc_level n ^ "," ^ printc_level m ^ ")"
+  | Max (n, m) -> "max(" ^ printc_level n ^ ", " ^ printc_level m ^ ")"

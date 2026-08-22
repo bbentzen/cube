@@ -39,32 +39,46 @@ type expr =
 type proof =
   | Prf of string * (((string list * expr) * bool) list) * expr * expr
 
-let rec lt = function
-  | Num 0, _ -> true
-  | Num n, Num m -> n <= m
-  | Var n, Var m -> n = m
-  | Max (n, n'), Max (m, m') -> 
-    lt (Max (n, n'), m) || lt (Max (n, n'), m')
-  | Max (n, n'), m ->
-    lt (n, m) && lt (n', m)
-  | n, Max (m, m') ->
-    lt (n, m) || lt (n, m')
-  | Suc n, Suc m -> lt (n, m)
-  | Num n, Suc m -> lt (Num (n-1), m)
-  | n, Suc m -> lt (n, m)
-  | Var par, _  | _, Var par  when par.[0] = '?' -> true (* Level placeholders *)
-  | Suc _, _ | Num _, Var _ | Var _, Num _ -> false
+(* Universe level evaluation and comparison by flattening on lists of atoms *)
 
-let leq (m, n) = m = n || lt (m, n)
+let is_placeholderlvl = function
+    | Var s -> String.length s > 0 && s.[0] = '?'
+    | _ -> false
+
+let rec leq k l =
+    if k = l then true
+    else
+      match k, l with
+      | Var x, _ when is_placeholderlvl (Var x) -> true
+      | _, Var y when is_placeholderlvl (Var y) -> true
+
+      | Num 0, _ -> true
+      | Num n, Num m -> n <= m
+      | Num n, Suc k -> leq (Num (n - 1)) k
+      | Num n, Max(b1, b2) -> leq (Num n) b1 || leq (Num n) b2
+      | Suc k, Suc l -> leq k l
+      | Suc k, Num m -> if m = 0 then false else leq k (Num (m - 1))
+      | Suc k, Max(b1, b2) -> leq (Suc k) b1 || leq (Suc k) b2
+
+      | Var x, Suc k -> leq (Var x) k
+      | Var x, Var y -> x = y
+      | Var _, Num _ -> false
+      | Var x, Max(k1, k2) -> leq (Var x) k1 || leq (Var x) k2
+
+      | Max(k1, k2), l -> leq k1 l && leq k2 l
+
+      | _ -> false
 
 let rec unieval = function
+  | Suc (Num n) -> Num (n + 1)
+  | Max (Num n, Num m) -> Num (n + m)
   | Suc n -> Suc (unieval n)
   | Max (Suc n, m) | Max (m, Suc n) -> 
     Suc (unieval (Max (n, m)))
   | Max (n, m) ->
-    if leq(n, m) then
+    if leq n m then
       unieval m
-    else if leq(m, n) then
+    else if leq m n then
       unieval n
     else
       Max (unieval n, unieval m)
