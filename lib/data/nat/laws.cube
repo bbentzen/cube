@@ -88,9 +88,9 @@ def add_num_inj {m n k : ℕ} :
   path ℕ (add m k) (add n k) → path ℕ m n :=
 natrec _ id (λ i ih p, ih (succ_to_eq p)) k
 
-/* def add_path_inj {m n k l : ℕ} (p : path ℕ k l) :
+def add_path_inj {m n k l : ℕ} (p : path ℕ k l) :
   path ℕ (add m k) (add n l) → path ℕ m n :=
-λ q, add_num_inj (coe i1 i0 (λ i', path ℕ (add m k) (add n (p @ i'))) q) */
+λ q, add_num_inj (coe i1 i0 (λ i', path ℕ (add m k) (add n (p @ i'))) q)
 
 def add_comm2 (m n k : ℕ) :
   path ℕ (add (add m n) k) (add (add m k) n) :=

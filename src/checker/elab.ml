@@ -469,8 +469,9 @@ let rec elaborate global ind_env ctx lvl sl ty ph vars = function
             let elabi1 = elaborate global ind_env ctx lvl sl ty1 (ph+1) vars (eval ind_env (App(e', I1()))) in
             begin match elabi0, elabi1 with
             | Ok (ei0, _, sa), Ok (ei1, _, _) ->
-              let elab1i0 = elaborate global ind_env ctx lvl sl ty0 (ph+1) vars (eval ind_env (App(e1', I0()))) in
-              let elab2i1 = elaborate global ind_env ctx lvl sl ty1 (ph+1) vars (eval ind_env (App(e2', I0()))) in
+              (* Typecheck the i face of the tubes *)
+              let elab1i0 = elaborate global ind_env ctx lvl sl ty0 (ph+1) vars (eval ind_env (App(e1', i1))) in
+              let elab2i1 = elaborate global ind_env ctx lvl sl ty1 (ph+1) vars (eval ind_env (App(e2', i1))) in
               begin match elab1i0, elab2i1 with
               | Ok (e1i0, _, sa1), Ok (e2i0, _, sa2) ->
                 let u1 = unify global ind_env ctx lvl sl (ph+1) vars (eval ind_env ei0, e1i0, ty0) false in
@@ -478,9 +479,17 @@ let rec elaborate global ind_env ctx lvl sl ty ph vars = function
                 begin match u1, u2 with
                 | Ok _, Ok _ ->
                   Ok (Hcom(i1, j1, e', e1', e2'), Pi(i, Int(), ty'), Stack.lappend sa sa1 sa2)
-                | Error (_, msg), _ | _, Error (_, msg) -> 
-                  Error (Stack.lappend sa sa1 sa2, "Failed composition, endpoints do not match:\n" ^ msg)
-                end 
+                | Error (_, msg), _ ->
+                  Error (Stack.lappend sa sa1 sa2,
+                  "Invalid composition scenario: Error when unifying the i0-endpoint of the lid \n  " ^ 
+                  Pretty.printf (eval ind_env ei0) ^ "\nwith the " ^ Pretty.printf i1 ^ "-endpoint of the i0-tube \n  " ^ Pretty.printf (eval ind_env e1i0) ^
+                  "\n" ^ msg)
+                | _, Error (_, msg) -> 
+                  Error (Stack.lappend sa sa1 sa2, 
+                    "Invalid composition scenario: Error when unifying the terms\n  " ^ 
+                    Pretty.printf (eval ind_env ei1) ^ "\nwith the " ^ Pretty.printf i1 ^ "-endpoint of the i1-tube \n  " ^ Pretty.printf (eval ind_env e2i0) ^
+                    "\n" ^ msg)
+                end
               | Error (sa, msg), _ -> 
                 Error (sa, "Error when synthesizing type for the homogeneous filling\n  " ^ Pretty.print (to_raw_expr (Hcom(i1, j1, e', e1', e2'))) ^ 
                     "\nThe i0-face of the i0-tube\n  " ^ Pretty.print (to_raw_expr (eval ind_env (App(e1', I0())))) ^ "\ndoes not have the expected type\n  " ^ Pretty.printf ty0 ^ 

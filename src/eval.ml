@@ -139,27 +139,12 @@ let rec reduce ind_env = function
       | _ ->
         Core_ast.Coe (i, j, e1', e2)
       end
-  
-  (* | Core_ast.Hfill (e, e1, e2) ->
-    let e' = reduce ind_env e in
-    let e1' = reduce ind_env e1 in
-    let e2' = reduce ind_env e2 in
-    Core_ast.Hfill (e', e1', e2') *)
-  
-  (* | Core_ast.App (Core_ast.Hfill (i, j, e, _, _), Core_ast.I0()) -> 
-    reduce ind_env e *)
 
   | Core_ast.Hcom (i, j, e, e1, e2) -> 
     if i = j then
       e
     else
       Core_ast.Hcom (i, j, e, e1, e2)
-
-  (* | Core_ast.App (Core_ast.Hcom (_, j, _, e1, _), Core_ast.I0()) -> 
-    reduce ind_env (App (e1, j))
-
-  | Core_ast.App (Core_ast.Hcom (_, j, _, _, e2), Core_ast.I1()) -> 
-    reduce ind_env (App (e2, j)) *)
 
   | Core_ast.Abs (x, App (e , Local 0)) -> 
     if not (occurs_index 0 0 e) && not (Placeholder.has e) then
@@ -178,30 +163,24 @@ let rec reduce ind_env = function
       let e2' = reduce ind_env e2 in
       let full_app = Core_ast.App (e1', e2') in
       let head, args = break_args [] full_app in
-      begin match head with
-      | Core_ast.Global rec_name ->
-          begin match Hashtbl.find_opt ind_env rec_name with
-          | Some rec_spec ->
-              begin match reduce_recursor rec_spec args with
-              | Some reduced -> reduce ind_env reduced
-              | None ->
-                (* Lastly try face tube composition reduction *)
-                begin match full_app with
-                | App (Hcom (_, j, _, e1, _), I0()) -> reduce ind_env (App (e1, j))
-                | App (Hcom (_, j, _, _, e2), I1()) -> reduce ind_env (App (e2, j))
-                | _ -> full_app
+      let recursor_opt =
+        begin match head with
+        | Core_ast.Global rec_name ->
+            begin match Hashtbl.find_opt ind_env rec_name with
+            | Some rec_spec ->
+                begin match reduce_recursor rec_spec args with
+                | Some reduced -> Some (reduce ind_env reduced)
+                | None -> None
                 end
-              end
-          | None -> 
-            (* Try face tube composition reduction *)
-            begin match full_app with
-            | App (Hcom (_, j, _, e1, _), I0()) -> reduce ind_env (App (e1, j))
-            | App (Hcom (_, j, _, _, e2), I1()) -> reduce ind_env (App (e2, j))
-            | _ -> full_app
+            | None -> None
             end
-          end
-      | _ -> 
-        (* Try face tube composition reduction *)
+        | _ -> None
+        end
+      in
+      (* Lastly check for composition endpoint reduction *)
+      begin match recursor_opt with
+      | Some reduced -> reduced
+      | None ->
         begin match full_app with
         | App (Hcom (_, j, _, e1, _), I0()) -> reduce ind_env (App (e1, j))
         | App (Hcom (_, j, _, _, e2), I1()) -> reduce ind_env (App (e2, j))
