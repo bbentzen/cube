@@ -47,8 +47,10 @@ let rec of_raw_expr_with_env env = function
       of_raw_expr_with_env env j,
       of_raw_expr_with_env env e1,
       of_raw_expr_with_env env e2)
-  | Ast.Hfill (e, e1, e2) ->
-    Core_ast.Hfill (
+  | Ast.Hcom (i, j, e, e1, e2) ->
+    Core_ast.Hcom (
+      of_raw_expr_with_env env i,
+      of_raw_expr_with_env env j,
       of_raw_expr_with_env env e,
       of_raw_expr_with_env env e1,
       of_raw_expr_with_env env e2)
@@ -104,11 +106,13 @@ let rec of_raw_expr_with_vars env = function
     let e1', v1 = of_raw_expr_with_vars env e1 in
     let e2', v2 = of_raw_expr_with_vars env e2 in
     Core_ast.Coe (i', j', e1', e2'), vi @ vj @ v1 @ v2
-  | Ast.Hfill (e, e1, e2) ->
+  | Ast.Hcom (i, j, e, e1, e2) ->
+    let i', vi = of_raw_expr_with_vars env i in
+    let j', vj = of_raw_expr_with_vars env j in
     let e', ve = of_raw_expr_with_vars env e in
     let e1', v1 = of_raw_expr_with_vars env e1 in
     let e2', v2 = of_raw_expr_with_vars env e2 in
-    Core_ast.Hfill (e', e1', e2'), ve @ v1 @ v2
+    Core_ast.Hcom (i', j', e', e1', e2'), vi @ vj @ ve @ v1 @ v2
   | Ast.Abs (x, e) ->
     let e', v = of_raw_expr_with_vars (x :: env) e in
     Core_ast.Abs (x, e'), v
@@ -174,8 +178,10 @@ let rec to_raw_expr_with_env env = function
       to_raw_expr_with_env env j,
       to_raw_expr_with_env env e1,
       to_raw_expr_with_env env e2)
-  | Core_ast.Hfill (e, e1, e2) ->
-    Ast.Hfill (
+  | Core_ast.Hcom (i, j, e, e1, e2) ->
+    Ast.Hcom (
+      to_raw_expr_with_env env i,
+      to_raw_expr_with_env env j,
       to_raw_expr_with_env env e,
       to_raw_expr_with_env env e1,
       to_raw_expr_with_env env e2)
@@ -240,8 +246,8 @@ let rec shift cutoff amount = function
   | Global _ | Int _ | I1 _ | I0 _ | Void _ | Type _ | Wild _ | Subgoal _ as e -> e
   | Coe (i, j, e1, e2) ->
     Coe (shift cutoff amount i, shift cutoff amount j, shift cutoff amount e1, shift cutoff amount e2)
-  | Hfill (e, e1, e2) ->
-    Hfill (shift cutoff amount e, shift cutoff amount e1, shift cutoff amount e2)
+  | Hcom (i, j, e, e1, e2) ->
+    Hcom (shift cutoff amount i, shift cutoff amount j, shift cutoff amount e, shift cutoff amount e1, shift cutoff amount e2)
   | Abs (x, e) -> Abs (x, shift (cutoff + 1) amount e)
   | App (e1, e2) -> App (shift cutoff amount e1, shift cutoff amount e2)
   | Pi (x, e1, e2) -> Pi (x, shift cutoff amount e1, shift (cutoff + 1) amount e2)
@@ -266,8 +272,8 @@ let rec open_var k replacement = function
   | Global _ | Int _ | I1 _ | I0 _ | Void _ | Type _ | Wild _ | Subgoal _ as e -> e
   | Coe (i, j, e1, e2) ->
     Coe (open_var k replacement i, open_var k replacement j, open_var k replacement e1, open_var k replacement e2)
-  | Hfill (e, e1, e2) ->
-    Hfill (open_var k replacement e, open_var k replacement e1, open_var k replacement e2)
+  | Hcom (i, j, e, e1, e2) ->
+    Hcom (open_var k replacement i, open_var k replacement j, open_var k replacement e, open_var k replacement e1, open_var k replacement e2)
   | Abs (x, e) -> Abs (x, open_var (k + 1) replacement e)
   | App (e1, e2) -> App (open_var k replacement e1, open_var k replacement e2)
   | Pi (x, e1, e2) -> Pi (x, open_var k replacement e1, open_var (k + 1) replacement e2)
@@ -287,7 +293,7 @@ let rec close_var k x = function
   | Global _ as e -> e | Local _ as e -> e | Int _ as e -> e 
   | I1 _ as e -> e | I0 _ as e -> e
   | Coe (i, j, e1, e2) -> Coe (close_var k x i, close_var k x j, close_var k x e1, close_var k x e2)
-  | Hfill (e, e1, e2) -> Hfill (close_var k x e, close_var k x e1, close_var k x e2)
+  | Hcom (i, j, e, e1, e2) -> Hcom (close_var k x i, close_var k x j, close_var k x e, close_var k x e1, close_var k x e2)
   | Abs (y, e) -> Abs (y, close_var (k + 1) x e)
   | App (e1, e2) -> App (close_var k x e1, close_var k x e2)
   | Pi (y, e1, e2) -> Pi (y, close_var k x e1, close_var (k + 1) x e2)
@@ -311,7 +317,7 @@ let rec fullsubst k ex d b = function
   | e when e = (shift 0 k ex) -> shift 0 k d
   | Global _ | Local _ | Int _ | I1 _ | I0 _ | Void _ | Type _ | Wild _ | Subgoal _ as e -> e
   | Coe (i, j, e1, e2) -> Coe (fullsubst k ex d b i, fullsubst k ex d b j, fullsubst k ex d b e1, fullsubst k ex d b e2)
-  | Hfill (e, e1, e2) -> Hfill (fullsubst k ex d b e, fullsubst k ex d b e1, fullsubst k ex d b e2)
+  | Hcom (i, j, e, e1, e2) -> Hcom (fullsubst k ex d b i, fullsubst k ex d b j, fullsubst k ex d b e, fullsubst k ex d b e1, fullsubst k ex d b e2)
   | Abs (y, e) -> Abs (y, fullsubst (k+1) ex d b e)
   | App (e1, e2) -> App (fullsubst k ex d b e1, fullsubst k ex d b e2)
   | Pi (y, e1, e2) -> Pi (y, fullsubst k ex d b e1, fullsubst (k+1) ex d b e2)
@@ -332,7 +338,7 @@ let rec occurs_index target cutoff = function
   | Global _ | Int _ | I1 _ | I0 _ | Void _ | Type _ | Wild _ | Subgoal _ -> false
   | Hole (_, l) -> List.exists (occurs_index target cutoff) l
   | Coe (i, j, e1, e2) -> occurs_index target cutoff i || occurs_index target cutoff j || occurs_index target cutoff e1 || occurs_index target cutoff e2
-  | Hfill (e, e1, e2) -> occurs_index target cutoff e || occurs_index target cutoff e1 || occurs_index target cutoff e2
+  | Hcom (i, j, e, e1, e2) -> occurs_index target cutoff i || occurs_index target cutoff j || occurs_index target cutoff e || occurs_index target cutoff e1 || occurs_index target cutoff e2
   | Abs (_, e) | Pabs (_, e) -> occurs_index target (cutoff + 1) e
   | App (e1, e2) | Pair (e1, e2) | At (e1, e2) -> occurs_index target cutoff e1 || occurs_index target cutoff e2
   | Pi (_, e1, e2) | Sigma (_, e1, e2) -> occurs_index target cutoff e1 || occurs_index target (cutoff + 1) e2
@@ -347,7 +353,7 @@ let rec occurs_name s hint = function
   | Int _ | I1 _ | I0 _ | Void _ | Type _ | Wild _ | Subgoal _ -> false
   | Hole (_, l) -> List.exists (occurs_name s hint) l
   | Coe (i, j, e1, e2) -> occurs_name s hint i || occurs_name s hint j || occurs_name s hint e1 || occurs_name s hint e2
-  | Hfill (e, e1, e2) -> occurs_name s hint e || occurs_name s hint e1 || occurs_name s hint e2
+  | Hcom (i, j, e, e1, e2) -> occurs_name s hint i || occurs_name s hint j || occurs_name s hint e || occurs_name s hint e1 || occurs_name s hint e2
   | App (e1, e2) | Pair (e1, e2) | At (e1, e2) -> occurs_name s hint e1 || occurs_name s hint e2
   | Fst e | Snd e | Abort e -> occurs_name s hint e
   | Pathd (e, e1, e2) ->

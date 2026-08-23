@@ -120,11 +120,10 @@ let rec reduce ind_env = function
       let v1 = v.(0) and v2 = v.(1) and v3 = v.(2) in
       let i' = shift 0 2 i and j' = shift 0 2 j in
       let ty' = shift 1 2 ty and e' = shift 0 2 e in
-      Pabs(v1, App(App (Hfill(
+      Pabs(v1, App(Hcom(i, j, 
       Abs(v2, Coe (i', j', (Abs(k, (App(ty', Local 1)))), At(e', Local 0))), 
       Abs(v3, Coe (Local 0, j', (Abs(k, App(ty', I0()))), shift 1 1 e1)),
-      Abs(v3, Coe (Local 0, j', (Abs(k, App(ty', I1()))), shift 1 1 e2))),
-      I1()), Local 0))
+      Abs(v3, Coe (Local 0, j', (Abs(k, App(ty', I1()))), shift 1 1 e2))), Local 0))
 
   | Core_ast.Coe (i, j, e1, e2) ->
     if i = j then
@@ -147,14 +146,20 @@ let rec reduce ind_env = function
     let e2' = reduce ind_env e2 in
     Core_ast.Hfill (e', e1', e2') *)
   
-  | Core_ast.App (Core_ast.Hfill (e, _, _), Core_ast.I0()) -> 
-    reduce ind_env e
+  (* | Core_ast.App (Core_ast.Hfill (i, j, e, _, _), Core_ast.I0()) -> 
+    reduce ind_env e *)
 
-  | Core_ast.App (Core_ast.App (Core_ast.Hfill (_, e1, _), i), Core_ast.I0()) -> 
-    reduce ind_env (Core_ast.App(e1, i))
+  | Core_ast.Hcom (i, j, e, e1, e2) -> 
+    if i = j then
+      e
+    else
+      Core_ast.Hcom (i, j, e, e1, e2)
 
-  | Core_ast.App (Core_ast.App (Core_ast.Hfill (_, _, e2), i), Core_ast.I1()) -> 
-    reduce ind_env (Core_ast.App(e2, i))
+  (* | Core_ast.App (Core_ast.Hcom (_, j, _, e1, _), Core_ast.I0()) -> 
+    reduce ind_env (App (e1, j))
+
+  | Core_ast.App (Core_ast.Hcom (_, j, _, _, e2), Core_ast.I1()) -> 
+    reduce ind_env (App (e2, j)) *)
 
   | Core_ast.Abs (x, App (e , Local 0)) -> 
     if not (occurs_index 0 0 e) && not (Placeholder.has e) then
@@ -164,10 +169,12 @@ let rec reduce ind_env = function
   
   | Core_ast.App (e1, e2) -> 
     let e1' = reduce ind_env e1 in
+    (* First we attempt beta reduction *)
     begin match e1' with
     | Core_ast.Abs (_, e) ->
         reduce ind_env (beta e e2)
     | _ ->
+      (* Then we attempt reduce recursor *)
       let e2' = reduce ind_env e2 in
       let full_app = Core_ast.App (e1', e2') in
       let head, args = break_args [] full_app in
@@ -177,13 +184,29 @@ let rec reduce ind_env = function
           | Some rec_spec ->
               begin match reduce_recursor rec_spec args with
               | Some reduced -> reduce ind_env reduced
-              | None -> full_app
+              | None ->
+                (* Lastly try face tube composition reduction *)
+                begin match full_app with
+                | App (Hcom (_, j, _, e1, _), I0()) -> reduce ind_env (App (e1, j))
+                | App (Hcom (_, j, _, _, e2), I1()) -> reduce ind_env (App (e2, j))
+                | _ -> full_app
+                end
               end
           | None -> 
-            full_app
+            (* Try face tube composition reduction *)
+            begin match full_app with
+            | App (Hcom (_, j, _, e1, _), I0()) -> reduce ind_env (App (e1, j))
+            | App (Hcom (_, j, _, _, e2), I1()) -> reduce ind_env (App (e2, j))
+            | _ -> full_app
+            end
           end
       | _ -> 
-        full_app
+        (* Try face tube composition reduction *)
+        begin match full_app with
+        | App (Hcom (_, j, _, e1, _), I0()) -> reduce ind_env (App (e1, j))
+        | App (Hcom (_, j, _, _, e2), I1()) -> reduce ind_env (App (e2, j))
+        | _ -> full_app
+        end
       end
     end
 

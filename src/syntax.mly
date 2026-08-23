@@ -29,7 +29,7 @@ let rec ids_to_bindings ids ty =
 
 let fill_def i j ty e e1 e2 =
   let v1 = Substitution.fresh_var (App(e1, e2)) e 2 in
-  Hfill(Abs(v1, Coe (i, j, ty, App(e, Id v1))), 
+  Hcom(i, j, Abs(v1, Coe (i, j, ty, App(e, Id v1))), 
   Abs(v1, Coe (Id v1, j, ty, App(e1, Id v1))),
   Abs(v1, Coe (Id v1, j, ty, App(e2, Id v1))))
 
@@ -44,7 +44,7 @@ let single_id = function
 %token <string> NUMBER
 %token EVAL IMPORT IND UNIVERSE DEF PRINT INFER LBRACE RBRACE
 %token TYPE MAX NEXT COLON
-%token I0 I1 INTERVAL COE HCOM HFILL FILL COM BAR
+%token I0 I1 INTERVAL COE HCOM COM BAR
 %token ABS APP RARROW LRARROW PI
 %token LPAREN RPAREN COMMA FST SND PROD SIGMA
 %token ZERO NAT
@@ -63,7 +63,7 @@ let single_id = function
 %nonassoc FST SND 
 %nonassoc ABORT
 %left APP
-%nonassoc ID LPAREN I0 I1 INTERVAL COE COM FILL HCOM HFILL ABS SIGMA PATHD PATH ZERO NAT STAR VOID REFL TYPE PLACEHOLDER WILDCARD LANGLE
+%nonassoc ID LPAREN I0 I1 INTERVAL COE COM HCOM ABS SIGMA PATHD PATH ZERO NAT STAR VOID REFL TYPE PLACEHOLDER WILDCARD LANGLE
 %nonassoc SYMM
 
 %start command
@@ -145,18 +145,12 @@ head_expr:
   | atom                                                    { $1 }
   | APP head_expr head_expr                                 { App($2,$3) }
   | COE atom atom head_expr head_expr                       { Coe($2,$3,$4,$5) }
-  | COM head_expr head_expr head_expr head_expr
-    BAR I0 RARROW face_expr
-    BAR I1 RARROW face_expr                                 { App (fill_def ($2) ($3) ($4) ($5) ($9) ($13), I1()) }
-  | FILL head_expr head_expr head_expr head_expr
+  | COM atom atom head_expr head_expr
     BAR I0 RARROW face_expr
     BAR I1 RARROW face_expr                                 { fill_def ($2) ($3) ($4) ($5) ($9) ($13) }
-  | HCOM head_expr
+  | HCOM atom atom head_expr
     BAR I0 RARROW face_expr
-    BAR I1 RARROW face_expr                                 { App(Hfill($2,$6,$10),I1()) }
-  | HFILL head_expr
-    BAR I0 RARROW face_expr
-    BAR I1 RARROW face_expr                                 { Hfill($2,$6,$10) }
+    BAR I1 RARROW face_expr                                 { Hcom($2, $3, $4, $8, $12) }
   | ABS vars COMMA expr %prec PI                            { abs_of_list ($4) ($2) }
   | ABS LPAREN ids COLON expr RPAREN COMMA expr %prec PI    { Abs(single_id $3,$8) }
   | PI blocks                                               { pi_of_list (snd $2) (fst $2) }
@@ -185,18 +179,12 @@ face_head:
   | atom %prec NEG                                          { $1 }
   | APP face_head face_head                                 { App($2,$3) }
   | COE atom atom face_head face_head                       { Coe($2,$3,$4,$5) }
-  | COM face_head face_head face_head face_head
-    BAR I0 RARROW face_expr
-    BAR I1 RARROW face_expr                                 { App (fill_def ($2) ($3) ($4) ($5) ($9) ($13), I1()) }
-  | FILL face_head face_head face_head face_head
+  | COM atom atom face_head face_head
     BAR I0 RARROW face_expr
     BAR I1 RARROW face_expr                                 { fill_def ($2) ($3) ($4) ($5) ($9) ($13) }
-  | HCOM face_head
+  | HCOM atom atom face_head
     BAR I0 RARROW face_expr
-    BAR I1 RARROW face_expr                                 { App(Hfill($2,$6,$10),I1()) }
-  | HFILL face_head
-    BAR I0 RARROW face_expr
-    BAR I1 RARROW face_expr                                 { Hfill($2,$6,$10) }
+    BAR I1 RARROW face_expr                                 { Hcom($2, $3, $4, $8, $12) }
   | ABS vars COMMA face_expr %prec PI                       { abs_of_list ($4) ($2) }
   | ABS LPAREN ids COLON expr RPAREN COMMA face_expr %prec PI { Abs(single_id $3,$8) }
   | PI blocks                                               { pi_of_list (snd $2) (fst $2) }

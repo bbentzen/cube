@@ -20,7 +20,7 @@ def coe_regularity {A : type l} (i j : I) (a : A)  :
  
 def hcom_regularity {A : type l} {a b : A} (p : path A a b) :
   path (path A a b) p 
-  (<k> (hcom (λ i, p @ i)
+  (<k> (hcom i0 i1 (λ i, p @ i)
    | i0 → λ j, a 
    | i1 → λ j, b 
   ) k) := 

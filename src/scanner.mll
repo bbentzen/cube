@@ -40,8 +40,6 @@ rule token = parse
   | "coe"              { COE }
   | "com"              { COM }
   | "hcom"             { HCOM }
-  | "fill"             { FILL }
-  | "hfill"            { HFILL }
   | "|"                { BAR }
   | "⁻¹"               { SYMM }
   | "·"                { TRANS }

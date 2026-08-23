@@ -32,8 +32,10 @@ let has_placeholder term =
       | Pi (_, e1, e2) | Sigma (_, e1, e2)
       | App (e1, e2) | Pair (e1, e2) | At (e1, e2) ->
           helper (e1 :: e2 :: rest)
-      | Pathd (e, e1, e2) | Hfill (e, e1, e2) ->
+      | Pathd (e, e1, e2) ->
           helper (e :: e1 :: e2 :: rest)
+      | Hcom (i, j, e, e1, e2) ->
+          helper (i :: j :: e :: e1 :: e2 :: rest)
       | Coe (i, j, e1, e2) ->
           helper (i :: j :: e1 :: e2 :: rest)
       | _ -> helper rest
@@ -55,8 +57,10 @@ let has term =
       | Pi (_, e1, e2) | Sigma (_, e1, e2)
       | App (e1, e2) | Pair (e1, e2) | At (e1, e2) ->
           helper (e1 :: e2 :: rest)
-      | Pathd (e, e1, e2) | Hfill (e, e1, e2) ->
+      | Pathd (e, e1, e2) ->
           helper (e :: e1 :: e2 :: rest)
+      | Hcom (i, j, e, e1, e2) ->
+          helper (i :: j :: e :: e1 :: e2 :: rest)
       | Coe (i, j, e1, e2) ->
           helper (i :: j :: e1 :: e2 :: rest)
       | _ -> helper rest

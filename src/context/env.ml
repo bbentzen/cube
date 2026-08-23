@@ -74,8 +74,8 @@ let rec lift n = function
   | Coe (i, j, e1, e2) -> 
     Coe (lift n i, lift n j, 
     lift n e1, lift n e2)
-  | Hfill (e, e1, e2) -> 
-    Hfill (lift n e, lift n e1, lift n e2)
+  | Hcom (i, j, e, e1, e2) -> 
+    Hcom (lift n i, lift n j, lift n e, lift n e1, lift n e2)
   | Abs (y, e) -> 
     Abs (y, lift n e)
   | App (e1, e2) -> App (lift n e1, lift n e2)
@@ -215,13 +215,15 @@ let rec unfold_all env vars = function
         Error msg
     end
   
-  | Hfill (e, e1, e2) -> 
+  | Hcom (i, j, e, e1, e2) ->
+    let ui = unfold_all env vars i in
+    let uj = unfold_all env vars j in
     let u = unfold_all env vars e in
     let u1 = unfold_all env vars e1 in
     let u2 = unfold_all env vars e2 in
-    begin match u, u1, u2 with
-      | Ok e', Ok e1', Ok e2' -> Ok (Hfill (e', e1', e2'))
-      | Error msg, _, _ | _, Error msg , _ | _, _, Error msg -> Error msg
+    begin match ui, uj, u, u1, u2 with
+      | Ok i', Ok j', Ok e', Ok e1', Ok e2' -> Ok (Hcom (i', j', e', e1', e2'))
+      | Error msg, _, _, _, _ | _, Error msg , _, _, _ | _, _, Error msg, _, _ | _, _, _, Error msg, _ | _, _, _, _, Error msg -> Error msg
     end 
 
   | e -> Ok e 

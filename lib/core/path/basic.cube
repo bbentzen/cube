@@ -26,21 +26,21 @@ def path_rfl {A : type l} {a : A}  :
  
 def path_symm {A : type l} {a b : A} (p : path A a b) :
   path A b a := 
-<k> (hcom (λ i, a)
- | i0 → λ j, p @ j
- | i1 → λ _, a) k
+<k> (hcom i0 i1 (λ i, a)
+  | i0 → λ j, p @ j
+  | i1 → λ _, a) k
 
 def path_trans {A : type l} {a b c : A} (p : path A a b) (q : path A b c) :
   path A a c := 
-<k> (hcom (λ i, p @ i) 
- | i0 → λ _, a 
- | i1 → λ j, q @ j) k
+<k> (hcom i0 i1 (λ i, p @ i) 
+  | i0 → λ _, a 
+  | i1 → λ j, q @ j) k
 
 def path_symmtrans_hfill {A : type l} {a b c d : A} (p : path A b a) (q : path A b c) (r : path A c d)  :
   I → I → A := 
-(hfill (λ i, q @ i) 
- | i0 → λ j, p @ j 
- | i1 → λ j, r @ j)
+λ j, hcom i0 j (λ i, q @ i) 
+  | i0 → λ j, p @ j 
+  | i1 → λ j, r @ j
 
 def path_symmtrans {A : type l} {a b c d : A} (p : path A b a) (q : path A b c) (r : path A c d)  :
   path A a d := 

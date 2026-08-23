@@ -16,8 +16,8 @@ let rec print = function
   | Coe (i, j, e1, e2) -> 
     String.concat "" ["coe "; par i; par j; par e1; par e2]
   
-  | Hfill (e, e1, e2) -> 
-    String.concat "" ["\n  hfill "; par e; 
+  | Hcom (i, j, e, e1, e2) -> 
+    String.concat "" ["\n  hcom "; par i; par j; par e; 
     "\n    | i0 → "; print e1; 
     "\n    | i1 → "; print e2]
     
@@ -143,7 +143,7 @@ and par e =
 
 and tpar e = 
 let helper = function
-  | Pi _ | Sigma _ | Pathd _ | Hfill _ | Coe _ -> 
+  | Pi _ | Sigma _ | Pathd _ | Hcom _ | Coe _ -> 
     true
   | _ -> false
 in
@@ -169,8 +169,8 @@ let rec printc = function
   | Core_ast.Coe (i, j, e1, e2) -> 
     String.concat "" ["coe "; parc i; parc j; parc e1; parc e2]
   
-  | Hfill (e, e1, e2) -> 
-    String.concat "" ["\n  hfill "; parc e; 
+  | Hcom (i, j, e, e1, e2) -> 
+    String.concat "" ["\n  hcom "; parc i; parc j; parc e; 
     "\n    | i0 → "; printc e1; 
     "\n    | i1 → "; printc e2]
     
@@ -255,7 +255,7 @@ and parc e =
 
 and tparc e = 
 let helper = function
-  | Core_ast.Pi _ | Sigma _ | Pathd _ | Hfill _ | Coe _ -> 
+  | Core_ast.Pi _ | Sigma _ | Pathd _ | Hcom _ | Coe _ -> 
     true
   | _ -> false
 in

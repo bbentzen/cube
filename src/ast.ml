@@ -16,7 +16,7 @@ type expr =
   | I1 of unit
   | I0 of unit
   | Coe of expr * expr * expr * expr
-  | Hfill of expr * expr * expr
+  | Hcom of expr * expr * expr * expr * expr
   | Abs of string * expr
   | App of expr * expr
   | Pi of string * expr * expr  

@@ -18,7 +18,7 @@ type expr =
   | I1 of unit
   | I0 of unit
   | Coe of expr * expr * expr * expr
-  | Hfill of expr * expr * expr
+  | Hcom of expr * expr * expr * expr * expr
   | Abs of string * expr
   | App of expr * expr
   | Pi of string * expr * expr
@@ -95,7 +95,7 @@ let rec placeholder_levels = function
   | Pi (x, l1, l2) -> Pi (x, placeholder_levels l1, placeholder_levels l2)
   | Sigma (x, l1, l2) -> Sigma (x, placeholder_levels l1, placeholder_levels l2)
   | Coe (i, j, l1, l2) -> Coe (placeholder_levels i, placeholder_levels j, placeholder_levels l1, placeholder_levels l2)
-  | Hfill (l1, l2, l3) -> Hfill (placeholder_levels l1, placeholder_levels l2, placeholder_levels l3)
+  | Hcom (i, j, l1, l2, l3) -> Hcom (placeholder_levels i, placeholder_levels j, placeholder_levels l1, placeholder_levels l2, placeholder_levels l3)
   | App (l1, l2) -> App (placeholder_levels l1, placeholder_levels l2)
   | Pair (l1, l2) -> Pair (placeholder_levels l1, placeholder_levels l2)
   | Fst l -> Fst (placeholder_levels l)

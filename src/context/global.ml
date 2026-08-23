@@ -16,7 +16,7 @@ let rec subst_global k d x = function
   | Global y when x = y -> shift 0 k d
   | Global _ | Local _ | Int _ | I1 _ | I0 _ | Void _ | Type _ | Wild _ | Subgoal _ as e -> e
   | Coe (i, j, e1, e2) -> Coe (subst_global k d x i, subst_global k d x j, subst_global k d x e1, subst_global k d x e2)
-  | Hfill (e, e1, e2) -> Hfill (subst_global k d x e, subst_global k d x e1, subst_global k d x e2)
+  | Hcom (i, j, e, e1, e2) -> Hcom (subst_global k d x i, subst_global k d x j, subst_global k d x e, subst_global k d x e1, subst_global k d x e2)
   | Abs (y, e) -> Abs (y, subst_global (k+1) d x e)
   | App (e1, e2) -> App (subst_global k d x e1, subst_global k d x e2)
   | Pi (y, e1, e2) -> Pi (y, subst_global k d x e1, subst_global (k+1) d x e2)
