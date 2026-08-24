@@ -5,7 +5,7 @@
  **)
 
 open Basis
-open Core_ast
+open Ast
 
 (* Replaces 0-indexed wildcards with uniquely assigned indices starting at n *)
 

@@ -1,10 +1,13 @@
 (**
- * (c) Copyright 2019 Bruno Bentzen. All rights reserved.
- * Released under Apache 2.0 license as described in the file LICENSE.
- * Desc: Operations involving placeholders
+  (c) Copyright 2019 Bruno Bentzen. All rights reserved.
+  Released under Apache 2.0 license as described in the file LICENSE.
+ 
+  Desc: This file contains basic operations involving placeholders. This
+        includes generating placeholders, checking whether an expression is a placeholder,
+        and checking whether an expression has placeholders.
  **)
 
-open Core_ast
+open Ast
 
 (* Generates a placeholder *)
 
@@ -14,8 +17,8 @@ let generate num_holes l =
 (* Determines whether an expression is or has a placeholder/underscore *)
 
 let is = function
-  | Hole _ | Wild _ -> true
-  | _ -> false
+| Hole _ | Wild _ -> true
+    | _ -> false
 
 (* Tail-recursive recursion with stack for placeholder tracking  *)
 

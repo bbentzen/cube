@@ -61,4 +61,4 @@ let check_with_universe global ind_env ctx lvl =
 let rec placeholder_levels = function
   | [] -> []
   | (x, ty, b) :: ctx' ->
-      (x, Core_ast.placeholder_levels ty, b) :: placeholder_levels ctx'
+      (x, Level.placeholder_levels ty, b) :: placeholder_levels ctx'

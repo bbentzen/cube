@@ -19,7 +19,7 @@ let () =
   )
   in
   (* Initialize the hasthtable of inductive families and parse file *)
-  let ind_env : (string, Core_ast.ind_spec) Hashtbl.t = Hashtbl.create 16 in
+  let ind_env : (string, Data.ind_spec) Hashtbl.t = Hashtbl.create 16 in
   match checkfile [] ind_env [] [] filename [] with 
   | Ok (env, _, _, (s, _)) ->
     let n = String.length s in

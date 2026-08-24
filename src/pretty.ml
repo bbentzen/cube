@@ -1,12 +1,14 @@
 (**
- * (c) Copyright 2019 Bruno Bentzen. All rights reserved.
- * Released under Apache 2.0 license as described in the file LICENSE.
- * Desc: The pretty printer indents hfill terms, 
-         distinguishes between dependent and non-dependent functions, products, and paths,
-          prints nested lambdas, pis, sigmas, and uses parentheses when necessary
+  (c) Copyright 2019 Bruno Bentzen. All rights reserved.
+  Released under Apache 2.0 license as described in the file LICENSE.
+
+  Desc: The pretty printer supports special unicode characters, indents homogeneous compositions, 
+        distinguishes between dependent and non-dependent functions, products, and paths,
+        prints nested lambdas, pis, sigmas, and uses parentheses when necessary.
  **)
 
-open Core_ast
+open Ast
+open Expr
 
 (* A simple pretty printer *)
 
@@ -14,7 +16,7 @@ let rec print env = function
   | Global("zero") -> "0 "
   | Global("nat") -> "ℕ "
   | Global y -> y ^ " "
-  | Local index -> (Debruijn.name_at index env) ^ " "
+  | Local index -> (name_at index env) ^ " "
   | Coe (i, j, e1, e2) -> String.concat "" ["coe "; parenthesize env i; parenthesize env j; parenthesize env e1; parenthesize env e2]
   
   | Hcom (i, j, e, e1, e2) -> 
@@ -32,10 +34,10 @@ let rec print env = function
   | Pabs (y, e) -> String.concat "" ["<"; y; "> "; print (y :: env) e]
 
   | Pi (x, e1, e2) ->
-    if Debruijn.occurs_index 0 0 e2 then
+    if occurs_index 0 0 e2 then
       let rec iterate env = function
         | Pi (x', e1', e2') ->
-          if Debruijn.occurs_index 0 0 e2' then
+          if occurs_index 0 0 e2' then
             String.concat "" ["("; x'; " : "; print env e1'; ") "; iterate (x' :: env) e2']
           else
             String.concat "" [tparenthesize env e1'; "→ "; print (x' :: env) e2']
@@ -49,7 +51,7 @@ let rec print env = function
           let rec iterate env = function
             | Pi (_, e1', Void()) -> "¬" ^ tparenthesize env e1'
             | Pi (x', e1', e2') ->
-              if Debruijn.occurs_index 0 0 e2' then
+              if occurs_index 0 0 e2' then
                 String.concat "" ["Π ("; x'; " : "; print env e1'; ") "; print (x' :: env) e2']
               else
                 String.concat "" [tparenthesize env e1'; "→ "; iterate (x' :: env) e2']
@@ -59,11 +61,11 @@ let rec print env = function
       end
 
   | Sigma (x, e1, e2) ->
-    if Debruijn.occurs_index 0 0 e2 then
+    if occurs_index 0 0 e2 then
       begin
       let rec iterate env = function
         | Sigma (x', e1', e2') ->
-          if Debruijn.occurs_index 0 0 e2' then
+          if occurs_index 0 0 e2' then
             String.concat "" ["("; x'; " : "; print env e1'; ") "; iterate (x' :: env) e2']
           else
             String.concat "" [tparenthesize env e1'; "× "; print (x' :: env) e2']
@@ -74,7 +76,7 @@ let rec print env = function
     else
       let rec iterate env = function
         | Sigma (x', e1', e2') ->
-          if Debruijn.occurs_index 0 0 e2' then
+          if occurs_index 0 0 e2' then
             String.concat "" ["Σ ("; x'; " : "; print env e1'; ") "; print (x' :: env) e2']
           else
             String.concat "" [tparenthesize env e1'; "× "; iterate (x' :: env) e2']
@@ -87,7 +89,7 @@ let rec print env = function
     begin
       match e with
       | Lam (i, ty) ->
-        if not (Debruijn.occurs_index 0 0 ty) then
+        if not (occurs_index 0 0 ty) then
           "path " ^ parenthesize env ty ^ parenthesize env e1 ^ parenthesize env e2
         else
           "pathd (" ^ print env (Lam (i, ty)) ^ ") " ^ parenthesize env e1 ^ parenthesize env e2

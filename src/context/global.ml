@@ -7,8 +7,8 @@
  **)
 
 open Basis
-open Core_ast
-open Debruijn
+open Ast
+open Expr
 
 (* Replaces a global variable x with a given expression d *)
 
@@ -38,7 +38,7 @@ let rec create_ctx = function
     begin match ids with
       | [] -> []
       | e :: ids' ->
-        let ty' = Debruijn.of_raw_expr ty in
+        let ty' = of_raw_expr ty in
         (e, ty', b) :: create_ctx ([((ids', ty), b)]) @ create_ctx l 
         (* this can be optimized since you don't want to translate the same type 
         over and over again when parsing identifiers of the same type*)

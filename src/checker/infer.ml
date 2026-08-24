@@ -6,17 +6,17 @@
  **)
 
 open Basis
+open Ast
+open Data
 
 let make_motive n ty = 
-  let vars = Debruijn.create_fresh [ty] (1 + n) in
+  let vars = Expr.create_fresh [ty] (1 + n) in
   let rec helper ty = function
   | 0 -> ty
-  | n -> Core_ast.Lam (vars.(n-1), helper (Debruijn.shift 1 0 ty) (n - 1)) 
+  | n -> Lam (vars.(n-1), helper (Expr.shift 1 0 ty) (n - 1)) 
   in helper ty n
 
 (* Infer the motive of a well-applied recursor *)
-
-open Core_ast
 
 let try_infer_motive ind_env ty args = function
   | Global rec_name ->
@@ -33,9 +33,9 @@ let try_infer_motive ind_env ty args = function
           (* Infer based on the target type by matching parameters and the major argument *)
           let rec unpack ty = function
             | 0 -> let major_arg = List.nth args (expected_args - 1) in
-              Debruijn.fullsubst 0 major_arg (Local 0) true ty
+              Expr.fullsubst 0 major_arg (Local 0) true ty
             | n -> let param_arg = List.nth args (rec_spec.num_indices + 1 + n) in
-              Debruijn.fullsubst 0 param_arg (Local n) true (unpack ty (n - 1))
+              Expr.fullsubst 0 param_arg (Local n) true (unpack ty (n - 1))
           in
           let ty' = unpack ty rec_spec.num_params in
           (* Close motive with abstractions and rebuild the application with the result *)

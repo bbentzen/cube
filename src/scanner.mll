@@ -1,8 +1,11 @@
 {
 (**
- * (c) Copyright 2019 Bruno Bentzen. All rights reserved.
- * Released under Apache 2.0 license as described in the file LICENSE.
- * Desc: Performs the lexical analysis 
+  (c) Copyright 2019 Bruno Bentzen. All rights reserved.
+  Released under Apache 2.0 license as described in the file LICENSE.
+
+  Desc: Performs the lexical analysis of the program. The lexer supports 
+        some unicode characters, recognizes identifiers, numbers, and 
+        keywords, and ignores whitespace and comments.
  **)
 
 open Syntax

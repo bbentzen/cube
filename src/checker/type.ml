@@ -6,7 +6,7 @@
  **)
 
 open Basis
-open Core_ast
+open Ast
 open Eval
 
 let check global ind_env ctx lvl ty =

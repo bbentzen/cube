@@ -37,7 +37,7 @@ and iter sl' msg global ind_env ctx lvl e ty max vars =
     match current with
     | [] -> Error msg
     | (n, id, _) :: current' ->
-      let e' = Debruijn.fullsubst 0 (Wild n) (Global id) true e in
+      let e' = Expr.fullsubst 0 (Wild n) (Global id) true e in
       let w = check global ind_env ctx lvl ([], past) e' ty max vars in
       begin 
         match w with

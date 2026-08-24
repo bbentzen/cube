@@ -8,7 +8,8 @@
  **)
 
 open Basis
-open Core_ast
+open Ast
+open Expr
 
 (* Determines whether a string is declared in the environment *)
 
@@ -30,8 +31,8 @@ let function_of_def id ctx (e, ty) hole =
     | [] -> e, ty
     | (x, ty, true) :: ctx ->
       let e', ty' = helper h' ctx in
-      Lam (x, Debruijn.close_var 0 x e'), 
-      Pi (x, ty, Debruijn.close_var 0 x ty')
+      Lam (x, close_var 0 x e'), 
+      Pi (x, ty, close_var 0 x ty')
     | (x, _, false) :: ctx ->
       let e', ty' = helper (h'+1) ctx in
       let h = Placeholder.generate h' [] in

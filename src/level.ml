@@ -1,56 +1,32 @@
 (**
- * (c) Copyright 2026 Bruno Bentzen. All rights reserved.
- * Released under Apache 2.0 license as described in the file LICENSE.
- * Desc: Internal core syntax using de Bruijn indices for local variables.
- *       Binder names are preserved as formatting hints for the pretty printer.
+  (c) Copyright 2019 Bruno Bentzen. All rights reserved.
+  Released under Apache 2.0 license as described in the file LICENSE.
+
+  Desc: Checks whether a universe level is lower than or equal to another one,
+        whether a universe level is declared in the environment, and whether it 
+        is an arbitrary parameter (level variable starting with the prefix '?').
+         
  **)
 
-type level =
-  | Num of int
-  | Var of string
-  | Suc of level
-  | Max of level * level
+open Ast
 
-type expr =
-  | Local of int
-  | Global of string
-  | Int of unit
-  | I1 of unit
-  | I0 of unit
-  | Coe of expr * expr * expr * expr
-  | Hcom of expr * expr * expr * expr * expr
-  | Lam of string * expr
-  | App of expr * expr
-  | Pi of string * expr * expr
-  | Pair of expr * expr
-  | Fst of expr
-  | Snd of expr
-  | Sigma of string * expr * expr
-  | Abort of expr
-  | Void of unit
-  | Pabs of string * expr
-  | At of expr * expr
-  | Pathd of expr * expr * expr
-  | Type of level
-  | Hole of string * (expr list)
-  | Wild of int
-  | Subgoal of unit
+(* Checks whether a level or its string variable representation is arbitrary *)
 
-type proof =
-  | Prf of string * (((string list * expr) * bool) list) * expr * expr
+let is_arbitrary = function
+  | Var par when String.length par > 0 -> Char.equal par.[0] '?'
+  | _ -> false
+
+let is_arbitrary_string par = 
+  if String.length par > 0 then par.[0] = '?' else false
 
 (* Universe level evaluation and comparison by flattening on lists of atoms *)
-
-let is_placeholderlvl = function
-    | Var s -> String.length s > 0 && s.[0] = '?'
-    | _ -> false
 
 let rec leq k l =
     if k = l then true
     else
       match k, l with
-      | Var x, _ when is_placeholderlvl (Var x) -> true
-      | _, Var y when is_placeholderlvl (Var y) -> true
+      | Var x, _ when is_arbitrary_string x -> true
+      | _, Var y when is_arbitrary_string y -> true
 
       | Num 0, _ -> true
       | Num n, Num m -> n <= m
@@ -69,20 +45,22 @@ let rec leq k l =
 
       | _ -> false
 
-let rec unieval = function
+let rec reduce = function
   | Suc (Num n) -> Num (n + 1)
   | Max (Num n, Num m) -> Num (n + m)
-  | Suc n -> Suc (unieval n)
+  | Suc n -> Suc (reduce n)
   | Max (Suc n, m) | Max (m, Suc n) -> 
-    Suc (unieval (Max (n, m)))
+    Suc (reduce (Max (n, m)))
   | Max (n, m) ->
     if leq n m then
-      unieval m
+      reduce m
     else if leq m n then
-      unieval n
+      reduce n
     else
-      Max (unieval n, unieval m)
+      Max (reduce n, reduce m)
   | l -> l
+
+(* Sets all universe levels to be arbitrary placeholders *)
 
 let rec placeholder_level = function
   | Num l -> Num l 
@@ -107,17 +85,27 @@ let rec placeholder_levels = function
   | Hole (s, ls) -> Hole (s, List.map placeholder_levels ls)
   | e -> e
 
-(* Hash table for tracking inductive type information *)
+(* Returns true when a universe level is less-than-or-equal to another, also returns false if they are incomparable *)
 
-type constr_spec = {
-  c_name : string;
-  c_num_args : int;
-  c_rec_args : bool list; (* true for recursive arguments requiring IH *)
-}
-
-type ind_spec = {
-  ind_name : string;
-  num_indices : int;
-  num_params : int;
-  constructors : constr_spec list;
-}
+let rec is_declared lvl = function
+| Num _ -> Ok ()
+| Var name ->
+  (* Checks if declaration exists or if it's a parameter level *)
+  if List.mem name lvl || Char.equal name.[0] '?' then 
+    Ok ()
+  else
+    Error ("No declaration found for the universe level '" ^ name ^ "'")
+| Suc n ->
+  begin match is_declared lvl n with
+  | Ok _ -> Ok ()
+  | Error msg ->
+    Error ("Invalid universe level:\n  " ^ Pretty.print_level n ^ "\n" ^ msg)
+  end
+| Max (n, m) ->
+  begin match is_declared lvl n, is_declared lvl m with
+  | Ok _, Ok _ -> Ok ()
+  | Error msg, _ ->
+    Error ("Invalid universe level:\n  " ^ Pretty.print_level n ^ "\n" ^ msg)
+  | _, Error msg ->
+    Error ("Invalid universe level:\n  " ^ Pretty.print_level m ^ "\n" ^ msg)
+  end

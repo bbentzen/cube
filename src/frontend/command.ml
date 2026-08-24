@@ -6,6 +6,8 @@
  **)
 
 open Basis
+open Ast
+open Data
 open Checker
 open Synthesis
 open Eval
@@ -24,13 +26,13 @@ let failwith_at location msg =
   (* Ind_env is a pair with inductive families in hasthtable and context forms *)
 
 let rec compile global ind_env ind lopen filename lvl next_location = function
-  | Ast.Thm (cmd, Prf (id, l, ty_raw, e_raw)) ->
+  | Thm (cmd, Prf (id, l, ty_raw, e_raw)) ->
     let location = next_location () in
     begin
       (* Convert expressions storing the index of available fresh variable *)
-      let ty, v = Debruijn.of_raw_expr_with_vars [] ty_raw in
-      let e, v' = Debruijn.of_raw_expr_with_vars [] e_raw in
-      let fresh_vars = Debruijn.fresh_var_list (v @ v') + 1 in
+      let ty, v = of_raw_expr_with_vars [] ty_raw in
+      let e, v' = of_raw_expr_with_vars [] e_raw in
+      let fresh_vars = fresh_var_list (v @ v') + 1 in
       (* Unfold all used global environtment identifiers *)
       match Env.unfold_all global 0 (Implicit.convert ty) with
       | Ok hty ->
@@ -78,7 +80,7 @@ let rec compile global ind_env ind lopen filename lvl next_location = function
         failwith_at location msg
     end
 
-  | Ast.Print (cmd, id) -> 
+  | Print (cmd, id) -> 
     let location = next_location () in
     begin 
       match Env.check_def_id id global with
@@ -95,10 +97,10 @@ let rec compile global ind_env ind lopen filename lvl next_location = function
         failwith_at location msg
     end
   
-  | Ast.Eval (_, e_raw) -> 
+  | Eval (_, e_raw) -> 
     let location = next_location () in
     begin
-      let e = Debruijn.of_raw_expr e_raw in
+      let e = of_raw_expr e_raw in
       match (Env.unfold_all global 0 e) with
       | Ok e' ->
         Ok (global, ind_env, ind, ("eval " ^ Pretty.printf e ^ " := " ^ 
@@ -107,7 +109,7 @@ let rec compile global ind_env ind lopen filename lvl next_location = function
         failwith_at location msg
     end
   
-  | Ast.Import (cmd, s) ->
+  | Import (cmd, s) ->
     let location = next_location () in
     let path' = File.resolve_path filename s in
     if List.mem path' lopen then
@@ -121,11 +123,11 @@ let rec compile global ind_env ind lopen filename lvl next_location = function
           failwith_at location msg
       end
   
-  | Ast.Level (cmd, lvl') ->
+  | Level (cmd, lvl') ->
     let _ = next_location () in
     compile global ind_env ind lopen filename (lvl @ lvl') next_location cmd
 
-  | Ast.Ind (cmd, id, l, ty_raw, constrs_raw) ->
+  | Ind (cmd, id, l, ty_raw, constrs_raw) ->
     let location = next_location () in
     begin
       (* Checks naming conflicts for the inductive type name *)
@@ -134,7 +136,7 @@ let rec compile global ind_env ind lopen filename lvl next_location = function
           ("Naming conflict with the inductive type identifier '" ^ id ^
            "'\nName already exists in the environment.")
       else
-        let ty = Debruijn.of_raw_expr ty_raw in
+        let ty = of_raw_expr ty_raw in
         let ctx = Global.create_ctx l in
         let (h1, h2) =
           Ctx.check_with_universe global ind_env ctx lvl,
@@ -152,7 +154,7 @@ let rec compile global ind_env ind lopen filename lvl next_location = function
                   failwith_at location
                     ("Naming conflict with constructor '" ^ c_name ^ "'")
                 else
-                  let c_ty = Debruijn.of_raw_expr c_ty_raw in
+                  let c_ty = of_raw_expr c_ty_raw in
                   if not (Inductive.strictly_positive id c_ty) then
                     failwith_at location
                       ("Strict positivity check failed for constructor '" ^ c_name ^
@@ -174,13 +176,13 @@ let rec compile global ind_env ind lopen filename lvl next_location = function
 
             (* Generalize universe levels as placeholder levels *)
             let pctx = Ctx.placeholder_levels ctx' in
-            let pty_fam = Inductive.generate_type_family id pctx (Core_ast.placeholder_levels ty') in
+            let pty_fam = Inductive.generate_type_family id pctx (Level.placeholder_levels ty') in
 
             (* Add inductive type to the type environment *)
             let ind_ty = (id, pty_fam) :: ind in
 
             (* Add each constructor to the type environment *)
-            let idx_constr = List.map (fun ((id, c_ty), _, _) -> (id, Core_ast.placeholder_levels c_ty)) (cons_checked ind_ty) in
+            let idx_constr = List.map (fun ((id, c_ty), _, _) -> (id, Level.placeholder_levels c_ty)) (cons_checked ind_ty) in
             let ind_cons =
               List.fold_left (fun l (c_name, c_ty) ->
                 (c_name, c_ty) :: l) ind_ty idx_constr (* needs to turn into a list of exprs*)
@@ -210,22 +212,22 @@ let rec compile global ind_env ind lopen filename lvl next_location = function
                   let num_params = Inductive.ar_type_fam ty' in
                   let constructors = List.map (fun (c_name, c_ty') ->
                     let rec extract_args rec_acc num_args = function
-                      | Core_ast.Pi (_, arg_ty, cod) ->
+                      | Pi (_, arg_ty, cod) ->
                           let is_rec = Inductive.occurs_name id [] arg_ty in
                           extract_args (is_rec :: rec_acc) (num_args + 1) cod
                       | _ -> (num_args, List.rev rec_acc)
                     in
                     let c_num_args, c_rec_args = extract_args [] 0 c_ty' in
-                    { Core_ast.c_name = c_name; 
-                    Core_ast.c_num_args = c_num_args; 
-                    Core_ast.c_rec_args = c_rec_args }
+                    { c_name = c_name; 
+                    c_num_args = c_num_args; 
+                    c_rec_args = c_rec_args }
                   ) nonidx_constr in (* skips type indices *)
                   
                   Hashtbl.add ind_env (id ^ "rec") {
-                    Core_ast.ind_name = id;
-                    Core_ast.num_params = num_params;
-                    Core_ast.num_indices = num_indices;
-                    Core_ast.constructors = constructors
+                    ind_name = id;
+                    num_params = num_params;
+                    num_indices = num_indices;
+                    constructors = constructors
                   };
 
                   (* If predicative load output and continue compiling subsequent commands *)
@@ -251,7 +253,7 @@ let rec compile global ind_env ind lopen filename lvl next_location = function
       end
     end
 
-  | Ast.Eof() -> 
+  | Eof() -> 
     Ok (global, ind_env, ind, ("", lopen))
 
 and checkfile global ind_env ind lopen filename lvl =

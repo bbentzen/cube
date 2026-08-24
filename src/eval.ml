@@ -1,29 +1,32 @@
 (**
- * (c) Copyright 2019 Bruno Bentzen. All rights reserved.
- * Released under Apache 2.0 license as described in the file LICENSE.
- * Desc: Eager evaluation with full β-reduction on redexes of all types,
- *       η-reduction for dependent functions and paths,
- *       but not ε-reduction (i0/i1 endpoints) for dependent paths.
+  (c) Copyright 2019 Bruno Bentzen. All rights reserved.
+  Released under Apache 2.0 license as described in the file LICENSE.
+
+  Desc: Untyped weak head normal form reduction with β-reduction and η-reduction for 
+        dependent functions and paths, but not ε-reduction (i0/i1 endpoints) for dependent paths. 
+        Endpoint reduction is only performed at elaboration stage when we look at type checking. 
+        We also reduce recursors of inductive families when they are fully applied to a constructor.
  **)
 
-open Debruijn
-open Core_ast
+open Ast 
+open Data
+open Expr
 
 (* Beta reduction without index shifting *)
 
 let beta body arg =
-  Debruijn.open_var 0 arg body
+  open_var 0 arg body
 
 (* Break an application tree into head and argument list *)
 
 let rec break_args acc = function
-  | Core_ast.App (f, arg) -> break_args (arg :: acc) f
+  | App (f, arg) -> break_args (arg :: acc) f
   | head -> (head, acc)
 
 (* Rebuild application tree from head and argument list *)
 
 let build_app head args =
-  List.fold_left (fun acc arg -> Core_ast.App (acc, arg)) head args
+  List.fold_left (fun acc arg -> App (acc, arg)) head args
 
 (* Return the position of the constructor with the given name *)
 
@@ -57,7 +60,7 @@ let reduce_recursor rec_spec args =
     let head, c_args = break_args [] major in
 
     match head with
-    | Core_ast.Global c_name ->
+    | Global c_name ->
         (match List.find_opt (fun c -> c.c_name = c_name) rec_spec.constructors with
         | Some c_spec ->
             (* Strip the type family indices in constructor *)
@@ -82,7 +85,7 @@ let reduce_recursor rec_spec args =
                     (* Generate recursive call: rec_name indices motive minors params arg *)
                     let rec_call =
                       build_app
-                        (Core_ast.Global (rec_spec.ind_name ^ "rec"))
+                        (Global (rec_spec.ind_name ^ "rec"))
                         (indices @ [motive] @ minors @ params @ [arg])
                     in
                     arg :: rec_call :: acc
@@ -102,20 +105,20 @@ let reduce_recursor rec_spec args =
    the raw syntax *)
 
 let rec reduce ind_env = function
-  | Core_ast.Coe (i, j, Core_ast.Lam(k, Pi(x, ty1, ty2)), e) ->  
+  | Coe (i, j, Lam(k, Pi(x, ty1, ty2)), e) ->  
     let v1 = (create_fresh [Pi(x, ty1, ty2); e] 1).(0) in (* TODO: replace, passing vars param *)
     let i' = shift 0 1 i and j' = shift 0 1 j in
-    Core_ast.Lam(v1, Core_ast.Coe (i', j', Core_ast.Lam(k, 
-    (shift 2 1 (Debruijn.open_var 0
-    (Core_ast.Coe (j', Local 0, Core_ast.Lam(k, shift 1 1 ty1), Local 1)) ty2))),
-    (Core_ast.App(shift 0 1 e, Coe (j', i', Core_ast.Lam(k, shift 1 1 ty1), Local 0)))))
+    Lam(v1, Coe (i', j', Lam(k, 
+    (shift 2 1 (open_var 0
+    (Coe (j', Local 0, Lam(k, shift 1 1 ty1), Local 1)) ty2))),
+    (App(shift 0 1 e, Coe (j', i', Lam(k, shift 1 1 ty1), Local 0)))))
 
-  | Core_ast.Coe (i, j, Core_ast.Lam(k, Sigma(_, ty1, ty2)), e) ->
+  | Coe (i, j, Lam(k, Sigma(_, ty1, ty2)), e) ->
     Pair(Coe (i, j, Lam(k, ty1), Fst e), 
     Coe (i, j, Lam(k, 
-    Debruijn.open_var 0 (shift 1 1 (Coe (i, Local 0, Lam(k, ty1), Fst e))) ty2), Snd (e)))
+    open_var 0 (shift 1 1 (Coe (i, Local 0, Lam(k, ty1), Fst e))) ty2), Snd (e)))
 
-  | Core_ast.Coe (i, j, Core_ast.Lam(k, Pathd(ty, e1, e2)), e) ->
+  | Coe (i, j, Lam(k, Pathd(ty, e1, e2)), e) ->
       let v = create_fresh [ty; e1; e2; e] 3 in (* TODO: replace, passing vars param *)
       let v1 = v.(0) and v2 = v.(1) and v3 = v.(2) in
       let i' = shift 0 2 i and j' = shift 0 2 j in
@@ -125,47 +128,47 @@ let rec reduce ind_env = function
       Lam(v3, Coe (Local 0, j', (Lam(k, App(ty', I0()))), shift 1 1 e1)),
       Lam(v3, Coe (Local 0, j', (Lam(k, App(ty', I1()))), shift 1 1 e2))), Local 0))
 
-  | Core_ast.Coe (i, j, e1, e2) ->
+  | Coe (i, j, e1, e2) ->
     if i = j then
       e2
     else
       let e1' = reduce ind_env e1 in
       begin match e1' with
-      | Core_ast.Lam(_, e) ->
+      | Lam(_, e) ->
         if occurs_index 0 0 e then
-          Core_ast.Coe (i, j, e1', e2)
+          Coe (i, j, e1', e2)
         else
           e2  (* coercion regularity *)
       | _ ->
-        Core_ast.Coe (i, j, e1', e2)
+        Coe (i, j, e1', e2)
       end
 
-  | Core_ast.Hcom (i, j, e, e1, e2) -> 
+  | Hcom (i, j, e, e1, e2) -> 
     if i = j then
       e
     else
-      Core_ast.Hcom (i, j, e, e1, e2)
+      Hcom (i, j, e, e1, e2)
 
-  | Core_ast.Lam (x, App (e , Local 0)) -> 
+  | Lam (x, App (e , Local 0)) -> 
     if not (occurs_index 0 0 e) && not (Placeholder.has e) then
       reduce ind_env (shift 0 (-1) e) (* eta reduction *)
     else
-      Core_ast.Lam (x, App (e , Local 0))
+      Lam (x, App (e , Local 0))
   
-  | Core_ast.App (e1, e2) -> 
+  | App (e1, e2) -> 
     let e1' = reduce ind_env e1 in
     (* First we attempt beta reduction *)
     begin match e1' with
-    | Core_ast.Lam (_, e) ->
+    | Lam (_, e) ->
         reduce ind_env (beta e e2)
     | _ ->
       (* Then we attempt reduce recursor *)
       let e2' = reduce ind_env e2 in
-      let full_app = Core_ast.App (e1', e2') in
+      let full_app = App (e1', e2') in
       let head, args = break_args [] full_app in
       let recursor_opt =
         begin match head with
-        | Core_ast.Global rec_name ->
+        | Global rec_name ->
             begin match Hashtbl.find_opt ind_env rec_name with
             | Some rec_spec ->
                 begin match reduce_recursor rec_spec args with
@@ -189,45 +192,45 @@ let rec reduce ind_env = function
       end
     end
 
-  | Core_ast.Pair (Fst e1, Snd e2) ->
+  | Pair (Fst e1, Snd e2) ->
       if e1 = e2 then
         reduce ind_env e1 (* eta reduction *)
       else
-        Core_ast.Pair (Fst e1, Snd e2)
+        Pair (Fst e1, Snd e2)
 
-  | Core_ast.Fst e ->
+  | Fst e ->
     let e' = reduce ind_env e in
     begin match e' with
-    | Core_ast.Pair (e1 , _) -> reduce ind_env e1
-    | _ -> Core_ast.Fst e'
+    | Pair (e1 , _) -> reduce ind_env e1
+    | _ -> Fst e'
     end
 
-  | Core_ast.Snd e -> 
+  | Snd e -> 
     let e' = reduce ind_env e in
     begin match e' with
-    | Core_ast.Pair (_ , e2) -> reduce ind_env e2
-    | _ -> Core_ast.Snd e'
+    | Pair (_ , e2) -> reduce ind_env e2
+    | _ -> Snd e'
     end
   
-  | Core_ast.Pabs (x, At (e , Local 0)) -> 
+  | Pabs (x, At (e , Local 0)) -> 
     if not (occurs_index 0 0 e) && not (Placeholder.has e) then
       reduce ind_env (shift 0 (-1) e) (* eta reduction *)
     else
-      Core_ast.Pabs (x, At (e , Local 0))
+      Pabs (x, At (e , Local 0))
 
-  | Core_ast.At (e1, e2) -> 
+  | At (e1, e2) -> 
     begin
       let e1' = reduce ind_env e1 in
       match e1' with
-      | Core_ast.Pabs (_ , e) ->
+      | Pabs (_ , e) ->
           reduce ind_env (beta e e2)
       | _ ->
         let e2' = reduce ind_env e2 in
-        Core_ast.At (e1', e2')
+        At (e1', e2')
     end
 
-  | Core_ast.Type l ->
-    Core_ast.Type (Core_ast.unieval l)
+  | Type l ->
+    Type (Level.reduce l)
     
   | e -> e
 

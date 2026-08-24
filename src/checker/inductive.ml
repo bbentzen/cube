@@ -9,7 +9,8 @@
 elims are described as variables and printed in the ctx *)
 
 open Basis
-open Core_ast
+open Ast
+open Data
 
 let rec occurs_name id l = function
   | Global t -> t = id 
@@ -68,7 +69,7 @@ ctx @ (List.map (fun (id, ty) -> (id, ty, true)) ind)
 
 let rec abs_ctx_args e = function
 | [] -> e
-| ((x, ty, _) :: ctx) -> Pi (x, ty, Debruijn.close_var 0 x (abs_ctx_args e ctx))
+| ((x, ty, _) :: ctx) -> Pi (x, ty, Expr.close_var 0 x (abs_ctx_args e ctx))
 
 let parametrize_constructor_ty c_ty ctx = 
   abs_ctx_args c_ty ctx
@@ -92,8 +93,8 @@ fun arity -> helper arity c_expr arity
 let rec abs_par_args e = function
   | Pi (x, dom, cod) ->
     if x = "v?" then
-      Pi ((Debruijn.create_fresh [e; dom; cod] 1).(0), dom, 
-      Debruijn.close_var 0 x (abs_par_args e cod)) 
+      Pi ((Expr.create_fresh [e; dom; cod] 1).(0), dom, 
+      Expr.close_var 0 x (abs_par_args e cod)) 
     else
       Pi (x, dom, abs_par_args e cod)
   | _ -> e 
@@ -112,14 +113,14 @@ let create_fresh_cons ind_name es vars n =
     | 0 -> var
     | i -> (add_prime var (i - 1)) ^ "'" in
   let rec helper i e n =
-    if Debruijn.occurs_name (var) (add_prime var i) e then
+    if Expr.occurs_name (var) (add_prime var i) e then
       helper (i+1) e n
     else if n > 0 then
       add_prime var i
     else
       add_prime var 0
   in  (* not free_var *)
-  helper vars (Debruijn.list_to_expr es) n
+  helper vars (Expr.list_to_expr es) n
 
 (* Helper to extract parameters from type of constructor *)
 
@@ -127,7 +128,7 @@ let rec find_params_cons ind_fam expr = function
   | Pi (_, _, cod) ->
     find_params_cons ind_fam expr cod
   | cod ->
-    Debruijn.fullsubst 0 ind_fam expr true cod
+    Expr.fullsubst 0 ind_fam expr true cod
 
 (* Helper to extract induction hypotheses for recursive arguments in a constructor *)
 
@@ -137,7 +138,7 @@ let rec build_ihs ind_name ind_ty motive_name ar vars ctx c_name = function
       let ih_wrap ar = build_ihs ind_name ind_ty motive_name ar (vars+1) ctx c_name rest in
       if occurs_name ind_name [] arg_ty then (* IH for recursive occurrences *)
         let ih_ty = App (Global motive_name, Local 0) in 
-        Pi (var, arg_ty, Pi (var ^ "_ih", ih_ty, Debruijn.shift 0 1 (ih_wrap (ar + 1))))
+        Pi (var, arg_ty, Pi (var ^ "_ih", ih_ty, Expr.shift 0 1 (ih_wrap (ar + 1))))
       else
         Pi (var, arg_ty, (ih_wrap (ar + 1)))
   | c_ty ->
@@ -165,7 +166,7 @@ let generate_recursor ind_name ind_ty constrs ctx ctx_rev = (*ind_ty *)
     | [] ->
       (* Generates target type with parameters *)
       let abs_params x = abs_par_args x ind_ty in
-      let app_params x = Debruijn.shift 0 1 (app_constr_args x (ar_type_fam ind_ty)) in
+      let app_params x = Expr.shift 0 1 (app_constr_args x (ar_type_fam ind_ty)) in
       abs_params (Pi (var, motive_dom, App (app_params (Global motive_name), Local 0))) 
     | (c_name, c_ty) :: rest ->
       let minor_ty = build_ihs ind_name ind_ty motive_name 0 0 ctx c_name c_ty in
@@ -174,12 +175,12 @@ let generate_recursor ind_name ind_ty constrs ctx ctx_rev = (*ind_ty *)
   (* Prefix the recursor with the index of the inductive type and its parameters *)
   let abs_params x = abs_par_args x ind_ty in
   let abs_indices x = abs_ctx_args x ctx_rev in
-  abs_indices (Pi (motive_name, abs_params motive_ty, Debruijn.close_var 0 motive_name (add_minor_premises constrs)))
+  abs_indices (Pi (motive_name, abs_params motive_ty, Expr.close_var 0 motive_name (add_minor_premises constrs)))
 
 (* Generates type family *)
 
 let generate_type_family id ctx ty =
-  snd (snd (Context.Env.function_of_def id ctx (Core_ast.Global id, ty) 0))
+  snd (snd (Context.Env.function_of_def id ctx (Global id, ty) 0))
 
 (* Extracts universe level l if expr is Type l *)
 
@@ -196,7 +197,7 @@ let check_universe_levels ctx_univ constrs_univs target_lvl =
   | (_, univ, _) :: ctx_univ ->
     match extract_universe_level univ with
       | Some lvl ->
-          leq lvl target_lvl && 
+          Level.leq lvl target_lvl && 
           helper_ctx target_lvl ctx_univ
       | None -> false
   in
@@ -205,7 +206,7 @@ let check_universe_levels ctx_univ constrs_univs target_lvl =
   | (_, c_univ) :: constrs_univs ->
     match extract_universe_level c_univ with
       | Some lvl ->
-          leq lvl target_lvl && 
+          Level.leq lvl target_lvl && 
           helper_constrs target_lvl constrs_univs
       | None -> false 
   in 

@@ -1,8 +1,12 @@
 %{
 (**
- * (c) Copyright 2019 Bruno Bentzen. All rights reserved.
- * Released under Apache 2.0 license as described in the file LICENSE.
- * Desc: The parser of the program
+  (c) Copyright 2019 Bruno Bentzen. All rights reserved.
+  Released under Apache 2.0 license as described in the file LICENSE.
+
+  Desc: The parser of the program. The file is parsed into the objects 
+        of the raw expression type (expressions with named variables) 
+        and commands on them (see Ast). Raw expressions are later converted 
+        into the core expression type with locally nameless representation.
  **)
 
 open Ast
@@ -28,7 +32,7 @@ let rec ids_to_bindings ids ty =
   | id :: rest -> (id, ty) :: ids_to_bindings rest ty
 
 let fill_def i j ty e e1 e2 =
-  let v1 = Substitution.fresh_var (RApp(e1, e2)) e 2 in
+  let v1 = fresh_var (RApp(e1, e2)) e 2 in
   RHcom(i, j, RLam(v1, RCoe (i, j, ty, RApp(e, RId v1))), 
   RLam(v1, RCoe (RId v1, j, ty, RApp(e1, RId v1))),
   RLam(v1, RCoe (RId v1, j, ty, RApp(e2, RId v1))))
