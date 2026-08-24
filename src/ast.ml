@@ -4,44 +4,44 @@
  * Desc: The abstract syntax of terms and types
  **)
 
-type level = 
-  | Num of int
-  | Var of string
-  | Suc of level
-  | Max of level * level
+type rawlevel = 
+  | RNum of int
+  | RVar of string
+  | RSuc of rawlevel
+  | RMax of rawlevel * rawlevel
 
-type expr = 
-  | Id of string
-  | Int of unit
-  | I1 of unit
-  | I0 of unit
-  | Coe of expr * expr * expr * expr
-  | Hcom of expr * expr * expr * expr * expr
-  | Abs of string * expr
-  | App of expr * expr
-  | Pi of string * expr * expr  
-  | Pair of expr * expr
-  | Fst of expr
-  | Snd of expr
-  | Sigma of string * expr * expr
-  | Abort of expr
-  | Void of unit
-  | Pabs of string * expr
-  | At of expr * expr
-  | Pathd of expr * expr * expr
-  | Type of level
-  | Hole of string * (expr list)
-  | Wild of int
-  | Subgoal of unit
+type rawexpr = 
+  | RId of string
+  | RInt of unit
+  | RI1 of unit
+  | RI0 of unit
+  | RCoe of rawexpr * rawexpr * rawexpr * rawexpr
+  | RHcom of rawexpr * rawexpr * rawexpr * rawexpr * rawexpr 
+  | RLam of string * rawexpr
+  | RApp of rawexpr * rawexpr
+  | RPi of string * rawexpr * rawexpr  
+  | RPair of rawexpr * rawexpr
+  | RFst of rawexpr
+  | RSnd of rawexpr
+  | RSigma of string * rawexpr * rawexpr
+  | RAbort of rawexpr
+  | RVoid of unit
+  | RPabs of string * rawexpr
+  | RAt of rawexpr * rawexpr
+  | RPathd of rawexpr * rawexpr * rawexpr
+  | RType of rawlevel
+  | RHole of string * (rawexpr list)
+  | RWild of int
+  | RSubgoal of unit
 
 type proof = 
-  | Prf of string * (((string list * expr) * bool) list) * expr * expr
+  | Prf of string * (((string list * rawexpr) * bool) list) * rawexpr * rawexpr
 
 type command = 
     | Import of command * string
     | Thm of command * proof
-    | Ind of command * string * (((string list * expr) * bool) list) * expr * ((string * expr) list)
+    | Ind of command * string * (((string list * rawexpr) * bool) list) * rawexpr * ((string * rawexpr) list)
     | Print of command * string
-    | Eval of command * expr
+    | Eval of command * rawexpr
     | Level of command * string list
     | Eof of unit

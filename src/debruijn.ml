@@ -20,66 +20,66 @@ let rec name_at n = function
   | _ :: env -> name_at (n - 1) env
 
 let rec level_of_raw = function
-  | Ast.Num n -> Core_ast.Num n
-  | Ast.Var x -> Core_ast.Var x
-  | Ast.Suc l -> Core_ast.Suc (level_of_raw l)
-  | Ast.Max (l1, l2) -> Core_ast.Max (level_of_raw l1, level_of_raw l2)
+  | Ast.RNum n -> Core_ast.Num n
+  | Ast.RVar x -> Core_ast.Var x
+  | Ast.RSuc l -> Core_ast.Suc (level_of_raw l)
+  | Ast.RMax (l1, l2) -> Core_ast.Max (level_of_raw l1, level_of_raw l2)
 
 let rec to_raw_level = function
-  | Core_ast.Num n -> Ast.Num n
-  | Core_ast.Var x -> Ast.Var x
-  | Core_ast.Suc l -> Ast.Suc (to_raw_level l)
-  | Core_ast.Max (l1, l2) -> Ast.Max (to_raw_level l1, to_raw_level l2)
+  | Core_ast.Num n -> Ast.RNum n
+  | Core_ast.Var x -> Ast.RVar x
+  | Core_ast.Suc l -> Ast.RSuc (to_raw_level l)
+  | Core_ast.Max (l1, l2) -> Ast.RMax (to_raw_level l1, to_raw_level l2)
 
 let rec of_raw_expr_with_env env = function
-  | Ast.Id x ->
+  | Ast.RId x ->
     begin
       match index_of x env with
       | Some index -> Core_ast.Local index
       | None -> Core_ast.Global x
     end
-  | Ast.Int () -> Core_ast.Int ()
-  | Ast.I1 () -> Core_ast.I1 ()
-  | Ast.I0 () -> Core_ast.I0 ()
-  | Ast.Coe (i, j, e1, e2) ->
+  | Ast.RInt () -> Core_ast.Int ()
+  | Ast.RI1 () -> Core_ast.I1 ()
+  | Ast.RI0 () -> Core_ast.I0 ()
+  | Ast.RCoe (i, j, e1, e2) ->
     Core_ast.Coe (
       of_raw_expr_with_env env i,
       of_raw_expr_with_env env j,
       of_raw_expr_with_env env e1,
       of_raw_expr_with_env env e2)
-  | Ast.Hcom (i, j, e, e1, e2) ->
+  | Ast.RHcom (i, j, e, e1, e2) ->
     Core_ast.Hcom (
       of_raw_expr_with_env env i,
       of_raw_expr_with_env env j,
       of_raw_expr_with_env env e,
       of_raw_expr_with_env env e1,
       of_raw_expr_with_env env e2)
-  | Ast.Abs (x, e) -> Core_ast.Abs (x, of_raw_expr_with_env (x :: env) e)
-  | Ast.App (e1, e2) -> Core_ast.App (of_raw_expr_with_env env e1, of_raw_expr_with_env env e2)
-  | Ast.Pi (x, e1, e2) ->
+  | Ast.RLam (x, e) -> Core_ast.Lam (x, of_raw_expr_with_env (x :: env) e)
+  | Ast.RApp (e1, e2) -> Core_ast.App (of_raw_expr_with_env env e1, of_raw_expr_with_env env e2)
+  | Ast.RPi (x, e1, e2) ->
     Core_ast.Pi (x, of_raw_expr_with_env env e1, of_raw_expr_with_env (x :: env) e2)
-  | Ast.Pair (e1, e2) -> Core_ast.Pair (of_raw_expr_with_env env e1, of_raw_expr_with_env env e2)
-  | Ast.Fst e -> Core_ast.Fst (of_raw_expr_with_env env e)
-  | Ast.Snd e -> Core_ast.Snd (of_raw_expr_with_env env e)
-  | Ast.Sigma (x, e1, e2) ->
+  | Ast.RPair (e1, e2) -> Core_ast.Pair (of_raw_expr_with_env env e1, of_raw_expr_with_env env e2)
+  | Ast.RFst e -> Core_ast.Fst (of_raw_expr_with_env env e)
+  | Ast.RSnd e -> Core_ast.Snd (of_raw_expr_with_env env e)
+  | Ast.RSigma (x, e1, e2) ->
     Core_ast.Sigma (x, of_raw_expr_with_env env e1, of_raw_expr_with_env (x :: env) e2)
-  | Ast.Abort e -> Core_ast.Abort (of_raw_expr_with_env env e)
-  | Ast.Void () -> Core_ast.Void ()
-  | Ast.Pabs (x, e) -> Core_ast.Pabs (x, of_raw_expr_with_env (x :: env) e)
-  | Ast.At (e1, e2) -> Core_ast.At (of_raw_expr_with_env env e1, of_raw_expr_with_env env e2)
-  | Ast.Pathd (e, e1, e2) ->
+  | Ast.RAbort e -> Core_ast.Abort (of_raw_expr_with_env env e)
+  | Ast.RVoid () -> Core_ast.Void ()
+  | Ast.RPabs (x, e) -> Core_ast.Pabs (x, of_raw_expr_with_env (x :: env) e)
+  | Ast.RAt (e1, e2) -> Core_ast.At (of_raw_expr_with_env env e1, of_raw_expr_with_env env e2)
+  | Ast.RPathd (e, e1, e2) ->
     Core_ast.Pathd (of_raw_expr_with_env env e, of_raw_expr_with_env env e1, of_raw_expr_with_env env e2)
-  | Ast.Type l -> Core_ast.Type (level_of_raw l)
-  | Ast.Hole (n, l) -> Core_ast.Hole (n, List.map (of_raw_expr_with_env env) l)
-  | Ast.Wild n -> Core_ast.Wild n
-  | Ast.Subgoal() -> Core_ast.Subgoal()
+  | Ast.RType l -> Core_ast.Type (level_of_raw l)
+  | Ast.RHole (n, l) -> Core_ast.Hole (n, List.map (of_raw_expr_with_env env) l)
+  | Ast.RWild n -> Core_ast.Wild n
+  | Ast.RSubgoal() -> Core_ast.Subgoal()
 
 (* let of_raw_expr e = of_raw_expr_with_env [] e *)
 
 (* Returns a core expression with a list of used variable identifiers *)
 
 let rec of_raw_expr_with_vars env = function
-  | Ast.Id x ->
+  | Ast.RId x ->
     (* Stores integers n for every identifier of the form "v" ^ n *)
     let e = 
       begin match index_of x env with
@@ -97,69 +97,69 @@ let rec of_raw_expr_with_vars env = function
         []
     in
     e, n
-  | Ast.Int () -> Core_ast.Int (), []
-  | Ast.I1 () -> Core_ast.I1 (), []
-  | Ast.I0 () -> Core_ast.I0 (), []
-  | Ast.Coe (i, j, e1, e2) ->
+  | Ast.RInt () -> Core_ast.Int (), []
+  | Ast.RI1 () -> Core_ast.I1 (), []
+  | Ast.RI0 () -> Core_ast.I0 (), []
+  | Ast.RCoe (i, j, e1, e2) ->
     let i', vi = of_raw_expr_with_vars env i in
     let j', vj = of_raw_expr_with_vars env j in
     let e1', v1 = of_raw_expr_with_vars env e1 in
     let e2', v2 = of_raw_expr_with_vars env e2 in
     Core_ast.Coe (i', j', e1', e2'), vi @ vj @ v1 @ v2
-  | Ast.Hcom (i, j, e, e1, e2) ->
+  | Ast.RHcom (i, j, e, e1, e2) ->
     let i', vi = of_raw_expr_with_vars env i in
     let j', vj = of_raw_expr_with_vars env j in
     let e', ve = of_raw_expr_with_vars env e in
     let e1', v1 = of_raw_expr_with_vars env e1 in
     let e2', v2 = of_raw_expr_with_vars env e2 in
     Core_ast.Hcom (i', j', e', e1', e2'), vi @ vj @ ve @ v1 @ v2
-  | Ast.Abs (x, e) ->
+  | Ast.RLam (x, e) ->
     let e', v = of_raw_expr_with_vars (x :: env) e in
-    Core_ast.Abs (x, e'), v
-  | Ast.App (e1, e2) ->
+    Core_ast.Lam (x, e'), v
+  | Ast.RApp (e1, e2) ->
     let e1', v1 = of_raw_expr_with_vars env e1 in
     let e2', v2 = of_raw_expr_with_vars env e2 in
     Core_ast.App (e1', e2'), v1 @ v2
-  | Ast.Pi (x, e1, e2) ->
+  | Ast.RPi (x, e1, e2) ->
     let e1', v1 = of_raw_expr_with_vars env e1 in
     let e2', v2 = of_raw_expr_with_vars (x :: env) e2 in
     Core_ast.Pi (x, e1', e2'), v1 @ v2
-  | Ast.Pair (e1, e2) ->
+  | Ast.RPair (e1, e2) ->
     let e1', v1 = of_raw_expr_with_vars env e1 in
     let e2', v2 = of_raw_expr_with_vars env e2 in
     Core_ast.Pair (e1', e2'), v1 @ v2
-  | Ast.Fst e ->
+  | Ast.RFst e ->
     let e', v = of_raw_expr_with_vars env e in
     Core_ast.Fst e', v
-  | Ast.Snd e ->
+  | Ast.RSnd e ->
     let e', v = of_raw_expr_with_vars env e in
     Core_ast.Snd e', v
-  | Ast.Sigma (x, e1, e2) ->
+  | Ast.RSigma (x, e1, e2) ->
     let e1', v1 = of_raw_expr_with_vars env e1 in
     let e2', v2 = of_raw_expr_with_vars (x :: env) e2 in
     Core_ast.Sigma (x, e1', e2'), v1 @ v2
-  | Ast.Abort e ->
+  | Ast.RAbort e ->
     let e', v = of_raw_expr_with_vars env e in
     Core_ast.Abort e', v
-  | Ast.Void () -> Core_ast.Void (), []
-  | Ast.Pabs (x, e) ->
+  | Ast.RVoid () -> Core_ast.Void (), []
+  | Ast.RPabs (x, e) ->
     let e', v = of_raw_expr_with_vars (x :: env) e in
     Core_ast.Pabs (x, e'), v
-  | Ast.At (e1, e2) ->
+  | Ast.RAt (e1, e2) ->
     let e1', v1 = of_raw_expr_with_vars env e1 in
     let e2', v2 = of_raw_expr_with_vars env e2 in
     Core_ast.At (e1', e2'), v1 @ v2
-  | Ast.Pathd (e, e1, e2) ->
+  | Ast.RPathd (e, e1, e2) ->
     let e', v = of_raw_expr_with_vars env e in
     let e1', v1 = of_raw_expr_with_vars env e1 in
     let e2', v2 = of_raw_expr_with_vars env e2 in
     Core_ast.Pathd (e', e1', e2'), v @ v1 @ v2
-  | Ast.Type l -> Core_ast.Type (level_of_raw l), []
-  | Ast.Hole (n, l) -> 
+  | Ast.RType l -> Core_ast.Type (level_of_raw l), []
+  | Ast.RHole (n, l) -> 
     let of_raw_expr_with_vars_fst = fun x -> fst (of_raw_expr_with_vars env x) in
     Core_ast.Hole (n, List.map of_raw_expr_with_vars_fst l), []
-  | Ast.Wild n -> Core_ast.Wild n, []
-  | Ast.Subgoal() -> Core_ast.Subgoal(), []
+  | Ast.RWild n -> Core_ast.Wild n, []
+  | Ast.RSubgoal() -> Core_ast.Subgoal(), []
 
 let fresh_var_list l =
   List.fold_left (fun acc n -> n + acc) 0 l
@@ -167,43 +167,43 @@ let fresh_var_list l =
 let of_raw_expr e = fst (of_raw_expr_with_vars [] e)
 
 let rec to_raw_expr_with_env env = function
-  | Core_ast.Local index -> Ast.Id (name_at index env)
-  | Core_ast.Global x -> Ast.Id x
-  | Core_ast.Int () -> Ast.Int ()
-  | Core_ast.I1 () -> Ast.I1 ()
-  | Core_ast.I0 () -> Ast.I0 ()
+  | Core_ast.Local index -> Ast.RId (name_at index env)
+  | Core_ast.Global x -> Ast.RId x
+  | Core_ast.Int () -> Ast.RInt ()
+  | Core_ast.I1 () -> Ast.RI1 ()
+  | Core_ast.I0 () -> Ast.RI0 ()
   | Core_ast.Coe (i, j, e1, e2) ->
-    Ast.Coe (
+    Ast.RCoe (
       to_raw_expr_with_env env i,
       to_raw_expr_with_env env j,
       to_raw_expr_with_env env e1,
       to_raw_expr_with_env env e2)
   | Core_ast.Hcom (i, j, e, e1, e2) ->
-    Ast.Hcom (
+    Ast.RHcom (
       to_raw_expr_with_env env i,
       to_raw_expr_with_env env j,
       to_raw_expr_with_env env e,
       to_raw_expr_with_env env e1,
       to_raw_expr_with_env env e2)
-  | Core_ast.Abs (x, e) -> Ast.Abs (x, to_raw_expr_with_env (x :: env) e)
-  | Core_ast.App (e1, e2) -> Ast.App (to_raw_expr_with_env env e1, to_raw_expr_with_env env e2)
+  | Core_ast.Lam (x, e) -> Ast.RLam (x, to_raw_expr_with_env (x :: env) e)
+  | Core_ast.App (e1, e2) -> Ast.RApp (to_raw_expr_with_env env e1, to_raw_expr_with_env env e2)
   | Core_ast.Pi (x, e1, e2) ->
-    Ast.Pi (x, to_raw_expr_with_env env e1, to_raw_expr_with_env (x :: env) e2)
-  | Core_ast.Pair (e1, e2) -> Ast.Pair (to_raw_expr_with_env env e1, to_raw_expr_with_env env e2)
-  | Core_ast.Fst e -> Ast.Fst (to_raw_expr_with_env env e)
-  | Core_ast.Snd e -> Ast.Snd (to_raw_expr_with_env env e)
+    Ast.RPi (x, to_raw_expr_with_env env e1, to_raw_expr_with_env (x :: env) e2)
+  | Core_ast.Pair (e1, e2) -> Ast.RPair (to_raw_expr_with_env env e1, to_raw_expr_with_env env e2)
+  | Core_ast.Fst e -> Ast.RFst (to_raw_expr_with_env env e)
+  | Core_ast.Snd e -> Ast.RSnd (to_raw_expr_with_env env e)
   | Core_ast.Sigma (x, e1, e2) ->
-    Ast.Sigma (x, to_raw_expr_with_env env e1, to_raw_expr_with_env (x :: env) e2)
-  | Core_ast.Abort e -> Ast.Abort (to_raw_expr_with_env env e)
-  | Core_ast.Void () -> Ast.Void ()
-  | Core_ast.Pabs (x, e) -> Ast.Pabs (x, to_raw_expr_with_env (x :: env) e)
-  | Core_ast.At (e1, e2) -> Ast.At (to_raw_expr_with_env env e1, to_raw_expr_with_env env e2)
+    Ast.RSigma (x, to_raw_expr_with_env env e1, to_raw_expr_with_env (x :: env) e2)
+  | Core_ast.Abort e -> Ast.RAbort (to_raw_expr_with_env env e)
+  | Core_ast.Void () -> Ast.RVoid ()
+  | Core_ast.Pabs (x, e) -> Ast.RPabs (x, to_raw_expr_with_env (x :: env) e)
+  | Core_ast.At (e1, e2) -> Ast.RAt (to_raw_expr_with_env env e1, to_raw_expr_with_env env e2)
   | Core_ast.Pathd (e, e1, e2) ->
-    Ast.Pathd (to_raw_expr_with_env env e, to_raw_expr_with_env env e1, to_raw_expr_with_env env e2)
-  | Core_ast.Type l -> Ast.Type (to_raw_level l)
-  | Core_ast.Hole (n, l) -> Ast.Hole (n, List.map (to_raw_expr_with_env env) l)
-  | Core_ast.Wild n -> Ast.Wild n
-  | Core_ast.Subgoal() -> Ast.Subgoal()
+    Ast.RPathd (to_raw_expr_with_env env e, to_raw_expr_with_env env e1, to_raw_expr_with_env env e2)
+  | Core_ast.Type l -> Ast.RType (to_raw_level l)
+  | Core_ast.Hole (n, l) -> Ast.RHole (n, List.map (to_raw_expr_with_env env) l)
+  | Core_ast.Wild n -> Ast.RWild n
+  | Core_ast.Subgoal() -> Ast.RSubgoal()
 
 let to_raw_expr e = to_raw_expr_with_env [] e
 
@@ -248,7 +248,7 @@ let rec shift cutoff amount = function
     Coe (shift cutoff amount i, shift cutoff amount j, shift cutoff amount e1, shift cutoff amount e2)
   | Hcom (i, j, e, e1, e2) ->
     Hcom (shift cutoff amount i, shift cutoff amount j, shift cutoff amount e, shift cutoff amount e1, shift cutoff amount e2)
-  | Abs (x, e) -> Abs (x, shift (cutoff + 1) amount e)
+  | Lam (x, e) -> Lam (x, shift (cutoff + 1) amount e)
   | App (e1, e2) -> App (shift cutoff amount e1, shift cutoff amount e2)
   | Pi (x, e1, e2) -> Pi (x, shift cutoff amount e1, shift (cutoff + 1) amount e2)
   | Pair (e1, e2) -> Pair (shift cutoff amount e1, shift cutoff amount e2)
@@ -274,7 +274,7 @@ let rec open_var k replacement = function
     Coe (open_var k replacement i, open_var k replacement j, open_var k replacement e1, open_var k replacement e2)
   | Hcom (i, j, e, e1, e2) ->
     Hcom (open_var k replacement i, open_var k replacement j, open_var k replacement e, open_var k replacement e1, open_var k replacement e2)
-  | Abs (x, e) -> Abs (x, open_var (k + 1) replacement e)
+  | Lam (x, e) -> Lam (x, open_var (k + 1) replacement e)
   | App (e1, e2) -> App (open_var k replacement e1, open_var k replacement e2)
   | Pi (x, e1, e2) -> Pi (x, open_var k replacement e1, open_var (k + 1) replacement e2)
   | Pair (e1, e2) -> Pair (open_var k replacement e1, open_var k replacement e2)
@@ -294,7 +294,7 @@ let rec close_var k x = function
   | I1 _ as e -> e | I0 _ as e -> e
   | Coe (i, j, e1, e2) -> Coe (close_var k x i, close_var k x j, close_var k x e1, close_var k x e2)
   | Hcom (i, j, e, e1, e2) -> Hcom (close_var k x i, close_var k x j, close_var k x e, close_var k x e1, close_var k x e2)
-  | Abs (y, e) -> Abs (y, close_var (k + 1) x e)
+  | Lam (y, e) -> Lam (y, close_var (k + 1) x e)
   | App (e1, e2) -> App (close_var k x e1, close_var k x e2)
   | Pi (y, e1, e2) -> Pi (y, close_var k x e1, close_var (k + 1) x e2)
   | Pair (e1, e2) -> Pair (close_var k x e1, close_var k x e2)
@@ -318,7 +318,7 @@ let rec fullsubst k ex d b = function
   | Global _ | Local _ | Int _ | I1 _ | I0 _ | Void _ | Type _ | Wild _ | Subgoal _ as e -> e
   | Coe (i, j, e1, e2) -> Coe (fullsubst k ex d b i, fullsubst k ex d b j, fullsubst k ex d b e1, fullsubst k ex d b e2)
   | Hcom (i, j, e, e1, e2) -> Hcom (fullsubst k ex d b i, fullsubst k ex d b j, fullsubst k ex d b e, fullsubst k ex d b e1, fullsubst k ex d b e2)
-  | Abs (y, e) -> Abs (y, fullsubst (k+1) ex d b e)
+  | Lam (y, e) -> Lam (y, fullsubst (k+1) ex d b e)
   | App (e1, e2) -> App (fullsubst k ex d b e1, fullsubst k ex d b e2)
   | Pi (y, e1, e2) -> Pi (y, fullsubst k ex d b e1, fullsubst (k+1) ex d b e2)
   | Pair (e1, e2) -> Pair (fullsubst k ex d b e1, fullsubst k ex d b e2)
@@ -339,7 +339,7 @@ let rec occurs_index target cutoff = function
   | Hole (_, l) -> List.exists (occurs_index target cutoff) l
   | Coe (i, j, e1, e2) -> occurs_index target cutoff i || occurs_index target cutoff j || occurs_index target cutoff e1 || occurs_index target cutoff e2
   | Hcom (i, j, e, e1, e2) -> occurs_index target cutoff i || occurs_index target cutoff j || occurs_index target cutoff e || occurs_index target cutoff e1 || occurs_index target cutoff e2
-  | Abs (_, e) | Pabs (_, e) -> occurs_index target (cutoff + 1) e
+  | Lam (_, e) | Pabs (_, e) -> occurs_index target (cutoff + 1) e
   | App (e1, e2) | Pair (e1, e2) | At (e1, e2) -> occurs_index target cutoff e1 || occurs_index target cutoff e2
   | Pi (_, e1, e2) | Sigma (_, e1, e2) -> occurs_index target cutoff e1 || occurs_index target (cutoff + 1) e2
   | Fst e | Snd e | Abort e -> occurs_index target cutoff e
@@ -347,7 +347,7 @@ let rec occurs_index target cutoff = function
     occurs_index target cutoff e || occurs_index target cutoff e1 || occurs_index target cutoff e2
 
 let rec occurs_name s hint = function
-  | Abs (x, e) | Pabs (x, e) -> x = hint || occurs_name x hint e
+  | Lam (x, e) | Pabs (x, e) -> x = hint || occurs_name x hint e
   | Pi (x, e1, e2) | Sigma (x, e1, e2) -> x = hint || occurs_name x hint e1 || occurs_name x hint e2
   | Local _ -> s = hint | Global t -> t = hint
   | Int _ | I1 _ | I0 _ | Void _ | Type _ | Wild _ | Subgoal _ -> false

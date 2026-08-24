@@ -19,7 +19,7 @@ type expr =
   | I0 of unit
   | Coe of expr * expr * expr * expr
   | Hcom of expr * expr * expr * expr * expr
-  | Abs of string * expr
+  | Lam of string * expr
   | App of expr * expr
   | Pi of string * expr * expr
   | Pair of expr * expr

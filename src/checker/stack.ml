@@ -14,7 +14,7 @@ let printb synl =
   let rec printrev = function
     | [] -> "" 
     | (id, ty, b) :: synl' -> 
-      " " ^ id ^ " : " ^ Pretty.print ty ^ "- " ^ string_of_bool b ^ "\n" ^ printrev synl'
+      " " ^ id ^ " : " ^ Pretty.printf ty ^ "- " ^ string_of_bool b ^ "\n" ^ printrev synl'
   in
   printrev (List.rev synl)
 

@@ -30,7 +30,7 @@ let function_of_def id ctx (e, ty) hole =
     | [] -> e, ty
     | (x, ty, true) :: ctx ->
       let e', ty' = helper h' ctx in
-      Abs (x, Debruijn.close_var 0 x e'), 
+      Lam (x, Debruijn.close_var 0 x e'), 
       Pi (x, ty, Debruijn.close_var 0 x ty')
     | (x, _, false) :: ctx ->
       let e', ty' = helper (h'+1) ctx in
@@ -76,8 +76,8 @@ let rec lift n = function
     lift n e1, lift n e2)
   | Hcom (i, j, e, e1, e2) -> 
     Hcom (lift n i, lift n j, lift n e, lift n e1, lift n e2)
-  | Abs (y, e) -> 
-    Abs (y, lift n e)
+  | Lam (y, e) -> 
+    Lam (y, lift n e)
   | App (e1, e2) -> App (lift n e1, lift n e2)
   | Pi (y, e1, e2) -> 
     Pi (y, lift n e1, lift n e2)
@@ -106,14 +106,14 @@ let rec unfold_all env vars = function
       | _ -> Ok (Global x)
     end
 
-  | Abs (x, e) ->
+  | Lam (x, e) ->
     if is_declared x env then
       Error ("Naming conflict with the name '" ^ x ^ 
         "'\nIt occurs as definition/theorem identifier but is used as a variable name ")
     else
       begin match unfold_all env vars e with
       | Ok e' -> 
-        Ok (Abs (x, e'))
+        Ok (Lam (x, e'))
       | Error msg -> Error msg
       end
 

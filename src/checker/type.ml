@@ -7,7 +7,6 @@
 
 open Basis
 open Core_ast
-open Debruijn
 open Eval
 
 let check global ind_env ctx lvl ty =
@@ -25,7 +24,7 @@ let check global ind_env ctx lvl ty =
         | Hole _ -> (* Hole _ has been added for tests *)
           Ok (ty', tTy)
         | _ -> 
-          Error ("Failed to prove that \n  " ^ Pretty.print (to_raw_expr ty') ^ "\nis a type")
+          Error ("Failed to prove that \n  " ^ Pretty.printf ty' ^ "\nis a type")
       end
     | Error (_, msg) -> 
       Error msg

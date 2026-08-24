@@ -13,32 +13,9 @@ open Eval
 
 (* TODO: Retool vars as a list of used globals *)
 
-let rec decl2 lvl = function
-| Core_ast.Num _ -> Ok ()
-| Core_ast.Var name ->
-  (* Checks if declaration exists or if it's a parameter level *)
-  if List.mem name lvl || Char.equal name.[0] '?' then 
-    Ok ()
-  else
-    Error ("No declaration found for the universe level '" ^ name ^ "'")
-| Core_ast.Suc n ->
-  begin match decl2 lvl n with
-  | Ok _ -> Ok ()
-  | Error msg ->
-    Error ("Invalid universe level:\n  " ^ Pretty.print_level (Debruijn.to_raw_level n) ^ "\n" ^ msg)
-  end
-| Core_ast.Max (n, m) ->
-  begin match decl2 lvl n, decl2 lvl m with
-  | Ok _, Ok _ -> Ok ()
-  | Error msg, _ ->
-    Error ("Invalid universe level:\n  " ^ Pretty.print_level (Debruijn.to_raw_level n) ^ "\n" ^ msg)
-  | _, Error msg ->
-    Error ("Invalid universe level:\n  " ^ Pretty.print_level (Debruijn.to_raw_level m) ^ "\n" ^ msg)
-  end
-
 let goal_msg ctx e ty =
-  "when checking that\n  " ^ Pretty.print (to_raw_expr e) ^ "\nhas the expected type\n" ^ Global.printf ctx ^ 
-  "-------------------------------------------\n ⊢ " ^ Pretty.print (to_raw_expr ty)
+  "when checking that\n  " ^ Pretty.printf e ^ "\nhas the expected type\n" ^ Global.printf ctx ^ 
+  "-------------------------------------------\n ⊢ " ^ Pretty.printf ty
 
 (* Abbreviations for opening and closing binders *)
 
@@ -52,7 +29,7 @@ let rec has_dangling_local depth = function
   | Local index -> index >= depth
   | Global _ | Int _ | I1 _ | I0 _ 
   | Void _ | Type _ | Wild _ | Subgoal _ -> false
-  | Abs (_, e) | Pabs (_, e) -> has_dangling_local (depth + 1) e
+  | Lam (_, e) | Pabs (_, e) -> has_dangling_local (depth + 1) e
   | Pi (_, e1, e2) | Sigma (_, e1, e2) ->
     has_dangling_local depth e1 || has_dangling_local (depth + 1) e2
   | Coe (i, j, e1, e2) ->
@@ -107,7 +84,7 @@ let rec elaborate global ind_env ctx lvl sl ty ph vars = function
             begin match u with
             | Ok s -> Ok (Global x, s, sl) (* runs faster when not body *)
             | _ -> 
-              Error (sa, x ^ " has type \n  " ^ Pretty.print (to_raw_expr xty) ^ "\nbut is expected to have type\n  " ^ Pretty.print (to_raw_expr ty))
+              Error (sa, x ^ " has type \n  " ^ Pretty.printf xty ^ "\nbut is expected to have type\n  " ^ Pretty.printf ty)
             end
           | Error (sa, msg) -> (* This case is impossible *)
             Error (sa, "Error with global variables: " ^ msg)
@@ -126,7 +103,7 @@ let rec elaborate global ind_env ctx lvl sl ty ph vars = function
       Ok (I0(), Int(), sl)
     | Hole _ -> 
       Ok (I0(), Int(), sl)
-    | _ -> Error (sl, "Type mismatch when checking that the endpoint i0 of type I has type " ^ Pretty.print (to_raw_expr ty))
+    | _ -> Error (sl, "Type mismatch when checking that the endpoint i0 of type I has type " ^ Pretty.printf ty)
   end
   
   | I1() ->
@@ -135,10 +112,10 @@ let rec elaborate global ind_env ctx lvl sl ty ph vars = function
       Ok (I1(), Int(), sl)
     | Hole _ -> 
       Ok (I1(), Int(), sl)
-    | _ -> Error (sl, "Type mismatch when checking that the endpoint i1 of type I has type " ^ Pretty.print (to_raw_expr ty))
+    | _ -> Error (sl, "Type mismatch when checking that the endpoint i1 of type I has type " ^ Pretty.printf ty)
     end
 
-  | Abs (x, e) ->
+  | Lam (x, e) ->
     let e = eval ind_env e in
     let ty = eval ind_env ty in
     begin match ty with
@@ -149,15 +126,15 @@ let rec elaborate global ind_env ctx lvl sl ty ph vars = function
       let elab = elaborate global ind_env ((v1, ty1, true) :: ctx) lvl sl ty2' ph (vars+1) e' in
       begin match elab with
       | Ok (e', ty2', sa) -> 
-        Ok (Abs (x, close_bound v1 e'), Pi (x, ty1, close_bound v1 ty2'), sa)
+        Ok (Lam (x, close_bound v1 e'), Pi (x, ty1, close_bound v1 ty2'), sa)
       | Error (sa, msg) -> Error (sa, msg)
       end
     | Hole _ ->
       let h1 = Placeholder.generate ph [] in
       let h2 = Placeholder.generate (ph+1) [] in
-      elaborate global ind_env ctx lvl sl (Pi(x, h1, h2)) (ph+2) vars (Abs (x, e))
+      elaborate global ind_env ctx lvl sl (Pi(x, h1, h2)) (ph+2) vars (Lam (x, e))
     | _ -> 
-      Error (sl, "The term\n  " ^ Pretty.printf (Abs (x, e)) ^ 
+      Error (sl, "The term\n  " ^ Pretty.printf (Lam (x, e)) ^ 
       "\nhas type\n  " ^ Pretty.printf ty ^ "\nbut is expected to have type\n  Π (v? : ?0?) ?1?")
     end
 
@@ -239,7 +216,7 @@ let rec elaborate global ind_env ctx lvl sl ty ph vars = function
       elaborate global ind_env ctx lvl sl (Sigma(v1, h1, h2)) (ph+2) (vars+1) (Pair (e1, e2))
     | _ ->
       Error (sl, "Type mismatch when checking that the term (" ^ 
-      Pretty.print (to_raw_expr e1) ^ ", " ^ Pretty.print (to_raw_expr e2) ^ ") of type Σ (v? : ?0?) ?1? has type " ^ Pretty.printf ty)
+      Pretty.printf e1 ^ ", " ^ Pretty.printf e2 ^ ") of type Σ (v? : ?0?) ?1? has type " ^ Pretty.printf ty)
     end
     
   | Fst e ->
@@ -264,10 +241,10 @@ let rec elaborate global ind_env ctx lvl sl ty ph vars = function
           Error msg
         end
       | _ -> 
-        Error (sa, "The term\n  " ^ Pretty.print (to_raw_expr e') ^ "\nhas type\n  " ^ Pretty.print (to_raw_expr ty') ^ "\nbut is expected to have type\n  Σ (v0 : ?0?) ?1?")
+        Error (sa, "The term\n  " ^ Pretty.printf e' ^ "\nhas type\n  " ^ Pretty.printf ty' ^ "\nbut is expected to have type\n  Σ (v0 : ?0?) ?1?")
       end
     | Error (sa, msg) ->
-      Error (sa, "The term\n  " ^ Pretty.print (to_raw_expr e) ^ "\nis expected to have type\n  Σ (v0 : ?0?) ?1?" ^ "\n" ^ msg)
+      Error (sa, "The term\n  " ^ Pretty.printf e ^ "\nis expected to have type\n  Σ (v0 : ?0?) ?1?" ^ "\n" ^ msg)
     end
 
   | Snd e ->
@@ -327,16 +304,16 @@ let rec elaborate global ind_env ctx lvl sl ty ph vars = function
           Ok (Coe (i', j', eval ind_env ety, e'), tty, Stack.lappend sa sat sat')
         | Error (_, msg) -> 
           Error (Stack.lappend sa sat sat', 
-            "Failed to unify the terms\n  " ^ Pretty.print (to_raw_expr tyj) ^ "\nand\n  " ^ Pretty.print (to_raw_expr ty') ^ 
-            "\nof expected type\n  " ^ Pretty.print (to_raw_expr eTy) ^
-            "\nwhen checking that the coercion\n  " ^ Pretty.print (to_raw_expr (Coe(i, j, ety, e))) ^
+            "Failed to unify the terms\n  " ^ Pretty.printf tyj ^ "\nand\n  " ^ Pretty.printf ty' ^ 
+            "\nof expected type\n  " ^ Pretty.printf eTy ^
+            "\nwhen checking that the coercion\n  " ^ Pretty.printf (Coe(i, j, ety, e)) ^
             "\nhas type\n  " ^ Pretty.printf ty ^
             "\n" ^ msg)
         end
       | Error (sa, msg), _ ->
         Error (sa,
-          "The coercion failed because\n  " ^ Pretty.print (to_raw_expr e) ^
-          "\ndoes not have type\n  " ^ Pretty.print (to_raw_expr tyi) ^ "\n" ^ msg)
+          "The coercion failed because\n  " ^ Pretty.printf e ^
+          "\ndoes not have type\n  " ^ Pretty.printf tyi ^ "\n" ^ msg)
       | _, Error msg ->
         Error msg
       end
@@ -425,27 +402,27 @@ let rec elaborate global ind_env ctx lvl sl ty ph vars = function
             
           | Error (sa', msg), _, _, _ ->
             Error (Stack.append sa' (Stack.lappend sa sa1 sa2), 
-            "Error when checking that the homogeneous composition  " ^ Pretty.print (to_raw_expr (Hcom(i1, j1, e', e1', e2'))) ^ 
-            "\nhas type\n  I → " ^ Pretty.print (to_raw_expr ty') ^ 
-            "\nThe i0-face of the lid\n  " ^ Pretty.print (to_raw_expr (eval ind_env (App(e', I0())))) ^ "\ndoes not have the expected type\n  " ^ Pretty.print (to_raw_expr ty') ^
+            "Error when checking that the homogeneous composition  " ^ Pretty.printf (Hcom(i1, j1, e', e1', e2')) ^ 
+            "\nhas type\n  I → " ^ Pretty.printf ty' ^ 
+            "\nThe i0-face of the lid\n  " ^ Pretty.printf (eval ind_env (App(e', I0()))) ^ "\ndoes not have the expected type\n  " ^ Pretty.printf ty' ^
             "\n" ^ msg)
           | _, Error (sa', msg), _, _ ->
             Error (Stack.append sa' (Stack.lappend sa sa1 sa2), 
-            "Error when checking that the homogeneous filling\n  " ^ Pretty.print (to_raw_expr (Hcom(i1, j1, e', e1', e2'))) ^ 
-            "\nhas type\n  I → I → " ^ Pretty.print (to_raw_expr ty') ^ 
-            "\nThe i1-face of the lid\n  " ^ Pretty.print (to_raw_expr (eval ind_env (App(e', I1())))) ^ "\ndoes not have the expected type\n  " ^ Pretty.print (to_raw_expr ty') ^ 
+            "Error when checking that the homogeneous filling\n  " ^ Pretty.printf (Hcom(i1, j1, e', e1', e2')) ^ 
+            "\nhas type\n  I → I → " ^ Pretty.printf ty' ^ 
+            "\nThe i1-face of the lid\n  " ^ Pretty.printf (eval ind_env (App(e', I1()))) ^ "\ndoes not have the expected type\n  " ^ Pretty.printf ty' ^ 
             "\n" ^ msg)
           | _, _, Error (sa', msg), _ ->
             Error (Stack.append sa' (Stack.lappend sa sa1 sa2), 
-            "Error when checking that the homogeneous filling\n  " ^ Pretty.print (to_raw_expr (Hcom(i1, j1, e', e1', e2'))) ^ 
-            "\nhas type\n  I → I → " ^ Pretty.print (to_raw_expr ty') ^ 
-            "\nThe i0-face of the i0-tube\n  " ^ Pretty.print (to_raw_expr (eval ind_env (App(e1', I0())))) ^ "\ndoes not have the expected type\n  " ^ Pretty.print (to_raw_expr ty') ^ 
+            "Error when checking that the homogeneous filling\n  " ^ Pretty.printf (Hcom(i1, j1, e', e1', e2')) ^ 
+            "\nhas type\n  I → I → " ^ Pretty.printf ty' ^ 
+            "\nThe i0-face of the i0-tube\n  " ^ Pretty.printf (eval ind_env (App(e1', I0()))) ^ "\ndoes not have the expected type\n  " ^ Pretty.printf ty' ^ 
             "\n" ^ msg)
           | _, _, _, Error (sa', msg) ->
             Error (Stack.append sa' (Stack.lappend sa sa1 sa2), 
-            "Error when checking that the homogeneous filling\n  " ^ Pretty.print (to_raw_expr (Hcom(i1, j1, e, e1, e2))) ^ 
-            "\nhas type\n  I → I → " ^ Pretty.print (to_raw_expr ty') ^ 
-            "\nThe i0-face of the i1-tube\n  " ^ Pretty.print (to_raw_expr (eval ind_env (App(e2', I0())))) ^ "\ndoes not have the expected type\n  " ^ Pretty.print (to_raw_expr ty') ^ 
+            "Error when checking that the homogeneous filling\n  " ^ Pretty.printf (Hcom(i1, j1, e, e1, e2)) ^ 
+            "\nhas type\n  I → I → " ^ Pretty.printf ty' ^ 
+            "\nThe i0-face of the i1-tube\n  " ^ Pretty.printf (eval ind_env (App(e2', I0()))) ^ "\ndoes not have the expected type\n  " ^ Pretty.printf ty' ^ 
             "\n" ^ msg)
           end
         | Error (sa, msg), _, _ | _, Error (sa, msg), _ | _, _, Error (sa, msg) -> 
@@ -491,21 +468,21 @@ let rec elaborate global ind_env ctx lvl sl ty ph vars = function
                     "\n" ^ msg)
                 end
               | Error (sa, msg), _ -> 
-                Error (sa, "Error when synthesizing type for the homogeneous filling\n  " ^ Pretty.print (to_raw_expr (Hcom(i1, j1, e', e1', e2'))) ^ 
-                    "\nThe i0-face of the i0-tube\n  " ^ Pretty.print (to_raw_expr (eval ind_env (App(e1', I0())))) ^ "\ndoes not have the expected type\n  " ^ Pretty.printf ty0 ^ 
+                Error (sa, "Error when synthesizing type for the homogeneous filling\n  " ^ Pretty.printf (Hcom(i1, j1, e', e1', e2')) ^ 
+                    "\nThe i0-face of the i0-tube\n  " ^ Pretty.printf (eval ind_env (App(e1', I0()))) ^ "\ndoes not have the expected type\n  " ^ Pretty.printf ty0 ^ 
                     "\n" ^ msg)
               | _, Error (sa, msg) ->
-                Error (sa, "Error when synthesizing type for the homogeneous filling\n  " ^ Pretty.print (to_raw_expr (Hcom(i1, j1, e', e1', e2'))) ^ 
-                    "\nThe i0-face of the i1-tube\n  " ^ Pretty.print (to_raw_expr (eval ind_env (App(e1', I0())))) ^ "\ndoes not have the expected type\n  " ^ Pretty.printf ty0 ^ 
+                Error (sa, "Error when synthesizing type for the homogeneous filling\n  " ^ Pretty.printf (Hcom(i1, j1, e', e1', e2')) ^ 
+                    "\nThe i0-face of the i1-tube\n  " ^ Pretty.printf (eval ind_env (App(e1', I0()))) ^ "\ndoes not have the expected type\n  " ^ Pretty.printf ty0 ^ 
                     "\n" ^ msg)
               end
             | Error (sa', msg), _ ->
               Error (Stack.append ss sa', 
                 "Failed to synthesize placeholder type. The lid " ^ Pretty.printf e' ^ " has type " ^ Pretty.printf ety ^ 
-                ", but could not check that the line\n  " ^ Pretty.print (to_raw_expr (eval ind_env (App(e', I1())))) ^ "\nhas type\n  " ^ Pretty.print (to_raw_expr ty') ^
-                "\nin the homogeneous filling\n  hfill (" ^ Pretty.print (to_raw_expr e') ^ 
-                ")\n    | i0 → " ^ Pretty.print (to_raw_expr e1') ^
-                "\n    | i1 → " ^ Pretty.print (to_raw_expr e2') ^ "\n" ^ msg)
+                ", but could not check that the line\n  " ^ Pretty.printf (eval ind_env (App(e', I1()))) ^ "\nhas type\n  " ^ Pretty.printf ty' ^
+                "\nin the homogeneous filling\n  hfill (" ^ Pretty.printf e' ^ 
+                ")\n    | i0 → " ^ Pretty.printf e1' ^
+                "\n    | i1 → " ^ Pretty.printf e2' ^ "\n" ^ msg)
             | _, Error msg -> Error msg
             end
           | _ -> Error (sl, "The lid of the homogeneous filling\n  " ^ Pretty.printf e ^ 
@@ -522,8 +499,8 @@ let rec elaborate global ind_env ctx lvl sl ty ph vars = function
       end
     
     | ty ->
-      Error (sl, "The homogeneous composition\n  " ^ Pretty.print (to_raw_expr (Hcom(i1, j1, e, e1, e2))) ^ 
-      "\nis expected to have type\n  I → I → ?0?\nand not\n  " ^ Pretty.print (to_raw_expr ty))
+      Error (sl, "The homogeneous composition\n  " ^ Pretty.printf (Hcom(i1, j1, e, e1, e2)) ^ 
+      "\nis expected to have type\n  I → I → ?0?\nand not\n  " ^ Pretty.printf ty)
     end
 
   | Pabs (i, e) ->
@@ -562,7 +539,7 @@ let rec elaborate global ind_env ctx lvl sl ty ph vars = function
               let u = unify global ind_env ctx lvl sl (ph+2) (vars+2) (ty', ty'', tTy) false in
               begin match u with
               | Ok st ->
-                Ok (Pabs (i, e_closed), Pathd (Abs(v2, st), ui0, ui1), sa)
+                Ok (Pabs (i, e_closed), Pathd (Lam(v2, st), ui0, ui1), sa)
               | Error (_, msg) -> 
                 Error (sa, 
                 "Type unification error in path abstraction.\n" ^ msg)
@@ -574,11 +551,11 @@ let rec elaborate global ind_env ctx lvl sl ty ph vars = function
             end
           | _ , Ok _ ->
             Error (sa, "Error in path abstraction over " ^ i ^ ": I. Failed to unify\n  " ^
-                    Pretty.print (to_raw_expr e1) ^ "\nwith\n  " ^ Pretty.print (to_raw_expr ei0) ^ "≡ " ^ Pretty.print (to_raw_expr e) ^ "[i0/" ^ i ^ "]" ^ "\n" ^
+                    Pretty.printf e1 ^ "\nwith\n  " ^ Pretty.printf ei0 ^ "≡ " ^ Pretty.printf e ^ "[i0/" ^ i ^ "]" ^ "\n" ^
                     goal_msg ctx (Pabs (i, e')) ty) 
           | _ ->
             Error (sa, "Failed to unify\n  " ^ 
-                    Pretty.print (to_raw_expr e2) ^ "\nwith\n  " ^ Pretty.print (to_raw_expr ei1) ^ "≡ " ^ Pretty.print (to_raw_expr e) ^ "[i1/" ^ i ^ "]" ^ "\n" ^
+                    Pretty.printf e2 ^ "\nwith\n  " ^ Pretty.printf ei1 ^ "≡ " ^ Pretty.printf e ^ "[i1/" ^ i ^ "]" ^ "\n" ^
                     goal_msg ctx (Pabs (i, e')) ty)
           end
         | Error (_, msg), _| _, Error (_, msg) -> 
@@ -621,17 +598,17 @@ let rec elaborate global ind_env ctx lvl sl ty ph vars = function
                   Ok (Pabs (i, e_closed), Pathd (ty1, ei0, ei1), saa)
                 | Error (_, msg) ->
                   Error (saa, "Error in path abstraction over " ^ i ^ " : I when attempting unification at the i0-endpoint. Failed to unify\n  " ^
-                  Pretty.print (to_raw_expr e1) ^ "\nwith\n  " ^ Pretty.print (to_raw_expr ei0) ^ "≡ " ^ Pretty.print (to_raw_expr e') ^ "[i0/" ^ i ^ "]" ^ "\n" ^
+                  Pretty.printf e1 ^ "\nwith\n  " ^ Pretty.printf ei0 ^ "≡ " ^ Pretty.printf e' ^ "[i0/" ^ i ^ "]" ^ "\n" ^
                   msg ^ "\n" ^ goal_msg ctx (Pabs (i, e')) ty )
                 end
               | _ -> 
                 Error (saa, "Error in path abstraction over " ^ i ^ " : I when attempting unification at the i0-endpoint. Failed to unify\n  " ^ 
-                        Pretty.print (to_raw_expr e1) ^ "\nwith\n  " ^ Pretty.print (to_raw_expr ei0) ^ "≡ " ^ Pretty.print (to_raw_expr e') ^ "[i0/" ^ i ^ "]" ^ "\n" ^
+                        Pretty.printf e1 ^ "\nwith\n  " ^ Pretty.printf ei0 ^ "≡ " ^ Pretty.printf e' ^ "[i0/" ^ i ^ "]" ^ "\n" ^
                         msg ^ "\n" ^ goal_msg ctx (Pabs (i, e')) ty)
               end
             | _ ->
               Error (saa, "Failed to unify\n  " ^ 
-                    Pretty.print (to_raw_expr e1) ^ "\nwith\n  " ^ Pretty.print (to_raw_expr ei0) ^ "≡ " ^ Pretty.print (to_raw_expr e') ^ "[i0/" ^ i ^ "]" ^ "\n" ^
+                    Pretty.printf e1 ^ "\nwith\n  " ^ Pretty.printf ei0 ^ "≡ " ^ Pretty.printf e' ^ "[i0/" ^ i ^ "]" ^ "\n" ^
                     msg ^ "\n" ^ goal_msg ctx (Pabs (i, e')) ty)
             end
           | _ , Error ((s,s'), msg) ->
@@ -647,34 +624,34 @@ let rec elaborate global ind_env ctx lvl sl ty ph vars = function
                   Ok (Pabs (i, e_closed), Pathd (ty1, ei0, ei1), saa)
                 | Error (_, msg) ->
                   Error (saa, "Error in path abstraction over " ^ i ^ " : I when attempting unification at the i1-endpoint. Failed to unify\n  " ^ 
-                    Pretty.print (to_raw_expr e2) ^ "\nwith\n  " ^ Pretty.print (to_raw_expr ei1) ^ "≡ " ^ Pretty.print (to_raw_expr e') ^ "[i1/" ^ i ^ "]" ^ "\n" ^
+                    Pretty.printf e2 ^ "\nwith\n  " ^ Pretty.printf ei1 ^ "≡ " ^ Pretty.printf e' ^ "[i1/" ^ i ^ "]" ^ "\n" ^
                     msg ^ "\n" ^ goal_msg ctx (Pabs (i, e')) ty )
                 end
 
               | _ -> 
                 Error (saa, "Failed to unify\n  " ^ 
-                        Pretty.print (to_raw_expr e2) ^ "\nwith\n  " ^ Pretty.print (to_raw_expr ei1) ^ "≡ " ^ Pretty.print (to_raw_expr e') ^ "[i1/" ^ i ^ "]" ^ "\n" ^
+                        Pretty.printf e2 ^ "\nwith\n  " ^ Pretty.printf ei1 ^ "≡ " ^ Pretty.printf e' ^ "[i1/" ^ i ^ "]" ^ "\n" ^
                         msg ^ "\n" ^ goal_msg ctx (Pabs (i, e')) ty )
               end
             | _ ->
               Error (saa, "Unification error at path abstraction. Failed to unify\n  " ^
-                    Pretty.print (to_raw_expr e2) ^ "\nwith\n  " ^ Pretty.print (to_raw_expr ei1) ^ "≡ " ^ Pretty.print (to_raw_expr e') ^ "[i1/" ^ i ^ "]" ^ 
-                    "\n" ^  Pretty.print (to_raw_expr ei1') ^ "\n" ^  Pretty.print (to_raw_expr e2') ^
+                    Pretty.printf e2 ^ "\nwith\n  " ^ Pretty.printf ei1 ^ "≡ " ^ Pretty.printf e' ^ "[i1/" ^ i ^ "]" ^ 
+                    "\n" ^  Pretty.printf ei1' ^ "\n" ^  Pretty.printf e2' ^
                     "\n" ^ msg ^ "\n" ^ goal_msg ctx (Pabs (i, e')) ty )
             end
           end
 
         | Error (_, msg), _ ->
           Error (saa, "Error when checking that the path abstracted term\n  " ^ 
-            Pretty.print (to_raw_expr (Pabs(i, eval ind_env e))) ^ "\nhas type\n  " ^ Pretty.print (to_raw_expr ty) ^ 
-            "\nThe i0-endpoint\n  " ^ Pretty.print (to_raw_expr (eval ind_env (open_var 0 (I0()) e'))) ^ 
-            "\ndoes not have type\n  " ^ Pretty.print (to_raw_expr (eval ind_env (App(ty1, I0())))) ^
+            Pretty.printf (Pabs(i, eval ind_env e)) ^ "\nhas type\n  " ^ Pretty.printf ty ^ 
+            "\nThe i0-endpoint\n  " ^ Pretty.printf (eval ind_env (open_var 0 (I0()) e')) ^ 
+            "\ndoes not have type\n  " ^ Pretty.printf (eval ind_env (App(ty1, I0()))) ^
             "\n" ^ msg)
         | _, Error (_, msg) -> 
           Error (saa, "Error when checking that the path abstracted term\n  " ^ 
-            Pretty.print (to_raw_expr (Pabs(i, eval ind_env e))) ^ "\nhas type\n  " ^ Pretty.print (to_raw_expr ty) ^ 
-            "\nThe i1-endpoint\n  " ^ Pretty.print (to_raw_expr (eval ind_env (open_var 0 (I1()) e'))) ^ 
-            "\ndoes not have type\n  " ^ Pretty.print (to_raw_expr (eval ind_env (App(ty1, I1()))) ) ^ 
+            Pretty.printf (Pabs(i, eval ind_env e)) ^ "\nhas type\n  " ^ Pretty.printf ty ^ 
+            "\nThe i1-endpoint\n  " ^ Pretty.printf (eval ind_env (open_var 0 (I1()) e')) ^ 
+            "\ndoes not have type\n  " ^ Pretty.printf (eval ind_env (App(ty1, I1()))) ^ 
             "\n" ^ msg)
         end
       | Error (sa, msg) -> 
@@ -697,9 +674,9 @@ let rec elaborate global ind_env ctx lvl sl ty ph vars = function
           let u = unify global ind_env ctx lvl sl (ph+2) (vars+1) (ty', ty'', tTy') false in
           begin match u with
           | Ok st ->
-            elaborate global ind_env ctx lvl sl (Pathd(Abs(v1,st), ei0, ei1)) (ph+2) (vars+1) (Pabs (i, e))
+            elaborate global ind_env ctx lvl sl (Pathd(Lam(v1,st), ei0, ei1)) (ph+2) (vars+1) (Pabs (i, e))
           | Error (_, msg) ->
-            Error (sl, "Failed to unify the types\n  " ^ Pretty.print (to_raw_expr ty') ^ "\nand\n  " ^ Pretty.print (to_raw_expr ty'') ^ "\n" ^ msg)
+            Error (sl, "Failed to unify the types\n  " ^ Pretty.printf ty' ^ "\nand\n  " ^ Pretty.printf ty'' ^ "\n" ^ msg)
             
           end
         | Error msg -> (* This case never occurs *)
@@ -710,7 +687,7 @@ let rec elaborate global ind_env ctx lvl sl ty ph vars = function
     | Ok (ty', _, sa) -> 
       Error (sa, "The expression\n  <" ^ i ^ "> " ^ Pretty.printf e ^ "\nchecked against type " ^ Pretty.printf ty ^ " is expected to have type\n  pathd ?0? ?1? ?2?\nbut has type\n  " ^ Pretty.printf ty')
     | Error (sa, msg) -> 
-      Error (sa, "Failed to prove that\n  " ^ Pretty.print (to_raw_expr (eval ind_env ty)) ^ "\nis a type\n" ^ msg)
+      Error (sa, "Failed to prove that\n  " ^ Pretty.printf (eval ind_env ty) ^ "\nis a type\n" ^ msg)
     end
   
   | At (e1, e2) ->
@@ -725,7 +702,7 @@ let rec elaborate global ind_env ctx lvl sl ty ph vars = function
       | Pathd (ty', a, b) ->
         if e2' = I0() then (* TODO: better as pattern matching *)
           match a, ty' with
-          | Hole _, Abs(_, ty') -> (* unify ty' and ty*)
+          | Hole _, Lam(_, ty') -> (* unify ty' and ty*)
             Ok (At (e1', I0()), open_var 0 (I0()) ty', Stack.append sa1 sa2)
           | Hole _, Hole _ -> 
             Ok (At (e1', I0()), ty, Stack.append sa1 sa2)
@@ -736,7 +713,7 @@ let rec elaborate global ind_env ctx lvl sl ty ph vars = function
             elaborate global ind_env ctx lvl sl ty (ph+3) vars a'
         else if e2' = I1() then
           match b, ty' with
-          | Hole _, Abs(_, ty') -> 
+          | Hole _, Lam(_, ty') -> 
             Ok (At (e1', I1()), open_var 0 (I1()) ty', Stack.append sa1 sa2)
           | Hole _, Hole _ -> 
             Ok (At (e1', I1()), ty, Stack.append sa1 sa2)
@@ -747,7 +724,7 @@ let rec elaborate global ind_env ctx lvl sl ty ph vars = function
             elaborate global ind_env ctx lvl sl ty (ph+3) vars b'
         else
           begin match ty' with
-          | Abs(_, ty') ->
+          | Lam(_, ty') ->
             let ty2' = open_var 0 e2' ty' in
             let elabTy = elaborate global ind_env ctx lvl sl h1 (ph+3) vars ty2' in
             begin match elabTy with
@@ -758,7 +735,7 @@ let rec elaborate global ind_env ctx lvl sl ty ph vars = function
               | _ -> 
                 Error (Stack.append sa1 sa2, 
                   "Failed to unify\n  " ^ 
-                  Pretty.print (to_raw_expr ty2') ^ "\nwith\n  " ^ Pretty.print (to_raw_expr ty))
+                  Pretty.printf ty2' ^ "\nwith\n  " ^ Pretty.printf ty)
               end
             | Error msg -> (* This case is impossible *)
               Error msg
@@ -777,7 +754,7 @@ let rec elaborate global ind_env ctx lvl sl ty ph vars = function
                 | _ -> 
                   Error (Stack.append sa1 sa2, 
                     "Failed to unify\n  " ^ 
-                    Pretty.print (to_raw_expr ty') ^ "\nwith\n  " ^ Pretty.print (to_raw_expr ty))
+                    Pretty.printf ty' ^ "\nwith\n  " ^ Pretty.printf ty)
                 end
               | Error msg -> (* This case is impossible *)
                 Error msg
@@ -792,7 +769,7 @@ let rec elaborate global ind_env ctx lvl sl ty ph vars = function
                   Ok (At (e1', e2'), tty, Stack.append sa1 sa2) 
                 | _ -> 
                   Error (Stack.append sa1 sa2, "Failed to unify\n  " ^ 
-                  Pretty.print (to_raw_expr ty') ^ "\nwith\n  " ^ Pretty.print (to_raw_expr ty))
+                  Pretty.printf ty' ^ "\nwith\n  " ^ Pretty.printf ty)
                 end
               | Error msg -> (* This case is impossible *)
                 Error msg
@@ -801,8 +778,8 @@ let rec elaborate global ind_env ctx lvl sl ty ph vars = function
           end
       | _ -> 
         Error (Stack.append sa1 sa2, 
-          "Type mismatch when checking that\n  " ^ Pretty.print (to_raw_expr e1') ^ 
-          "\nof type\n  " ^ Pretty.print (to_raw_expr ty1') ^ "\nhas type\n  pathd ?0? ?1? ?2? ")
+          "Type mismatch when checking that\n  " ^ Pretty.printf e1' ^ 
+          "\nof type\n  " ^ Pretty.printf ty1' ^ "\nhas type\n  pathd ?0? ?1? ?2? ")
       end
     | Error msg, _ | _, Error msg -> 
       Error msg
@@ -904,13 +881,13 @@ let rec elaborate global ind_env ctx lvl sl ty ph vars = function
         if Core_ast.leq max m then 
           Ok (Sigma(x, ty1', close_bound x ty2'), Type m, Stack.append sa1 sa2) 
         else 
-          Error (Stack.append sa1 sa2, "Type mismatch when checking that \n  Σ ( " ^ x ^ " : " ^ Pretty.print (to_raw_expr ty1) ^ ") " ^ Pretty.print (to_raw_expr ty2) ^ 
-            "\nof type \n  " ^ Pretty.print (to_raw_expr (eval ind_env (Type (Max(n1, n2))))) ^ "\n has type\n  " ^ Pretty.print (to_raw_expr (Type m)))
+          Error (Stack.append sa1 sa2, "Type mismatch when checking that \n  Σ ( " ^ x ^ " : " ^ Pretty.printf ty1 ^ ") " ^ Pretty.printf ty2 ^ 
+            "\nof type \n  " ^ Pretty.printf (eval ind_env (Type (Max(n1, n2)))) ^ "\n has type\n  " ^ Pretty.printf (Type m))
       | Hole _ -> 
         Ok (Sigma(x, ty1', close_bound x ty2'), Type max, Stack.append sa1 sa2)
       | _ ->
         Error (Stack.append sa1 sa2, "Type mismatch when checking that\n  Σ ( " ^ x ^ " : " ^ 
-          Pretty.print (to_raw_expr ty1) ^ ") " ^ Pretty.print (to_raw_expr ty2) ^ "\nhas type\n  " ^ Pretty.print (to_raw_expr ty))
+          Pretty.printf ty1 ^ ") " ^ Pretty.printf ty2 ^ "\nhas type\n  " ^ Pretty.printf ty)
       end
     
     | Ok (ty1', Type n, sa), Ok (Hole (k,l), _, _) -> 
@@ -919,12 +896,12 @@ let rec elaborate global ind_env ctx lvl sl ty ph vars = function
         if Core_ast.leq n m then 
           Ok (Sigma(x, ty1', Hole (k,l)), Type m, sa) 
         else 
-          Error (sa, "Type mismatch when checking that \n  Σ ( " ^ x ^ " : " ^ Pretty.print (to_raw_expr ty1) ^ ") " ^ Pretty.print (to_raw_expr ty2) ^ 
-                "\nof type \n  " ^ Pretty.print (to_raw_expr (Type n)) ^ "\n has type\n  " ^ Pretty.print (to_raw_expr (Type m)))
+          Error (sa, "Type mismatch when checking that \n  Σ ( " ^ x ^ " : " ^ Pretty.printf ty1 ^ ") " ^ Pretty.printf ty2 ^ 
+                "\nof type \n  " ^ Pretty.printf (Type n) ^ "\n has type\n  " ^ Pretty.printf (Type m))
       | Hole _ -> 
         Ok (Sigma(x, ty1', Hole (k,l)), Type n, sa) (* TODO: hole might have live in a higher universe *)
       | _ ->
-        Error (sa, "Type mismatch when checking that\n  Σ ( " ^ x ^ " : " ^ Pretty.print (to_raw_expr ty1) ^ ") " ^ Pretty.print (to_raw_expr ty2) ^ "\nhas type\n  " ^ Pretty.print (to_raw_expr ty))
+        Error (sa, "Type mismatch when checking that\n  Σ ( " ^ x ^ " : " ^ Pretty.printf ty1 ^ ") " ^ Pretty.printf ty2 ^ "\nhas type\n  " ^ Pretty.printf ty)
       end
     | Ok (Hole (k,l), _, _), Ok (ty2', Type n, sa) -> 
       begin match ty with
@@ -932,12 +909,12 @@ let rec elaborate global ind_env ctx lvl sl ty ph vars = function
         if Core_ast.leq n m then 
           Ok (Sigma(x, Hole (k,l), close_bound x ty2'), Type m, sa) 
         else 
-          Error (sa, "Type mismatch when checking that \n  Σ ( " ^ x ^ " : " ^ Pretty.print (to_raw_expr ty1) ^ ") " ^ Pretty.print (to_raw_expr ty2) ^ 
-                "\nof type \n  type " ^ Pretty.print (to_raw_expr (Type n)) ^ "))\n has type\n  " ^ Pretty.print (to_raw_expr (Type m)))
+          Error (sa, "Type mismatch when checking that \n  Σ ( " ^ x ^ " : " ^ Pretty.printf ty1 ^ ") " ^ Pretty.printf ty2 ^ 
+                "\nof type \n  " ^ Pretty.printf (Type n) ^ "\n has type\n  " ^ Pretty.printf (Type m))
       | Hole _ -> 
         Ok (Sigma(x, Hole (k,l), close_bound x ty2'), Type n, sa) (* TODO: hole might have live in a higher universe *)
       | _ ->
-        Error (sa, "Type mismatch when checking that\n  Σ ( " ^ x ^ " : " ^ Pretty.print (to_raw_expr ty1) ^ ") " ^ Pretty.print (to_raw_expr ty2) ^ "\nhas type\n  " ^ Pretty.print (to_raw_expr ty))
+        Error (sa, "Type mismatch when checking that\n  Σ ( " ^ x ^ " : " ^ Pretty.printf ty1 ^ ") " ^ Pretty.printf ty2 ^ "\nhas type\n  " ^ Pretty.printf ty)
       end
     | Ok (Hole (k1,l1), _, _), Ok (Hole (k2,l2), _, _) ->
       begin match ty with
@@ -947,12 +924,12 @@ let rec elaborate global ind_env ctx lvl sl ty ph vars = function
           Ok (Sigma(x, Hole (k1,l1), Hole (k2,l2)), Hole(k, l), sl)
       | _ ->
         Error (sl, 
-        "Type mismatch when checking that\n  Σ ( " ^ x ^ " : " ^ Pretty.print (to_raw_expr ty1) ^ ") " ^ Pretty.print (to_raw_expr ty2) ^ "\nhas type\n  " ^ Pretty.print (to_raw_expr ty))
+        "Type mismatch when checking that\n  Σ ( " ^ x ^ " : " ^ Pretty.printf ty1 ^ ") " ^ Pretty.printf ty2 ^ "\nhas type\n  " ^ Pretty.printf ty)
       end
     | Ok (_, Type _, _), Error (sa, msg) ->
-      Error (sa, "Failed to check that\n  " ^ Pretty.print (to_raw_expr ty2) ^ "\nis a type\n" ^ msg)
-    | Error (sa, msg), _ -> Error (sa, "Failed1 to check that\n  " ^ Pretty.print (to_raw_expr ty1) ^ "\nis a type\n" ^ msg)
-    | _ -> Error (sl, "Failed to check that\n  " ^ Pretty.print (to_raw_expr ty1) ^ "\nis a type")
+      Error (sa, "Failed to check that\n  " ^ Pretty.printf ty2 ^ "\nis a type\n" ^ msg)
+    | Error (sa, msg), _ -> Error (sa, "Failed1 to check that\n  " ^ Pretty.printf ty1 ^ "\nis a type\n" ^ msg)
+    | _ -> Error (sl, "Failed to check that\n  " ^ Pretty.printf ty1 ^ "\nis a type")
     end
   
   | Int() ->
@@ -963,7 +940,7 @@ let rec elaborate global ind_env ctx lvl sl ty ph vars = function
     | Hole _ -> 
       Ok (Int(), Type (Num 0), sl)
     | _ -> 
-      Error (sl, "Type mismatch when checking that\n  I\nhas type\n  " ^ Pretty.print (to_raw_expr ty))
+      Error (sl, "Type mismatch when checking that\n  I\nhas type\n  " ^ Pretty.printf ty)
     end
 
   | Void() ->
@@ -971,7 +948,7 @@ let rec elaborate global ind_env ctx lvl sl ty ph vars = function
     begin match ty with
     | Type m -> Ok (Void(), Type m, sl)
     | Hole _ -> Ok (Void(), Type (Num 0), sl)
-    | _ -> Error (sl, "Type mismatch when checking that\n  void\n has type\n  " ^ Pretty.print (to_raw_expr ty))
+    | _ -> Error (sl, "Type mismatch when checking that\n  void\n has type\n  " ^ Pretty.printf ty)
     end
 
   | Pathd(ty1, e1, e2) ->
@@ -987,7 +964,7 @@ let rec elaborate global ind_env ctx lvl sl ty ph vars = function
           | Hole (m,k) ->
             Ok (Pathd(Hole (n,l), Hole (n1,l1), Hole (n2,l2)), Hole (m,k), sl)
           | _ -> 
-            Error (sl, "Failed to check that\n  " ^ Pretty.print (to_raw_expr ty) ^ "\nis a type")
+            Error (sl, "Failed to check that\n  " ^ Pretty.printf ty ^ "\nis a type")
           end
       | _ ->
         let elab1 = elaborate global ind_env ctx lvl sl (Hole (n,l)) (ph+1) vars e1 in
@@ -1006,22 +983,22 @@ let rec elaborate global ind_env ctx lvl sl ty ph vars = function
             else 
               Ok (Pathd(Hole (n,l), e1', e2'), Hole (m,k), Stack.append sa1 sa2)
           | _ -> 
-            Error (Stack.append sa1 sa2, "Failed to check that\n  " ^ Pretty.print (to_raw_expr ty) ^ "\nis a type")
+            Error (Stack.append sa1 sa2, "Failed to check that\n  " ^ Pretty.printf ty ^ "\nis a type")
           end
         | _ -> 
-          Error (sl, "Failed to check that\n  " ^ Pretty.print (to_raw_expr e1) ^ "\nhas type\n ?0?")
+          Error (sl, "Failed to check that\n  " ^ Pretty.printf e1 ^ "\nhas type\n ?0?")
         end
       end
-    | Abs(x, Hole (n,l)) ->
+    | Lam(x, Hole (n,l)) ->
       begin match e1, e2 with 
       | Hole (n1,l1), Hole (n2,l2) ->
           begin match ty with
           | Type m ->
-            Ok (Pathd(Abs(x, Hole (n,l)), Hole (n1,l1), Hole (n2,l2)), Type m, sl)
+            Ok (Pathd(Lam(x, Hole (n,l)), Hole (n1,l1), Hole (n2,l2)), Type m, sl)
           | Hole (m,k) ->
-            Ok (Pathd(Abs(x, Hole (n,l)), Hole (n1,l1), Hole (n2,l2)), Hole (m,k), sl)
+            Ok (Pathd(Lam(x, Hole (n,l)), Hole (n1,l1), Hole (n2,l2)), Hole (m,k), sl)
           | _ -> 
-            Error (sl, "Failed to check that\n  " ^ Pretty.print (to_raw_expr ty) ^ "\nis a type")
+            Error (sl, "Failed to check that\n  " ^ Pretty.printf ty ^ "\nis a type")
           end
       | _ ->
         let elab1 = elaborate global ind_env ctx lvl sl (Hole (n,l)) (ph+1) vars e1 in
@@ -1030,16 +1007,16 @@ let rec elaborate global ind_env ctx lvl sl ty ph vars = function
         | Ok (e1', _, sa1), Ok (e2', _, sa2) ->
           begin match ty with
           | Type m ->
-            Ok (Pathd(Abs(x,Hole (n,l)), e1', e2'), Type m, Stack.append sa1 sa2)
+            Ok (Pathd(Lam(x,Hole (n,l)), e1', e2'), Type m, Stack.append sa1 sa2)
           | Hole (m,k) ->
-            Ok (Pathd(Abs(x,Hole (n,l)), e1', e2'), Hole (m,k), Stack.append sa1 sa2)
+            Ok (Pathd(Lam(x,Hole (n,l)), e1', e2'), Hole (m,k), Stack.append sa1 sa2)
           | _ -> 
-            Error (Stack.append sa1 sa2, "Failed to check that\n  " ^ Pretty.print (to_raw_expr ty) ^ "\nis a type")
+            Error (Stack.append sa1 sa2, "Failed to check that\n  " ^ Pretty.printf ty ^ "\nis a type")
             end
         | Ok _, Error (sa, msg) -> 
-          Error (sa, "Failed to check that\n  " ^ Pretty.print (to_raw_expr e2) ^ "\nhas type\n ?0?\n" ^ msg)
+          Error (sa, "Failed to check that\n  " ^ Pretty.printf e2 ^ "\nhas type\n ?0?\n" ^ msg)
         | Error (sa, msg), _ -> 
-          Error (sa, "Failed to check that\n  " ^ Pretty.print (to_raw_expr e1) ^ "\nhas type\n " ^ Pretty.print (to_raw_expr (Hole (n,l))) ^ "\n" ^ msg)
+          Error (sa, "Failed to check that\n  " ^ Pretty.printf e1 ^ "\nhas type\n " ^ Pretty.printf (Hole (n,l)) ^ "\n" ^ msg)
         end
       end
     | ty1 ->
@@ -1061,21 +1038,21 @@ let rec elaborate global ind_env ctx lvl sl ty ph vars = function
               else 
                 Error (Stack.lappend sa sa1 sa2, 
                   "Failed to check that\n  pathd " ^ 
-                  Pretty.print (to_raw_expr ty1') ^ " " ^  Pretty.print (to_raw_expr e1') ^ " " ^  Pretty.print (to_raw_expr e2') ^ 
-                  "\nhas type\n  " ^ Pretty.print (to_raw_expr ty))
+                  Pretty.printf ty1' ^ " " ^  Pretty.printf e1' ^ " " ^  Pretty.printf e2' ^ 
+                  "\nhas type\n  " ^ Pretty.printf ty)
             | Hole _ -> 
               Ok (Pathd(ty1', e1', e2'), Type n, Stack.lappend sa sa1 sa2)
             | _ -> 
               Error (Stack.lappend sa sa1 sa2, 
-              "Failed to check that\n  " ^ Pretty.print (to_raw_expr ty2) ^ "\nis a type")
+              "Failed to check that\n  " ^ Pretty.printf ty2 ^ "\nis a type")
             end
           | Int() , Hole _ | Hole _, Hole _ -> 
             Ok (Pathd(ty1', e1', e2'), tTyi0, Stack.lappend sa sa1 sa2)
           | _ -> 
-            Error (Stack.lappend sa sa1 sa2, "Failed to unify \n  " ^ Pretty.print (to_raw_expr i) ^ "with\n  I ")
+            Error (Stack.lappend sa sa1 sa2, "Failed to unify \n  " ^ Pretty.printf i ^ "with\n  I ")
           end
         | Ok (ty1', _, sa), Ok _, Ok _ ->
-          Error (sa, "Type mismatch when checking that\n  " ^ Pretty.print (to_raw_expr ty1') ^ "\nhas type\n  Π (v? : I) ?0?")
+          Error (sa, "Type mismatch when checking that\n  " ^ Pretty.printf ty1' ^ "\nhas type\n  Π (v? : I) ?0?")
         | Error msg, _, _| _, Error msg, _ | _, _, Error msg -> 
           Error msg
         end
@@ -1085,7 +1062,7 @@ let rec elaborate global ind_env ctx lvl sl ty ph vars = function
     end
     
   | Type n ->
-    begin match decl2 lvl n with
+    begin match Universe.decl2 lvl n with
     | Ok _ ->
       begin match ty with
       | Type m ->
@@ -1096,12 +1073,12 @@ let rec elaborate global ind_env ctx lvl sl ty ph vars = function
         else
           Error (sl, "Universe inconsistency: the universe level of\n  " ^ Pretty.printf (Type n) ^ 
           "\nmust be inferior to the universe level of\n  " ^ Pretty.printf (Type m) ^ 
-          "\nFailed to prove that " ^ Pretty.print_level (to_raw_level n) ^ " ≤ " ^ Pretty.print_level (to_raw_level m))
+          "\nFailed to prove that " ^ Pretty.print_level n ^ " ≤ " ^ Pretty.print_level m)
       | Hole _ -> 
         Ok (Type n, Type (Suc n), sl)
       | _ -> 
-        Error (sl, "Type mismatch when checking that\n  " ^ Pretty.print (to_raw_expr (Type n)) ^ 
-          "\nhas type\n  " ^ Pretty.print (to_raw_expr ty))
+        Error (sl, "Type mismatch when checking that\n  " ^ Pretty.printf (Type n) ^ 
+          "\nhas type\n  " ^ Pretty.printf ty)
       end
     | Error msg -> 
       Error (sl, msg)
@@ -1184,10 +1161,10 @@ and unify global ind_env ctx lvl sl ph vars x lift =
             Error ((Hole (n1, l1), Hole (n2, l2)), 
                   "Failed to unify the placeholder\n  ?" ^ 
                   n1 ^ "?\nwhose suitable candidates are\n" ^ 
-                  (String.concat " " (List.map (fun e -> Pretty.print (to_raw_expr e)) l1)) ^
+                  (String.concat " " (List.map (fun e -> Pretty.printf e) l1)) ^
                   "\nwith the placeholder\n  ?" ^ 
                   n2 ^ "?\nwhose suitable candidates are\n" ^ 
-                  (String.concat " " (List.map (fun e -> Pretty.print (to_raw_expr e)) l2))) 
+                  (String.concat " " (List.map (fun e -> Pretty.printf e) l2))) 
         end
 
       | e , _, Pathd(_, _, _) ->
@@ -1199,7 +1176,7 @@ and unify global ind_env ctx lvl sl ph vars x lift =
           (* if has_dangling_local 0 e then
             Error ((e, Hole (n, l)),
               "Failed to instantiate placeholder with a term containing dangling local variables\n" ^
-              "candidate:\n  " ^ Pretty.print (to_raw_expr e))
+              "candidate:\n  " ^ Pretty.printf e)
           else *)
             Ok e
         | _ ->
@@ -1214,13 +1191,13 @@ and unify global ind_env ctx lvl sl ph vars x lift =
             (* if has_dangling_local 0 e then
               Error ((e , Hole (n, l)),
                 "Failed to instantiate placeholder with a dangling-local candidate\n" ^
-                "candidate:\n  " ^ Pretty.print (to_raw_expr e))
+                "candidate:\n  " ^ Pretty.printf e)
             else *)
             Ok e 
           else 
             Error ((e , Hole (n, l)),
                     "Failed to unify the placeholder\n  " ^ 
-                    Pretty.print (to_raw_expr (Hole (n, l))) ^ "\nwith the suitable candidates\n" ^ 
+                    Pretty.printf (Hole (n, l)) ^ "\nwith the suitable candidates\n" ^ 
                     (String.concat " " (List.map Pretty.printf l)))
         end
       
@@ -1276,13 +1253,13 @@ and unify global ind_env ctx lvl sl ph vars x lift =
           Error (fst msg, "Don't know how to unify the dependent path types \n  " ^ Pretty.printf (Pathd (e, e1, e2)) ^ "\nand\n  " ^ Pretty.printf (Pathd (e', e1', e2')) ^ " due to the following errors:\n " ^ snd msg)
         end
 
-      | Abs (x, e), Abs (x', e'), Pi(_, ty1 , ty2) ->
+      | Lam (x, e), Lam (x', e'), Pi(_, ty1 , ty2) ->
         if e = e' then
-          Ok (Abs (x, e))
+          Ok (Lam (x, e))
         else if Placeholder.is e' then
-          Ok (Abs (x, e))
+          Ok (Lam (x, e))
         else if Placeholder.is e then
-          Ok (Abs (x, e'))
+          Ok (Lam (x, e'))
         else 
           begin match eval ind_env ty1 with
           | Int() | Hole(_,_) ->
@@ -1300,16 +1277,16 @@ and unify global ind_env ctx lvl sl ph vars x lift =
                 let u0 = unify global ind_env ctx lvl sl (ph+1) vars (ei0, ei0', tyi0) lift in
                 let u1 = unify global ind_env ctx lvl sl (ph+1) vars (ei1, ei1', tyi1) lift in
                 begin match u0, u1 with
-                | Ok _, Ok _ -> Ok (Abs (x, e))
+                | Ok _, Ok _ -> Ok (Lam (x, e))
                 | Error msg, _ | _, Error msg -> Error msg
                 end
               | Error (_, msg), _, _, _ | _, Error (_, msg), _, _ | _, _, Error (_, msg), _ | _, _, _, Error (_, msg) -> 
-                Error ((Abs (x, e), Abs (x', e')), "Failed endpoint unification of\n  " ^ Pretty.print (to_raw_expr e) ^ 
-                  "[" ^ x ^ "/i0]\nwith\n  " ^ Pretty.print (to_raw_expr e') ^ "[" ^ x' ^ "/i0]\nand\n  " ^ Pretty.print (to_raw_expr e) ^ 
-                  "[" ^ x ^ "/i1]\nwith\n  " ^ Pretty.print (to_raw_expr e') ^ "[" ^ x' ^ "/i1]\n" ^ msg)
+                Error ((Lam (x, e), Lam (x', e')), "Failed endpoint unification of\n  " ^ Pretty.printf e ^ 
+                  "[" ^ x ^ "/i0]\nwith\n  " ^ Pretty.printf e' ^ "[" ^ x' ^ "/i0]\nand\n  " ^ Pretty.printf e ^ 
+                  "[" ^ x ^ "/i1]\nwith\n  " ^ Pretty.printf e' ^ "[" ^ x' ^ "/i1]\n" ^ msg)
               end
             | Error (_, msg), _ | _, Error (_, msg) -> (* This case is impossible *)
-              Error ((Abs (x, e), Abs (x', e')), msg)
+              Error ((Lam (x, e), Lam (x', e')), msg)
             end
           | _ ->
             let v1 = init_fresh vars in
@@ -1318,7 +1295,7 @@ and unify global ind_env ctx lvl sl ph vars x lift =
             let tyv1 = open_var 0 (Global v1) ty2 in
             let u = unify global ind_env ((v1, ty1, true) :: ctx) lvl sl ph (vars+1) (ev1, ev1', tyv1) lift in
             begin match u with
-            | Ok s -> Ok (Abs (v1, s))
+            | Ok s -> Ok (Lam (v1, s))
             | Error msg -> Error msg
             end
           end
@@ -1519,9 +1496,9 @@ and unify global ind_env ctx lvl sl ph vars x lift =
                 begin match ui0, ui1 with
                 | Ok _, Ok _ -> Ok (App (e, i))
                 | Error msg, _ -> 
-                  Error ((e0, e0'), "Don't know how to unify\n  " ^ Pretty.print (to_raw_expr e0) ^ "\nwith\n  " ^ Pretty.print (to_raw_expr e0') ^ "\n" ^ Pretty.print (to_raw_expr (eval ind_env e0')) ^ "\n" ^ snd msg ) 
+                  Error ((e0, e0'), "Don't know how to unify\n  " ^ Pretty.printf e0 ^ "\nwith\n  " ^ Pretty.printf e0' ^ "\n" ^ Pretty.printf (eval ind_env e0') ^ "\n" ^ snd msg ) 
                 | _, Error msg -> 
-                  Error ((e1, e1'), "Don't know how to unify\n  " ^ Pretty.print (to_raw_expr e1) ^ "\nwith\n  " ^ Pretty.print (to_raw_expr e1') ^ "\n" ^ snd msg)
+                  Error ((e1, e1'), "Don't know how to unify\n  " ^ Pretty.printf e1 ^ "\nwith\n  " ^ Pretty.printf e1' ^ "\n" ^ snd msg)
                 end
               | Error (_, msg), _, _, _ | _, Error (_, msg), _, _ | _, _, Error (_, msg), _ |  _, _, _, Error (_, msg) ->
                 Error ((At (e, i), e'), msg)
@@ -1531,7 +1508,7 @@ and unify global ind_env ctx lvl sl ph vars x lift =
               Error ((At (e, i), e'), msg) (* This case is impossible *)
             end
           | _ ->
-            Error ((e, e'), "Don't know how to unify\n  " ^ Pretty.print (to_raw_expr (App (e, i))) ^ "\nwith\n  " ^ Pretty.print (to_raw_expr e'))
+            Error ((e, e'), "Don't know how to unify\n  " ^ Pretty.printf (App (e, i)) ^ "\nwith\n  " ^ Pretty.printf e')
           end
             
       | Fst e, Fst e', ty ->
@@ -1584,12 +1561,12 @@ and unify global ind_env ctx lvl sl ph vars x lift =
         | m, n -> compare m n
         end
       
-      | Abs (x, e) , e', _ | e', Abs (x, e), _ ->
+      | Lam (x, e) , e', _ | e', Lam (x, e), _ ->
         let e1 = eval ind_env e in
-        let abs = eval ind_env (Abs (x, e1)) in (* for any possible eta reduction *)
+        let abs = eval ind_env (Lam (x, e1)) in (* for any possible eta reduction *)
         (* Needs to be optimized to avoid reevaluation *)
-        if Abs (x, e) = abs && not (e' = abs) then
-          Error ((Abs (x, e), e'), "Don't know how to unify the abstraction\n  " ^ Pretty.print (to_raw_expr (Abs (x, e))) ^ "\nwith the term\n  " ^ Pretty.print (to_raw_expr e'))
+        if Lam (x, e) = abs && not (e' = abs) then
+          Error ((Lam (x, e), e'), "Don't know how to unify the abstraction\n  " ^ Pretty.printf (Lam (x, e)) ^ "\nwith the term\n  " ^ Pretty.printf e')
         else
           unify global ind_env ctx lvl sl ph vars (abs, e', ty) lift
       
@@ -1598,7 +1575,7 @@ and unify global ind_env ctx lvl sl ph vars x lift =
         let pair = eval ind_env (Pair (e1, e2)) in (* for any possible eta reduction *)
         (* Needs to be optimized to avoid reevaluation *)
         if Pair (e1, e2) = pair && not (e' = pair) then
-          Error ((Pair (e1, e2), e'), "Don't know how to unify the pair\n  " ^ Pretty.print (to_raw_expr (Pair (e1, e2))) ^ "\nwith the term\n  " ^ Pretty.print (to_raw_expr e'))
+          Error ((Pair (e1, e2), e'), "Don't know how to unify the pair\n  " ^ Pretty.printf (Pair (e1, e2)) ^ "\nwith the term\n  " ^ Pretty.printf e')
         else
           unify global ind_env ctx lvl sl ph vars (pair, e', ty) lift
       
@@ -1607,7 +1584,7 @@ and unify global ind_env ctx lvl sl ph vars x lift =
         let pabs = eval ind_env (Pabs (i, e1)) in (* for any possible eta reduction *)
         (* Needs to be optimized to avoid reevaluation *)
         if Pabs (i, e) = pabs && not (e' = pabs) then
-          Error ((Pabs (i, e), e'), "Don't know how to unify the abstraction\n  " ^ Pretty.print (to_raw_expr (Pabs (i, e))) ^ "\nwith the term\n  " ^ Pretty.print (to_raw_expr e'))
+          Error ((Pabs (i, e), e'), "Don't know how to unify the abstraction\n  " ^ Pretty.printf (Pabs (i, e)) ^ "\nwith the term\n  " ^ Pretty.printf e')
         else
           unify global ind_env ctx lvl sl ph vars (pabs, e', ty) lift
 
@@ -1615,4 +1592,4 @@ and unify global ind_env ctx lvl sl ph vars x lift =
         if eval ind_env e = eval ind_env e' then 
           Ok e 
         else 
-          Error ((e, e'), "The two terms\n  " ^ Pretty.print (to_raw_expr e) ^ "\nand\n  " ^ Pretty.print (to_raw_expr e') ^ "\nare not equal")
+          Error ((e, e'), "The two terms\n  " ^ Pretty.printf e ^ "\nand\n  " ^ Pretty.printf e' ^ "\nare not equal")

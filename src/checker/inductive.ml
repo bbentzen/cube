@@ -13,7 +13,7 @@ open Core_ast
 
 let rec occurs_name id l = function
   | Global t -> t = id 
-  | Abs (x, e) | Pabs (x, e) -> x = id || occurs_name x l e
+  | Lam (x, e) | Pabs (x, e) -> x = id || occurs_name x l e
   | Pi (x, e1, e2) | Sigma (x, e1, e2) -> x = id || occurs_name x l e1 || occurs_name x l e2
   | Local index -> 
     begin match List.nth_opt l index with

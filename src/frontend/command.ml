@@ -101,7 +101,7 @@ let rec compile global ind_env ind lopen filename lvl next_location = function
       let e = Debruijn.of_raw_expr e_raw in
       match (Env.unfold_all global 0 e) with
       | Ok e' ->
-        Ok (global, ind_env, ind, ("eval " ^ Pretty.print e_raw ^ " := " ^ 
+        Ok (global, ind_env, ind, ("eval " ^ Pretty.printf e ^ " := " ^ 
         Pretty.printf (eval ind_env e'), lopen))
       | Error msg -> 
         failwith_at location msg
@@ -240,7 +240,7 @@ let rec compile global ind_env ind lopen filename lvl next_location = function
                 else
                   failwith_at location
                   ("Universe level error: levels at indices or constructors of '" ^ id ^ "' may exceed target universe level " ^ 
-                  Pretty.printc_level target_lvl ^ ":\n" ^ Global.printf ctx_univ ^ Inductive.print univ_constr ^ "\n")
+                  Pretty.print_level target_lvl ^ ":\n" ^ Global.printf ctx_univ ^ Inductive.print univ_constr ^ "\n")
               | None ->
                 failwith_at location
                 ("Universe level error: Could not extract universe level from type of inductive '" ^ id ^ "'.")

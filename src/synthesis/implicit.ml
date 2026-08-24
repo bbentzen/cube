@@ -23,9 +23,9 @@ let rec read n = function
     let r_e1 = read (snd r_e) e1 in
     let r_e2 = read (snd r_e1) e2 in
     Hcom (fst r_i, fst r_j, fst r_e, fst r_e1, fst r_e2), snd r_e2
-  | Abs (y, e) ->
+  | Lam (y, e) ->
     let r_e = read n e in
-    Abs (y, fst r_e), snd r_e
+    Lam (y, fst r_e), snd r_e
   | App (e1, e2) ->
     let r_e1 = read n e1 in
     let r_e2 = read (snd r_e1) e2 in

@@ -7,24 +7,24 @@
 (* Return the least fresh variable of the form v0,..,vn not occuring in two given expressions *)
 
 let rec has_var x = function
-  | Ast.Id y -> 
+  | Ast.RId y -> 
     if x = y then true else false
-  | Ast.Abs (y, e) | Ast.Pabs (y, e) -> 
+  | Ast.RLam (y, e) | Ast.RPabs (y, e) -> 
     if x = y then false else has_var x e (* if x = y then true *)
-  | Ast.Pi (y, e1, e2) | Ast.Sigma (y, e1, e2) -> (* if x = y then true *)
+  | Ast.RPi (y, e1, e2) | Ast.RSigma (y, e1, e2) -> (* if x = y then true *)
     if x = y then false else has_var x e1 || has_var x e2
-  | Ast.Fst e | Ast.Snd e | Ast.Abort e -> 
+  | Ast.RFst e | Ast.RSnd e | Ast.RAbort e -> 
     has_var x e
-  | Ast.App (e1, e2) | Ast.Pair (e1, e2) | Ast.At(e1, e2) -> 
+  | Ast.RApp (e1, e2) | Ast.RPair (e1, e2) | Ast.RAt(e1, e2) -> 
     has_var x e1 || has_var x e2
-  | Ast.Pathd (e, e1, e2) -> 
+  | Ast.RPathd (e, e1, e2) -> 
     has_var x e || has_var x e1 || has_var x e2
-  | Ast.Coe (i, j, e1, e2) -> 
+  | Ast.RCoe (i, j, e1, e2) -> 
     has_var x i || has_var x j || has_var x e1 || has_var x e2
-  | Ast.Hcom (i, j, e, e1, e2) -> 
+  | Ast.RHcom (i, j, e, e1, e2) -> 
     has_var x i || has_var x j || has_var x e || has_var x e1 || has_var x e2
-  | Ast.Type _ -> false
-  | Ast.Hole (_, l) ->
+  | Ast.RType _ -> false
+  | Ast.RHole (_, l) ->
     let rec helper = function
     | [] -> false
     | e :: l' ->
@@ -41,4 +41,4 @@ let fresh_var_int e =
   helper 0 e
 
 let fresh_var e1 e2 i = 
-  "v" ^ string_of_int (fresh_var_int (Ast.App (e1, e2)) + i)
+  "v" ^ string_of_int (fresh_var_int (Ast.RApp (e1, e2)) + i)

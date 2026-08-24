@@ -26,7 +26,7 @@ let has_placeholder term =
     | x :: rest ->
       match x with
       | Hole _ -> true
-      | Abs (_, e) | Pabs (_, e)
+      | Lam (_, e) | Pabs (_, e)
       | Fst e | Snd e | Abort e ->
           helper (e :: rest)
       | Pi (_, e1, e2) | Sigma (_, e1, e2)
@@ -51,7 +51,7 @@ let has term =
     | x :: rest ->
       match x with
        Wild _ | Hole _ -> true
-      | Abs (_, e) | Pabs (_, e)
+      | Lam (_, e) | Pabs (_, e)
       | Fst e | Snd e | Abort e ->
           helper (e :: rest)
       | Pi (_, e1, e2) | Sigma (_, e1, e2)

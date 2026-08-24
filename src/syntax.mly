@@ -10,17 +10,17 @@ open Ast
 let rec abs_of_list e = function
   | [] -> e
   | id :: l ->
-    Ast.Abs(id, abs_of_list e l)
+    Ast.RLam(id, abs_of_list e l)
 
 let rec pi_of_list e = function
   | [] -> e
   | (id, ty) :: l ->
-    Ast.Pi (id, ty, pi_of_list e l)
+    Ast.RPi (id, ty, pi_of_list e l)
 
 let rec sigma_of_list e = function
   | [] -> e
   | (id, ty) :: l ->
-    Ast.Sigma (id, ty, sigma_of_list e l)
+    Ast.RSigma (id, ty, sigma_of_list e l)
 
 let rec ids_to_bindings ids ty =
   match ids with
@@ -28,10 +28,10 @@ let rec ids_to_bindings ids ty =
   | id :: rest -> (id, ty) :: ids_to_bindings rest ty
 
 let fill_def i j ty e e1 e2 =
-  let v1 = Substitution.fresh_var (App(e1, e2)) e 2 in
-  Hcom(i, j, Abs(v1, Coe (i, j, ty, App(e, Id v1))), 
-  Abs(v1, Coe (Id v1, j, ty, App(e1, Id v1))),
-  Abs(v1, Coe (Id v1, j, ty, App(e2, Id v1))))
+  let v1 = Substitution.fresh_var (RApp(e1, e2)) e 2 in
+  RHcom(i, j, RLam(v1, RCoe (i, j, ty, RApp(e, RId v1))), 
+  RLam(v1, RCoe (RId v1, j, ty, RApp(e1, RId v1))),
+  RLam(v1, RCoe (RId v1, j, ty, RApp(e2, RId v1))))
 
 let single_id = function
   | [id] -> id
@@ -69,17 +69,17 @@ let single_id = function
 %start command
 %type <Ast.command> command
 %type <Ast.proof> decl
-%type <((string list * Ast.expr) * bool) list> ctx
-%type <Ast.level> level
-%type <Ast.expr> expr
-%type <Ast.expr> app_expr
-%type <Ast.expr> head_expr
-%type <Ast.expr> face_expr
-%type <Ast.expr> face_head
-%type <Ast.expr> atom
+%type <((string list * Ast.rawexpr) * bool) list> ctx
+%type <Ast.rawlevel> level
+%type <Ast.rawexpr> expr
+%type <Ast.rawexpr> app_expr
+%type <Ast.rawexpr> head_expr
+%type <Ast.rawexpr> face_expr
+%type <Ast.rawexpr> face_head
+%type <Ast.rawexpr> atom
 %type <string list> ids
 %type <string list> vars
-%type <((string * expr) list) * expr> blocks
+%type <((string * Ast.rawexpr) list) * Ast.rawexpr> blocks
 
 %%
 
@@ -94,7 +94,7 @@ command:
 
 decl:
   | DEF ID ctx expr COLONEQ expr                            {Prf($2, $3, $4, $6)}
-  | INFER ctx expr                                          {Prf("infer", $2, Ast.Hole("0", []), $3)}
+  | INFER ctx expr                                          {Prf("infer", $2, RHole("0", []), $3)}
 
 constr: 
   | BAR ID COLON expr                                       {[($2, $4)]}
@@ -120,97 +120,97 @@ blocks:
   | LPAREN ids COLON expr RPAREN blocks                    { (ids_to_bindings $2 $4 @ fst $6, snd $6) }
 
 level:
-  | ID                                                     { Var ($1) }
-  | ZERO                                                   { Num 0 }
-  | NUMBER                                                 { Num (int_of_string ($1)) }
-  | NEXT level                                             { Suc ($2) }
-  | MAX level level                                        { Max ($2, $3) }
+  | ID                                                     { RVar ($1) }
+  | ZERO                                                   { RNum 0 }
+  | NUMBER                                                 { RNum (int_of_string ($1)) }
+  | NEXT level                                             { RSuc ($2) }
+  | MAX level level                                        { RMax ($2, $3) }
   | LPAREN level RPAREN                                    { $2 }
 
 expr: 
   | app_expr %prec NEG                                      { $1 }
-  | expr RARROW expr                                        { Pi("v?",$1, $3) }
-  | expr LRARROW expr                                       { Sigma("v?", Pi("v?",$1, $3), Pi("v?",$3, $1)) }
-  | expr PROD expr                                          { Sigma("v?",$1, $3) }
-  | expr SUM expr                                           { App(App(Id "sum", $1), $3) }
-  | expr AT expr                                            { At($1,$3) }
-  | expr SYMM                                               { App(Id "path_symm", $1) }
-  | expr TRANS expr                                         { App(App(Id "path_trans", $1), $3) }
+  | expr RARROW expr                                        { RPi("v?",$1, $3) }
+  | expr LRARROW expr                                       { RSigma("v?", RPi("v?",$1, $3), RPi("v?",$3, $1)) }
+  | expr PROD expr                                          { RSigma("v?",$1, $3) }
+  | expr SUM expr                                           { RApp(RApp(RId "sum", $1), $3) }
+  | expr AT expr                                            { RAt($1,$3) }
+  | expr SYMM                                               { RApp(RId "path_symm", $1) }
+  | expr TRANS expr                                         { RApp(RApp(RId "path_trans", $1), $3) }
 
 app_expr:
   | head_expr                                               { $1 }
-  | app_expr head_expr %prec APP                            { App($1,$2) }
+  | app_expr head_expr %prec APP                            { RApp($1,$2) }
 
 head_expr:
   | atom                                                    { $1 }
-  | APP head_expr head_expr                                 { App($2,$3) }
-  | COE atom atom head_expr head_expr                       { Coe($2,$3,$4,$5) }
+  | APP head_expr head_expr                                 { RApp($2,$3) }
+  | COE atom atom head_expr head_expr                       { RCoe($2,$3,$4,$5) }
   | COM atom atom head_expr head_expr
     BAR I0 RARROW face_expr
     BAR I1 RARROW face_expr                                 { fill_def ($2) ($3) ($4) ($5) ($9) ($13) }
   | HCOM atom atom head_expr
     BAR I0 RARROW face_expr
-    BAR I1 RARROW face_expr                                 { Hcom($2, $3, $4, $8, $12) }
+    BAR I1 RARROW face_expr                                 { RHcom($2, $3, $4, $8, $12) }
   | ABS vars COMMA expr %prec PI                            { abs_of_list ($4) ($2) }
-  | ABS LPAREN ids COLON expr RPAREN COMMA expr %prec PI    { Abs(single_id $3,$8) }
+  | ABS LPAREN ids COLON expr RPAREN COMMA expr %prec PI    { RLam(single_id $3,$8) }
   | PI blocks                                               { pi_of_list (snd $2) (fst $2) }
-  | FST head_expr                                           { Fst($2) }
-  | SND head_expr                                           { Snd($2) }
+  | FST head_expr                                           { RFst($2) }
+  | SND head_expr                                           { RSnd($2) }
   | SIGMA blocks                                            { sigma_of_list (snd $2) (fst $2) }
-  | ABORT head_expr %prec ABORT                             { Abort($2) }
-  | NEG app_expr %prec NEG                                  { Pi("v?",$2,Void()) }
-  | LANGLE ID RANGLE expr %prec PI                          { Pabs($2,$4) }
-  | LANGLE WILDCARD RANGLE expr %prec PI                    { Pabs("v?",$4) }
-  | PATHD head_expr head_expr head_expr %prec ABORT         { Pathd($2,$3,$4) }
-  | PATH head_expr head_expr head_expr %prec ABORT          { Pathd(Abs("v?",$2),$3,$4) }
+  | ABORT head_expr %prec ABORT                             { RAbort($2) }
+  | NEG app_expr %prec NEG                                  { RPi("v?", $2, RVoid()) }
+  | LANGLE ID RANGLE expr %prec PI                          { RPabs($2, $4) }
+  | LANGLE WILDCARD RANGLE expr %prec PI                    { RPabs("v?", $4) }
+  | PATHD head_expr head_expr head_expr %prec ABORT         { RPathd($2, $3, $4) }
+  | PATH head_expr head_expr head_expr %prec ABORT          { RPathd(RLam("v?", $2), $3, $4) }
 
 face_expr:
   | face_head                                               { $1 }
-  | atom atom %prec APP                                     { App($1,$2) }
-  | face_expr RARROW face_expr                              { Pi("v?",$1,$3) }
-  | face_expr LRARROW face_expr                             { Sigma("v?", Pi("v?",$1,$3), Pi("v?",$3,$1)) }
-  | face_expr PROD face_expr                                { Sigma("v?",$1,$3) }
-  | face_expr SUM face_expr                                 { App(App(Id "sum", $1), $3) }
-  | face_expr AT face_head                                  { At($1,$3) }
-  | face_expr SYMM                                          { App(Id "path_symm", $1) }
-  | face_expr TRANS face_expr                               { App(App(Id "path_trans", $1), $3) }
+  | atom atom %prec APP                                     { RApp($1, $2) }
+  | face_expr RARROW face_expr                              { RPi("v?",$1, $3) }
+  | face_expr LRARROW face_expr                             { RSigma("v?", RPi("v?",$1,$3), RPi("v?",$3,$1)) }
+  | face_expr PROD face_expr                                { RSigma("v?",$1, $3) }
+  | face_expr SUM face_expr                                 { RApp(RApp(RId "sum", $1), $3) }
+  | face_expr AT face_head                                  { RAt($1,$3) }
+  | face_expr SYMM                                          { RApp(RId "path_symm", $1) }
+  | face_expr TRANS face_expr                               { RApp(RApp(RId "path_trans", $1), $3) }
 
 face_head:
   | atom %prec NEG                                          { $1 }
-  | APP face_head face_head                                 { App($2,$3) }
-  | COE atom atom face_head face_head                       { Coe($2,$3,$4,$5) }
+  | APP face_head face_head                                 { RApp($2, $3) }
+  | COE atom atom face_head face_head                       { RCoe($2, $3, $4, $5) }
   | COM atom atom face_head face_head
     BAR I0 RARROW face_expr
     BAR I1 RARROW face_expr                                 { fill_def ($2) ($3) ($4) ($5) ($9) ($13) }
   | HCOM atom atom face_head
     BAR I0 RARROW face_expr
-    BAR I1 RARROW face_expr                                 { Hcom($2, $3, $4, $8, $12) }
+    BAR I1 RARROW face_expr                                 { RHcom($2, $3, $4, $8, $12) }
   | ABS vars COMMA face_expr %prec PI                       { abs_of_list ($4) ($2) }
-  | ABS LPAREN ids COLON expr RPAREN COMMA face_expr %prec PI { Abs(single_id $3,$8) }
+  | ABS LPAREN ids COLON expr RPAREN COMMA face_expr %prec PI { RLam(single_id $3,$8) }
   | PI blocks                                               { pi_of_list (snd $2) (fst $2) }
-  | FST face_head                                           { Fst($2) }
-  | SND face_head                                           { Snd($2) }
+  | FST face_head                                           { RFst($2) }
+  | SND face_head                                           { RSnd($2) }
   | SIGMA blocks                                            { sigma_of_list (snd $2) (fst $2) }
-  | ABORT face_head %prec ABORT                             { Abort($2) }
-  | NEG face_expr                                           { Pi("v?",$2,Void()) }
-  | LANGLE ID RANGLE face_expr %prec PI                     { Pabs($2,$4) }
-  | LANGLE WILDCARD RANGLE face_expr %prec PI               { Pabs("v?",$4) }
-  | PATHD face_head face_head face_head %prec ABORT         { Pathd($2,$3,$4) }
-  | PATH face_head face_head face_head %prec ABORT          { Pathd(Abs("v?",$2),$3,$4) }
+  | ABORT face_head %prec ABORT                             { RAbort($2) }
+  | NEG face_expr                                           { RPi("v?", $2, RVoid()) }
+  | LANGLE ID RANGLE face_expr %prec PI                     { RPabs($2, $4) }
+  | LANGLE WILDCARD RANGLE face_expr %prec PI               { RPabs("v?", $4) }
+  | PATHD face_head face_head face_head %prec ABORT         { RPathd($2, $3, $4) }
+  | PATH face_head face_head face_head %prec ABORT          { RPathd(RLam("v?", $2), $3, $4) }
 
 atom:
-  | ID                                                      { Id($1) }
+  | ID                                                      { RId($1) }
   | LPAREN expr RPAREN                                      { $2 }
-  | I0                                                      { I0() }
-  | I1                                                      { I1() }
-  | INTERVAL                                                { Int() }
-  | LPAREN expr COMMA expr RPAREN                           { Pair($2,$4) }
-  | ZERO                                                    { Id("zero") }
-  | NAT                                                     { Id("nat") }
-  | STAR                                                    { Id("star") }
-  | VOID                                                    { Void() }
-  | REFL                                                    { Pabs("v?", Wild 0) }
-  | TYPE level                                              { Type ($2) }
-  | PLACEHOLDER NUMBER                                      { Hole($2, []) }
-  | WILDCARD                                                { Wild 0 }
-  | SUBGOAL                                                 { Subgoal() }
+  | I0                                                      { RI0() }
+  | I1                                                      { RI1() }
+  | INTERVAL                                                { RInt() }
+  | LPAREN expr COMMA expr RPAREN                           { RPair($2, $4) }
+  | ZERO                                                    { RId("zero") }
+  | NAT                                                     { RId("nat") }
+  | STAR                                                    { RId("star") }
+  | VOID                                                    { RVoid() }
+  | REFL                                                    { RPabs("v?", RWild 0) }
+  | TYPE level                                              { RType ($2) }
+  | PLACEHOLDER NUMBER                                      { RHole($2, []) }
+  | WILDCARD                                                { RWild 0 }
+  | SUBGOAL                                                 { RSubgoal() }

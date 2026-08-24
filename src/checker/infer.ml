@@ -11,7 +11,7 @@ let make_motive n ty =
   let vars = Debruijn.create_fresh [ty] (1 + n) in
   let rec helper ty = function
   | 0 -> ty
-  | n -> Core_ast.Abs (vars.(n-1), helper (Debruijn.shift 1 0 ty) (n - 1)) 
+  | n -> Core_ast.Lam (vars.(n-1), helper (Debruijn.shift 1 0 ty) (n - 1)) 
   in helper ty n
 
 (* Infer the motive of a well-applied recursor *)

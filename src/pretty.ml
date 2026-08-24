@@ -6,122 +6,111 @@
           prints nested lambdas, pis, sigmas, and uses parentheses when necessary
  **)
 
-open Ast
+open Core_ast
 
 (* A simple pretty printer *)
 
-let rec print = function
-  | Id("zero") -> "0 "
-  | Id("nat") -> "ℕ "
-  | Coe (i, j, e1, e2) -> 
-    String.concat "" ["coe "; par i; par j; par e1; par e2]
+let rec print env = function
+  | Global("zero") -> "0 "
+  | Global("nat") -> "ℕ "
+  | Global y -> y ^ " "
+  | Local index -> (Debruijn.name_at index env) ^ " "
+  | Coe (i, j, e1, e2) -> String.concat "" ["coe "; parenthesize env i; parenthesize env j; parenthesize env e1; parenthesize env e2]
   
   | Hcom (i, j, e, e1, e2) -> 
-    String.concat "" ["\n  hcom "; par i; par j; par e; 
-    "\n    | i0 → "; print e1; 
-    "\n    | i1 → "; print e2]
+    String.concat "" ["\n  hcom "; parenthesize env i; parenthesize env j; parenthesize env e; 
+    "\n    | i0 → "; print env e1; 
+    "\n    | i1 → "; print env e2]
     
-  | Abs (y, e) ->  
-    let rec iter = function
-      | Abs (y', e') ->
-        " " ^ y' ^ iter e'
-      | e' ->
-        ", " ^ print e'
+  | Lam (x, e) ->  
+    let rec iterate env = function
+      | Lam (x', e') -> " " ^ x' ^ iterate (x' :: env)  e'
+      | e' -> ", " ^ print env e'
     in
-    "λ " ^ y ^ iter e
+    "λ " ^ x ^ iterate (x :: env) e
+
+  | Pabs (y, e) -> String.concat "" ["<"; y; "> "; print (y :: env) e]
 
   | Pi (x, e1, e2) ->
-
-    if Substitution.has_var x e2 then
-      begin
-      let rec diter = function
+    if Debruijn.occurs_index 0 0 e2 then
+      let rec iterate env = function
         | Pi (x', e1', e2') ->
-          if Substitution.has_var x' e2' then
-            String.concat "" ["("; x'; " : "; print e1'; ") "; diter e2']
+          if Debruijn.occurs_index 0 0 e2' then
+            String.concat "" ["("; x'; " : "; print env e1'; ") "; iterate (x' :: env) e2']
           else
-            String.concat "" [tpar e1'; "→ "; print e2']
-        | e' ->
-          print e'
+            String.concat "" [tparenthesize env e1'; "→ "; print (x' :: env) e2']
+        | e' -> print env e'
       in
-      "Π (" ^ x ^ " : " ^ print e1 ^ ") " ^ diter e2
-      end
-
+      "Π (" ^ x ^ " : " ^ print (x :: env) e1 ^ ") " ^ iterate (x :: env) e2
     else
-      begin
-        match e2 with
-        | Void() -> 
-          "¬" ^ tpar e1
+      begin match e2 with
+        | Void() -> "¬" ^ tparenthesize (x :: env) e1
         | _ ->
-          let rec iter = function
+          let rec iterate env = function
+            | Pi (_, e1', Void()) -> "¬" ^ tparenthesize env e1'
             | Pi (x', e1', e2') ->
-              if Substitution.has_var x' e2' then
-                String.concat "" ["Π ("; x'; " : "; print e1'; ") "; print e2']
+              if Debruijn.occurs_index 0 0 e2' then
+                String.concat "" ["Π ("; x'; " : "; print env e1'; ") "; print (x' :: env) e2']
               else
-                String.concat "" [tpar e1'; "→ "; iter e2']
-            | e' ->
-              print e'
+                String.concat "" [tparenthesize env e1'; "→ "; iterate (x' :: env) e2']
+            | e' -> print env e'
           in
-          tpar e1 ^ "→ " ^ iter e2
+          tparenthesize (x :: env) e1 ^ "→ " ^ iterate (x :: env) e2
       end
 
   | Sigma (x, e1, e2) ->
-    
-    if Substitution.has_var x e2 then
+    if Debruijn.occurs_index 0 0 e2 then
       begin
-      let rec diter = function
+      let rec iterate env = function
         | Sigma (x', e1', e2') ->
-          if Substitution.has_var x' e2' then
-            String.concat "" ["("; x'; " : "; print e1'; ") "; diter e2']
+          if Debruijn.occurs_index 0 0 e2' then
+            String.concat "" ["("; x'; " : "; print env e1'; ") "; iterate (x' :: env) e2']
           else
-            String.concat "" [tpar e1'; "× "; print e2']
-        | e' ->
-          print e'
+            String.concat "" [tparenthesize env e1'; "× "; print (x' :: env) e2']
+        | e' -> print env e'
       in
-      "Σ (" ^ x ^ " : " ^ print e1 ^ ") " ^ diter e2
+      "Σ (" ^ x ^ " : " ^ print (x :: env) e1 ^ ") " ^ iterate (x :: env) e2
       end
-
     else
-      let rec iter = function
+      let rec iterate env = function
         | Sigma (x', e1', e2') ->
-          if Substitution.has_var x' e2' then
-            String.concat "" ["Σ ("; x'; " : "; print e1'; ") "; print e2']
+          if Debruijn.occurs_index 0 0 e2' then
+            String.concat "" ["Σ ("; x'; " : "; print env e1'; ") "; print (x' :: env) e2']
           else
-            String.concat "" [tpar e1'; "× "; iter e2']
+            String.concat "" [tparenthesize env e1'; "× "; iterate (x' :: env) e2']
         | e' ->
-          print e'
+          print env e'
       in
-      tpar e1 ^ "× " ^ iter e2
+      tparenthesize env e1 ^ "× " ^ iterate (x :: env) e2
 
   | Pathd (e, e1, e2) ->
     begin
       match e with
-      | Abs (i, ty) ->
-        if not (Substitution.has_var i ty) then
-          "path " ^ par ty ^ par e1 ^ par e2
+      | Lam (i, ty) ->
+        if not (Debruijn.occurs_index 0 0 ty) then
+          "path " ^ parenthesize env ty ^ parenthesize env e1 ^ parenthesize env e2
         else
-          "pathd (" ^ print (Abs (i, ty)) ^ ") " ^ par e1 ^ par e2
+          "pathd (" ^ print env (Lam (i, ty)) ^ ") " ^ parenthesize env e1 ^ parenthesize env e2
       | _ ->
-        "pathd " ^ par e ^ par e1 ^ par e2
+        "pathd " ^ parenthesize env e ^ parenthesize env e1 ^ parenthesize env e2
     end
 
   | App (e1, e2) ->
-      let rec iter = function
-      | App (e3, e4) -> iter e3 ^ par e4
-      | e -> par e
+      let rec iterate = function
+      | App (e3, e4) -> iterate e3 ^ parenthesize env e4
+      | e -> parenthesize env e
     in
-    iter e1 ^ par e2    
+    iterate e1 ^ parenthesize env e2
 
   | Type l -> 
     "type " ^ print_level l ^ " "
 
-  | Pair (e1, e2) -> "(" ^ par e1 ^ ", " ^ par e2 ^ ") "
-  | Fst e -> "fst " ^ par e
-  | Snd e -> "snd " ^ par e
-  | Abort e -> String.concat "" ["abort "; par e]
-  | Pabs (y, e) -> String.concat "" ["<"; y; "> "; print e]
-  | At (e1, e2) -> String.concat "" [par e1; "@ "; par e2]
+  | Pair (e1, e2) -> "(" ^ parenthesize env e1 ^ ", " ^ parenthesize env e2 ^ ") "
+  | Fst e -> "fst " ^ parenthesize env e
+  | Snd e -> "snd " ^ parenthesize env e
+  | Abort e -> String.concat "" ["abort "; parenthesize env e]
+  | At (e1, e2) -> String.concat "" [parenthesize env e1; "@ "; parenthesize env e2]
   | Hole (n, _) -> "?" ^ n ^ "? "
-  | Id y -> y ^ " "
   | I0() -> "i0 "
   | I1() -> "i1 "
   | Int() -> "I " 
@@ -129,28 +118,28 @@ let rec print = function
   | Wild n -> "?0" ^ string_of_int n ^ "? "
   | Subgoal() -> "?"
 
-and par e = 
+and parenthesize env e = 
   let helper = function
-    | Abs _ | Ast.Pabs _ | Pi _ | Sigma _ | Fst _ | Snd _ 
+    | Lam _ | Pabs _ | Pi _ | Sigma _ | Fst _ | Snd _ 
     | Abort _ | App _ | Pair _ 
     | At _ | Pathd _ | Coe _ -> true
     | _ -> false
   in
   if helper e then
-    "(" ^ print e ^ ") "
+    "(" ^ print env e ^ ") "
   else
-    print e
+    print env e
 
-and tpar e = 
-let helper = function
-  | Pi _ | Sigma _ | Pathd _ | Hcom _ | Coe _ -> 
-    true
-  | _ -> false
-in
-if helper e then
-  "(" ^ print e ^ ") "
-else
-  print e
+
+and tparenthesize env e = 
+  let helper = function
+    | Pi _ | Sigma _ | Pathd _ | Hcom _ | Coe _ -> true
+    | _ -> false
+  in
+  if helper e then
+    "(" ^ print env e ^ ") "
+  else
+    print env e
 
 and print_level = function
   | Num n -> string_of_int n
@@ -159,114 +148,6 @@ and print_level = function
   | Max (n, Num m) | Max (Num m, n) -> "max(" ^ print_level n ^ ", " ^ string_of_int m ^ ")"
   | Max (n, m) -> "max(" ^ print_level n ^ ", " ^ print_level m ^ ")"
 
-(* Translates expressions back to raw syntax and prints them *)
+(* Prints expressions in raw syntax form *)
 
-let printf e = print (Debruijn.to_raw_expr e)
-
-(* A core-syntax printer for debugging *)
-
-let rec printc = function  
-  | Core_ast.Coe (i, j, e1, e2) -> 
-    String.concat "" ["coe "; parc i; parc j; parc e1; parc e2]
-  
-  | Hcom (i, j, e, e1, e2) -> 
-    String.concat "" ["\n  hcom "; parc i; parc j; parc e; 
-    "\n    | i0 → "; printc e1; 
-    "\n    | i1 → "; printc e2]
-    
-  | Abs (y, e) ->  
-    let rec iter = function
-      | Core_ast.Abs (y', e') ->
-        " " ^ y' ^ iter e'
-      | e' ->
-        ", " ^ printc e'
-    in
-    "λ " ^ y ^ iter e
-
-  | Core_ast.Pi (x, e1, e2) ->
-
-      let rec diter = function
-        | Core_ast.Pi (x', e1', e2') ->
-            String.concat "" ["("; x'; " : "; printc e1'; ") "; diter e2']
-        | e' ->
-          printc e'
-      in
-      "Π (" ^ x ^ " : " ^ printc e1 ^ ") " ^ diter e2
-
-  | Core_ast.Sigma (x, e1, e2) ->
-    
-
-      let rec diter = function
-        | Core_ast.Sigma (x', e1', e2') ->
-            String.concat "" ["("; x'; " : "; printc e1'; ") "; diter e2']
-        | e' ->
-          printc e'
-      in
-      "Σ (" ^ x ^ " : " ^ printc e1 ^ ") " ^ diter e2
-
-
-  | Pathd (e, e1, e2) ->
-    begin
-      match e with
-      | Core_ast.Abs (i, ty) ->
-          "pathd (" ^ printc (Core_ast.Abs (i, ty)) ^ ") " ^ parc e1 ^ parc e2
-      | _ ->
-        "pathd " ^ parc e ^ parc e1 ^ parc e2
-    end
-
-  | Core_ast.App (e1, e2) ->
-      let rec iter = function
-      | Core_ast.App (e3, e4) -> "(" ^ iter e3 ^ parc e4 ^ ")"
-      | e -> "(" ^ parc e ^ ")"
-    in
-    iter e1 ^ parc e2
-
-  | Type l -> 
-    "type " ^ printc_level l ^ " "
-
-  | Core_ast.Pair (e1, e2) -> "(" ^ parc e1 ^ ", " ^ parc e2 ^ ") "
-  | Core_ast.Fst e -> "fst " ^ parc e
-  | Core_ast.Snd e -> "snd " ^ parc e
-  | Core_ast.Abort e -> String.concat "" ["abort "; parc e]
-  | Core_ast.Pabs (y, e) -> String.concat "" ["<"; y; "> "; printc e]
-  | Core_ast.At (e1, e2) -> String.concat "" [parc e1; "@ "; parc e2]
-  | Hole (n, _) -> "?" ^ n ^ "? "
-  | Global y -> " " ^ y ^ " "
-  | Local index -> "Local" ^ string_of_int index ^ " "
-  | I0() -> "i0 "
-  | I1() -> "i1 "
-  | Int() -> "I " 
-  | Void() -> "void "
-  | Wild n -> "?0" ^ string_of_int n ^ "? "
-  | Subgoal() -> "?"
-
-and parc e = 
-  let helper = function
-    | Core_ast.Abs _ | Pabs _ | Pi _ | Sigma _ | Fst _ | Snd _ 
-    | Abort _ | App _ | Pair _ 
-    | At _ | Pathd _ | Coe _ -> 
-      true
-    | _ -> false
-  in
-  if helper e then
-    "(" ^ printc e ^ ") "
-  else
-    printc e
-
-and tparc e = 
-let helper = function
-  | Core_ast.Pi _ | Sigma _ | Pathd _ | Hcom _ | Coe _ -> 
-    true
-  | _ -> false
-in
-if helper e then
-  "(" ^ printc e ^ ") "
-else
-  printc e
-
-and printc_level = function
-  | Num n -> string_of_int n
-  | Suc n -> printc_level n ^ "+ 1"
-  | Var l -> l
-  | Max (n, Num m) | Max (Num m, n) -> printc_level n ^ " + " ^ string_of_int m
-  | Max (n, m) -> "max(" ^ printc_level n ^ ", " ^ printc_level m ^ ")"
+let printf e = print [] e

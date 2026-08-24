@@ -102,28 +102,28 @@ let reduce_recursor rec_spec args =
    the raw syntax *)
 
 let rec reduce ind_env = function
-  | Core_ast.Coe (i, j, Core_ast.Abs(k, Pi(x, ty1, ty2)), e) ->  
+  | Core_ast.Coe (i, j, Core_ast.Lam(k, Pi(x, ty1, ty2)), e) ->  
     let v1 = (create_fresh [Pi(x, ty1, ty2); e] 1).(0) in (* TODO: replace, passing vars param *)
     let i' = shift 0 1 i and j' = shift 0 1 j in
-    Core_ast.Abs(v1, Core_ast.Coe (i', j', Core_ast.Abs(k, 
+    Core_ast.Lam(v1, Core_ast.Coe (i', j', Core_ast.Lam(k, 
     (shift 2 1 (Debruijn.open_var 0
-    (Core_ast.Coe (j', Local 0, Core_ast.Abs(k, shift 1 1 ty1), Local 1)) ty2))),
-    (Core_ast.App(shift 0 1 e, Coe (j', i', Core_ast.Abs(k, shift 1 1 ty1), Local 0)))))
+    (Core_ast.Coe (j', Local 0, Core_ast.Lam(k, shift 1 1 ty1), Local 1)) ty2))),
+    (Core_ast.App(shift 0 1 e, Coe (j', i', Core_ast.Lam(k, shift 1 1 ty1), Local 0)))))
 
-  | Core_ast.Coe (i, j, Core_ast.Abs(k, Sigma(_, ty1, ty2)), e) ->
-    Pair(Coe (i, j, Abs(k, ty1), Fst e), 
-    Coe (i, j, Abs(k, 
-    Debruijn.open_var 0 (shift 1 1 (Coe (i, Local 0, Abs(k, ty1), Fst e))) ty2), Snd (e)))
+  | Core_ast.Coe (i, j, Core_ast.Lam(k, Sigma(_, ty1, ty2)), e) ->
+    Pair(Coe (i, j, Lam(k, ty1), Fst e), 
+    Coe (i, j, Lam(k, 
+    Debruijn.open_var 0 (shift 1 1 (Coe (i, Local 0, Lam(k, ty1), Fst e))) ty2), Snd (e)))
 
-  | Core_ast.Coe (i, j, Core_ast.Abs(k, Pathd(ty, e1, e2)), e) ->
+  | Core_ast.Coe (i, j, Core_ast.Lam(k, Pathd(ty, e1, e2)), e) ->
       let v = create_fresh [ty; e1; e2; e] 3 in (* TODO: replace, passing vars param *)
       let v1 = v.(0) and v2 = v.(1) and v3 = v.(2) in
       let i' = shift 0 2 i and j' = shift 0 2 j in
       let ty' = shift 1 2 ty and e' = shift 0 2 e in
       Pabs(v1, App(Hcom(i, j, 
-      Abs(v2, Coe (i', j', (Abs(k, (App(ty', Local 1)))), At(e', Local 0))), 
-      Abs(v3, Coe (Local 0, j', (Abs(k, App(ty', I0()))), shift 1 1 e1)),
-      Abs(v3, Coe (Local 0, j', (Abs(k, App(ty', I1()))), shift 1 1 e2))), Local 0))
+      Lam(v2, Coe (i', j', (Lam(k, (App(ty', Local 1)))), At(e', Local 0))), 
+      Lam(v3, Coe (Local 0, j', (Lam(k, App(ty', I0()))), shift 1 1 e1)),
+      Lam(v3, Coe (Local 0, j', (Lam(k, App(ty', I1()))), shift 1 1 e2))), Local 0))
 
   | Core_ast.Coe (i, j, e1, e2) ->
     if i = j then
@@ -131,7 +131,7 @@ let rec reduce ind_env = function
     else
       let e1' = reduce ind_env e1 in
       begin match e1' with
-      | Core_ast.Abs(_, e) ->
+      | Core_ast.Lam(_, e) ->
         if occurs_index 0 0 e then
           Core_ast.Coe (i, j, e1', e2)
         else
@@ -146,17 +146,17 @@ let rec reduce ind_env = function
     else
       Core_ast.Hcom (i, j, e, e1, e2)
 
-  | Core_ast.Abs (x, App (e , Local 0)) -> 
+  | Core_ast.Lam (x, App (e , Local 0)) -> 
     if not (occurs_index 0 0 e) && not (Placeholder.has e) then
       reduce ind_env (shift 0 (-1) e) (* eta reduction *)
     else
-      Core_ast.Abs (x, App (e , Local 0))
+      Core_ast.Lam (x, App (e , Local 0))
   
   | Core_ast.App (e1, e2) -> 
     let e1' = reduce ind_env e1 in
     (* First we attempt beta reduction *)
     begin match e1' with
-    | Core_ast.Abs (_, e) ->
+    | Core_ast.Lam (_, e) ->
         reduce ind_env (beta e e2)
     | _ ->
       (* Then we attempt reduce recursor *)
