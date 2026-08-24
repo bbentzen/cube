@@ -1,7 +1,9 @@
 (**
- * (c) Copyright 2019 Bruno Bentzen. All rights reserved.
- * Released under Apache 2.0 license as described in the file LICENSE.
- * Desc: Performs file operations
+  (c) Copyright 2019 Bruno Bentzen. All rights reserved.
+  Released under Apache 2.0 license as described in the file LICENSE.
+
+  Desc: Performs basic file operations, including reading files, parsing strings and files, and handling directories. 
+        It also provides functions for resolving import paths relative to the current file.
  **)
 
 open Basis

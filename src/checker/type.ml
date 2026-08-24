@@ -1,8 +1,9 @@
 (**
- * (c) Copyright 2019 Bruno Bentzen. All rights reserved.
- * Released under Apache 2.0 license as described in the file LICENSE.
- * Desc: Checks whether an expression is a type
-         Allows for placeholders to stand for types
+  (c) Copyright 2019 Bruno Bentzen. All rights reserved.
+  Released under Apache 2.0 license as described in the file LICENSE.
+
+  Desc: Checks whether an expression is a type
+        Allows for placeholders to stand for types.
  **)
 
 open Basis

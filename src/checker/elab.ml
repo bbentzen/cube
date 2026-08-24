@@ -1,8 +1,10 @@
 (**
- * (c) Copyright 2019 Bruno Bentzen. All rights reserved.
- * Released under Apache 2.0 license as described in the file LICENSE.
- * Desc: The elaborator performs the endpoint ε-reductions for dependent paths.
-         The unifier implements the boundary separation rule
+  (c) Copyright 2019 Bruno Bentzen. All rights reserved.
+  Released under Apache 2.0 license as described in the file LICENSE.
+
+  Desc: This module contains the small trusted kernel plus type inference.
+        The elaborator performs the endpoint ε-reductions for dependent paths.
+        The unifier implements the boundary separation rule
  **)
 
 open Basis
@@ -15,14 +17,6 @@ open Eval
 let goal_msg ctx e ty =
   "when checking that\n  " ^ Pretty.printf e ^ "\nhas the expected type\n" ^ Global.printf ctx ^ 
   "-------------------------------------------\n ⊢ " ^ Pretty.printf ty
-
-(* Abbreviations for opening and closing binders *)
-
-let open_bound replacement body =
-  Expr.open_var 0 replacement body
-
-let close_bound binder body =
-  Expr.close_var 0 binder body
 
 let rec has_dangling_local depth = function
   | Local index -> index >= depth
@@ -125,7 +119,7 @@ let rec elaborate global ind_env ctx lvl sl ty ph vars = function
       let elab = elaborate global ind_env ((v1, ty1, true) :: ctx) lvl sl ty2' ph (vars+1) e' in
       begin match elab with
       | Ok (e', ty2', sa) -> 
-        Ok (Lam (x, close_bound v1 e'), Pi (x, ty1, close_bound v1 ty2'), sa)
+        Ok (Lam (x, Expr.close_bound v1 e'), Pi (x, ty1, Expr.close_bound v1 ty2'), sa)
       | Error (sa, msg) -> Error (sa, msg)
       end
     | Hole _ ->
@@ -516,7 +510,7 @@ let rec elaborate global ind_env ctx lvl sl ty ph vars = function
 
       begin match elab with
       | Ok (e', _, sa) ->
-        let e_closed = close_bound v1 e' in
+        let e_closed = Expr.close_bound v1 e' in
         let ei0 = Expr.open_var 0 (I0()) e_closed in
         let ei1 = Expr.open_var 0 (I1()) e_closed in
         let elab1 = elaborate global ind_env ((v1, Int(), true) :: ctx) lvl sl h0 (ph+2) (vars+1) ei0 in
@@ -570,7 +564,7 @@ let rec elaborate global ind_env ctx lvl sl ty ph vars = function
       let elab = elaborate global ind_env ((v1, Int(), true) :: ctx) lvl sl ty1' (ph+1) (vars+1) ei in
       begin match elab with
       | Ok (e', _, saa) ->
-        let e_closed = close_bound v1 e' in
+        let e_closed = Expr.close_bound v1 e' in
         let ei0 = eval ind_env (Expr.open_var 0 (I0()) e_closed) in
         let ei1 = eval ind_env (Expr.open_var 0 (I1()) e_closed) in
         let elab1 = elaborate global ind_env ctx lvl sl (eval ind_env (App(ty1, I0()))) (ph+1) (vars+1) ei0 in
@@ -798,17 +792,17 @@ let rec elaborate global ind_env ctx lvl sl ty ph vars = function
       begin match ty with
       | Type (Var par) when Level.is_arbitrary_string par ->
         (* Synthesize type levels placeholder *)
-        Ok (Pi(x, ty1', close_bound x ty2'), Type (Suc(max)), Stack.append sa1 sa2)
+        Ok (Pi(x, ty1', Expr.close_bound x ty2'), Type (Suc(max)), Stack.append sa1 sa2)
       | Type m ->
         (* Check if levels are compatible *)
         if Level.leq max m then 
-          Ok (Pi(x, ty1', close_bound x ty2'), Type m, Stack.append sa1 sa2)
+          Ok (Pi(x, ty1', Expr.close_bound x ty2'), Type m, Stack.append sa1 sa2)
         else 
           Error (Stack.append sa1 sa2, 
             "Universe level mismatch when checking that the type\n  " ^ Pretty.printf (Pi(x, ty1, ty2)) ^
             "\nof type \n  " ^ Pretty.printf (Type max) ^ "\nhas type\n  " ^ Pretty.printf (Type m))
       | Hole _ -> 
-        Ok (Pi(x, ty1', close_bound x ty2'), Type max, Stack.append sa1 sa2)
+        Ok (Pi(x, ty1', Expr.close_bound x ty2'), Type max, Stack.append sa1 sa2)
       | _ ->
         Error (Stack.append sa1 sa2, 
           "Type mismatch when checking that\n  " ^ Pretty.printf (Pi(x, ty1, ty2)) ^ "\nhas type\n  " ^ Pretty.printf ty)
@@ -831,12 +825,12 @@ let rec elaborate global ind_env ctx lvl sl ty ph vars = function
       begin match ty with
       | Type m ->
         if Level.leq n m then 
-          Ok (Pi(x, Hole (k,l), close_bound x ty2'), Type m, sa) 
+          Ok (Pi(x, Hole (k,l), Expr.close_bound x ty2'), Type m, sa) 
         else 
           Error (sa, "Type mismatch when checking that \n  " ^ Pretty.printf (Pi(x, ty1, ty2)) ^ 
                 "\nof type \n  " ^ Pretty.printf (Type n) ^ "\n has type\n  " ^ Pretty.printf (Type m))
       | Hole _ -> 
-        Ok (Pi(x, Hole (k,l), close_bound x ty2'), Type n, sa) (* TODO: hole might have live in a higher universe *)
+        Ok (Pi(x, Hole (k,l), Expr.close_bound x ty2'), Type n, sa) (* TODO: hole might have live in a higher universe *)
       | _ ->
         Error (sa, "Type mismatch when checking that\n  " ^ Pretty.printf (Pi(x, ty1, ty2)) ^ "\nhas type\n  " ^ Pretty.printf ty)
       end
@@ -874,16 +868,16 @@ let rec elaborate global ind_env ctx lvl sl ty ph vars = function
       begin match ty with
       | Type (Var par) when Level.is_arbitrary_string par ->
         (* Synthesize type levels placeholder *)
-        Ok (Sigma(x, ty1', close_bound x ty2'), Type (Suc(max)), Stack.append sa1 sa2)
+        Ok (Sigma(x, ty1', Expr.close_bound x ty2'), Type (Suc(max)), Stack.append sa1 sa2)
       | Type m -> 
         (* Check if levels are compatible *)
         if Level.leq max m then 
-          Ok (Sigma(x, ty1', close_bound x ty2'), Type m, Stack.append sa1 sa2) 
+          Ok (Sigma(x, ty1', Expr.close_bound x ty2'), Type m, Stack.append sa1 sa2) 
         else 
           Error (Stack.append sa1 sa2, "Type mismatch when checking that \n  Σ ( " ^ x ^ " : " ^ Pretty.printf ty1 ^ ") " ^ Pretty.printf ty2 ^ 
             "\nof type \n  " ^ Pretty.printf (eval ind_env (Type (Max(n1, n2)))) ^ "\n has type\n  " ^ Pretty.printf (Type m))
       | Hole _ -> 
-        Ok (Sigma(x, ty1', close_bound x ty2'), Type max, Stack.append sa1 sa2)
+        Ok (Sigma(x, ty1', Expr.close_bound x ty2'), Type max, Stack.append sa1 sa2)
       | _ ->
         Error (Stack.append sa1 sa2, "Type mismatch when checking that\n  Σ ( " ^ x ^ " : " ^ 
           Pretty.printf ty1 ^ ") " ^ Pretty.printf ty2 ^ "\nhas type\n  " ^ Pretty.printf ty)
@@ -906,12 +900,12 @@ let rec elaborate global ind_env ctx lvl sl ty ph vars = function
       begin match ty with
       | Type m -> 
         if Level.leq n m then 
-          Ok (Sigma(x, Hole (k,l), close_bound x ty2'), Type m, sa) 
+          Ok (Sigma(x, Hole (k,l), Expr.close_bound x ty2'), Type m, sa) 
         else 
           Error (sa, "Type mismatch when checking that \n  Σ ( " ^ x ^ " : " ^ Pretty.printf ty1 ^ ") " ^ Pretty.printf ty2 ^ 
                 "\nof type \n  " ^ Pretty.printf (Type n) ^ "\n has type\n  " ^ Pretty.printf (Type m))
       | Hole _ -> 
-        Ok (Sigma(x, Hole (k,l), close_bound x ty2'), Type n, sa) (* TODO: hole might have live in a higher universe *)
+        Ok (Sigma(x, Hole (k,l), Expr.close_bound x ty2'), Type n, sa) (* TODO: hole might have live in a higher universe *)
       | _ ->
         Error (sa, "Type mismatch when checking that\n  Σ ( " ^ x ^ " : " ^ Pretty.printf ty1 ^ ") " ^ Pretty.printf ty2 ^ "\nhas type\n  " ^ Pretty.printf ty)
       end
@@ -1208,14 +1202,14 @@ and unify global ind_env ctx lvl sl ph vars x lift =
         begin match u1 with
         | Ok s1 -> 
           let v1 = Expr.init_fresh vars in
-          let ty2_open = Expr.fullsubst 0 ty1 s1 true (open_bound (Global v1) ty2) in
-          let ty2'_open = Expr.fullsubst 0 ty1' s1 true (open_bound (Global v1) ty2') in
+          let ty2_open = Expr.fullsubst 0 ty1 s1 true (Expr.open_bound (Global v1) ty2) in
+          let ty2'_open = Expr.fullsubst 0 ty1' s1 true (Expr.open_bound (Global v1) ty2') in
           let ty2_open = eval ind_env ty2_open in
           let ty2'_open = eval ind_env ty2'_open in
           let u2 = unify global ind_env ((v1, s1, true) :: ctx) lvl sl ph (vars+1) (ty2_open, ty2'_open, ty) lift in
           begin match u2 with
           | Ok s2 -> 
-            Ok (Pi (v1, s1, close_bound v1 s2))
+            Ok (Pi (v1, s1, Expr.close_bound v1 s2))
           | Error msg -> 
             Error msg
           end
@@ -1227,11 +1221,11 @@ and unify global ind_env ctx lvl sl ph vars x lift =
         begin match u1 with
         | Ok s1 ->
           let v1 = Expr.init_fresh vars in
-          let ty2_open = Expr.fullsubst 0 ty1 s1 true (open_bound (Global v1) ty2) in
-          let ty2'_open = Expr.fullsubst 0 ty1' s1 true (open_bound (Global v1) ty2') in
+          let ty2_open = Expr.fullsubst 0 ty1 s1 true (Expr.open_bound (Global v1) ty2) in
+          let ty2'_open = Expr.fullsubst 0 ty1' s1 true (Expr.open_bound (Global v1) ty2') in
           let u2 = unify global ind_env ((v1, s1, true) :: ctx) lvl sl ph (vars+1) (ty2_open, ty2'_open, ty) lift in
           begin match u2 with
-          | Ok s2 -> Ok (Sigma (v1, s1, close_bound v1 s2))
+          | Ok s2 -> Ok (Sigma (v1, s1, Expr.close_bound v1 s2))
           | Error (s, msg) -> Error (s, "Don't know how to unify the codomains of the dependent product type\n  " ^ Pretty.printf ty2_open ^ "\nwith\n  " ^ Pretty.printf ty2'_open ^ "\n" ^ msg)
           end
         | Error (s, msg) -> Error (s, "Don't know how to unify the domains of the dependent product type\n  " ^ Pretty.printf ty1 ^ "\nwith\n  " ^ Pretty.printf ty1' ^ "\n" ^ msg)

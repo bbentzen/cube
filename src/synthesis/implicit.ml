@@ -1,7 +1,8 @@
 (**
- * (c) Copyright 2019 Bruno Bentzen. All rights reserved.
- * Released under Apache 2.0 license as described in the file LICENSE.
- * Desc: Reads implicit arguments by enumerating them
+  (c) Copyright 2019 Bruno Bentzen. All rights reserved.
+  Released under Apache 2.0 license as described in the file LICENSE.
+  
+  Desc: Reads implicit arguments by enumerating them
  **)
 
 open Basis

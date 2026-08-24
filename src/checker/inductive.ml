@@ -1,11 +1,12 @@
 (**
- * (c) Copyright 2026 Bruno Bentzen. All rights reserved.
- * Released under Apache 2.0 license as described in the file LICENSE.
- * Desc: Implements a strict positivity checker for inductive types 
- *       and generates the corresponding elimination rules.
+  (c) Copyright 2026 Bruno Bentzen. All rights reserved.
+  Released under Apache 2.0 license as described in the file LICENSE.
+
+  Desc: Implements a strict positivity checker for inductive types 
+        and generates the corresponding elimination rules.
  **)
 
-(* To do: evaluation, coe effect, improve how inductive types, constructors, 
+(* TODO: coercion effect, improve how inductive types, constructors, 
 elims are described as variables and printed in the ctx *)
 
 open Basis

@@ -1,9 +1,10 @@
 (**
- * (c) Copyright 2019 Bruno Bentzen. All rights reserved.
- * Released under Apache 2.0 license as described in the file LICENSE.
- * Desc: This file handles operations on the context and converts precontexts to actual contexts, 
- *       which are lists (string * expr * bool) where the strings are global variables 
- *       in the locally nameless representation style.     
+  (c) Copyright 2019 Bruno Bentzen. All rights reserved.
+  Released under Apache 2.0 license as described in the file LICENSE.
+
+  Desc: This file handles operations on the context and converts precontexts to actual contexts, 
+        which are lists (string * expr * bool) where the strings are global variables 
+        in the locally nameless representation style.     
  **)
 
 open Basis

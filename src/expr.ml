@@ -82,6 +82,14 @@ let rec close_var k x = function
   | Wild _ as e -> e
   | Subgoal _ as e -> e
 
+(* Abbreviations for opening and closing binders *)
+
+let open_bound replacement body =
+  open_var 0 replacement body
+
+let close_bound binder body =
+  close_var 0 binder body
+
 (* Legacy substitution function *)
 
 let rec fullsubst k ex d b = function

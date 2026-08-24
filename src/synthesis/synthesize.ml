@@ -1,7 +1,8 @@
 (**
- * (c) Copyright 2019 Bruno Bentzen. All rights reserved.
- * Released under Apache 2.0 license as described in the file LICENSE.
- * Desc: Handles synthesization of implicit arguments and universe levels,
+  (c) Copyright 2019 Bruno Bentzen. All rights reserved.
+  Released under Apache 2.0 license as described in the file LICENSE.
+  
+  Desc: Handles synthesization of implicit arguments and universe levels,
          Performs an exhaustive search on compatible types based on the context
          The elaborator returns a pair (sl') of its current synthesization attempts and stack
  **)

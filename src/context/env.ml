@@ -1,10 +1,11 @@
 (**
- * (c) Copyright 2019 Bruno Bentzen. All rights reserved.
- * Released under Apache 2.0 license as described in the file LICENSE.
- * Desc: Typechecked definitions are appended to an "environment", a list of
- *       identifiers with their proof term and their type. Identifiers are used as 
- *       global variables in the internal de Bruijn representation of terms.
- *       This file handles operations on this environment list.
+  (c) Copyright 2019 Bruno Bentzen. All rights reserved.
+  Released under Apache 2.0 license as described in the file LICENSE.
+  
+  Desc: Typechecked definitions are appended to an "environment", a list of
+        identifiers with their proof term and their type. Identifiers are used as 
+        global variables in the internal de Bruijn representation of terms.
+        This file handles operations on this environment list.
  **)
 
 open Basis

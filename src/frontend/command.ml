@@ -1,8 +1,11 @@
 (**
- * (c) Copyright 2019 Bruno Bentzen. All rights reserved.
- * Released under Apache 2.0 license as described in the file LICENSE.
- * Desc: Executes the commands described in a file
- *       Sucessfully type-checked terms are stored in a global context
+  (c) Copyright 2019 Bruno Bentzen. All rights reserved.
+  Released under Apache 2.0 license as described in the file LICENSE.
+
+  Desc: This module is the heart of the program. It executes the commands 
+        described in the user's file like inductive definitions, universe 
+        level declarations, proofs of theorems, term evaluation, etc. 
+        Successfully compiled data are stored in a global environment.
  **)
 
 open Basis

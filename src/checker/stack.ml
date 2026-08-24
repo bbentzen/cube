@@ -1,9 +1,10 @@
 (**
- * (c) Copyright 2019 Bruno Bentzen. All rights reserved.
- * Released under Apache 2.0 license as described in the file LICENSE.
- * Desc: Basic operations on synthesization stacks, lists of lists
+  (c) Copyright 2019 Bruno Bentzen. All rights reserved.
+  Released under Apache 2.0 license as described in the file LICENSE.
+
+  Desc: Basic operations on synthesization stacks, lists of lists
             ((int * (string * expr * bool) list) list)
-         used to keep track of which synthetization attempts have been performed
+        used to keep track of which synthetization attempts have been performed
  **)
 
 open Basis
