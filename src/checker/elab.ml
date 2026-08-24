@@ -18,24 +18,6 @@ let goal_msg ctx e ty =
   "when checking that\n  " ^ Pretty.printf e ^ "\nhas the expected type\n" ^ Global.printf ctx ^ 
   "-------------------------------------------\n ⊢ " ^ Pretty.printf ty
 
-let rec has_dangling_local depth = function
-  | Local index -> index >= depth
-  | Global _ | Int _ | I1 _ | I0 _ 
-  | Void _ | Type _ | Wild _ | Subgoal _ -> false
-  | Lam (_, e) | Pabs (_, e) -> has_dangling_local (depth + 1) e
-  | Pi (_, e1, e2) | Sigma (_, e1, e2) ->
-    has_dangling_local depth e1 || has_dangling_local (depth + 1) e2
-  | Coe (i, j, e1, e2) ->
-    has_dangling_local depth i || has_dangling_local depth j || has_dangling_local depth e1 || has_dangling_local depth e2
-  | Hcom (i, j, e, e1, e2) ->
-    has_dangling_local depth i || has_dangling_local depth j || has_dangling_local depth e || has_dangling_local depth e1 || has_dangling_local depth e2
-  | Pathd (e, e1, e2) ->
-    has_dangling_local depth e || has_dangling_local depth e1 || has_dangling_local depth e2
-  | App (e1, e2) | Pair (e1, e2) | At (e1, e2) ->
-    has_dangling_local depth e1 || has_dangling_local depth e2
-  | Fst e | Snd e | Abort e -> has_dangling_local depth e
-  | Hole (_, l) -> List.exists (has_dangling_local depth) l
-
 (* Checks whether the type of a given expression is the given type *)
 
 let rec elaborate global ind_env ctx lvl sl ty ph vars = function
@@ -356,41 +338,32 @@ let rec elaborate global ind_env ctx lvl sl ty ph vars = function
           let elab2i0 = elaborate global ind_env ctx lvl sl ty1 ph vars (eval ind_env (App(e2', i1))) in
           begin match elabi0, elabi1, elab1i0, elab2i0 with
           | Ok (ei0, _, _), Ok (ei1, _, _), Ok (e1i0, _, _), Ok (e2i0, _, _) ->
-            (* Typecheck the j face of the tubes *)
-            let elab1i1 = elaborate global ind_env ctx lvl sl ty0 ph vars (eval ind_env (App(e1', j1))) in
-            let elab2i1 = elaborate global ind_env ctx lvl sl ty1 ph vars (eval ind_env (App(e2', j1))) in
-            begin match elab1i1, elab2i1 with
+            (* Validate the composition scenario by matching the i-corners of the square *)
+            let u1 = unify global ind_env ctx lvl sl ph vars (eval ind_env ei0, e1i0, ty0) false in
+            let u2 = unify global ind_env ctx lvl sl ph vars (eval ind_env ei1, e2i0, ty1) false in
+            begin match u1, u2 with
             | Ok _, Ok _ ->
-              (* Validate the composition scenario by matching the corners of the square *)
-              let u1 = unify global ind_env ctx lvl sl ph vars (eval ind_env ei0, e1i0, ty0) false in
-              let u2 = unify global ind_env ctx lvl sl ph vars (eval ind_env ei1, e2i0, ty1) false in
-              begin match u1, u2 with
-              | Ok _, Ok _ ->
-                let return x = Ok (Hcom(i1, j1, e', e1', e2'), x, Stack.lappend sa sa1 sa2) in
-                if not (Placeholder.has_placeholder ty) then
-                  return ty
-                else if not (Placeholder.has_placeholder ety) then
-                  return (Pi (k, Int(), ety))
-                else if not (Placeholder.has_placeholder e1ty) then
-                  return (Pi (k, Int(), e1ty))
-                else if not (Placeholder.has_placeholder e2ty) then
-                  return (Pi (k, Int(), e2ty))
-                else
-                  return ty
-              | Error (_, msg), _ ->
-                Error (Stack.lappend sa sa1 sa2,
-                  "Invalid composition scenario: Error when unifying the i0-endpoint of the lid \n  " ^ 
-                  Pretty.printf (eval ind_env ei0) ^ "\nwith the " ^ Pretty.printf i1 ^ "-endpoint of the i0-tube \n  " ^ Pretty.printf (eval ind_env e1i0) ^
-                  "\n" ^ msg)
-              | _, Error (_, msg) -> 
-                Error (Stack.lappend sa sa1 sa2, 
-                  "Invalid composition scenario: Error when unifying the terms\n  " ^ 
-                  Pretty.printf (eval ind_env ei1) ^ "\nwith the " ^ Pretty.printf i1 ^ "-endpoint of the i1-tube \n  " ^ Pretty.printf (eval ind_env e2i0) ^
-                  "\n" ^ msg)
-              end
-                  
-            | Error (sa', msg), _ | _, Error (sa', msg) -> 
-              Error (Stack.append sa' (Stack.lappend sa sa1 sa2), msg)
+              let return x = Ok (Hcom(i1, j1, e', e1', e2'), x, Stack.lappend sa sa1 sa2) in
+              if not (Placeholder.has_placeholder ty) then
+                return ty
+              else if not (Placeholder.has_placeholder ety) then
+                return (Pi (k, Int(), ety))
+              else if not (Placeholder.has_placeholder e1ty) then
+                return (Pi (k, Int(), e1ty))
+              else if not (Placeholder.has_placeholder e2ty) then
+                return (Pi (k, Int(), e2ty))
+              else
+                return ty
+            | Error (_, msg), _ ->
+              Error (Stack.lappend sa sa1 sa2,
+                "Invalid composition scenario: Error when unifying the i0-endpoint of the lid \n  " ^ 
+                Pretty.printf (eval ind_env ei0) ^ "\nwith the " ^ Pretty.printf i1 ^ "-endpoint of the i0-tube \n  " ^ Pretty.printf (eval ind_env e1i0) ^
+                "\n" ^ msg)
+            | _, Error (_, msg) -> 
+              Error (Stack.lappend sa sa1 sa2, 
+                "Invalid composition scenario: Error when unifying the terms\n  " ^ 
+                Pretty.printf (eval ind_env ei1) ^ "\nwith the " ^ Pretty.printf i1 ^ "-endpoint of the i1-tube \n  " ^ Pretty.printf (eval ind_env e2i0) ^
+                "\n" ^ msg)
             end
             
           | Error (sa', msg), _, _, _ ->
@@ -702,8 +675,7 @@ let rec elaborate global ind_env ctx lvl sl ty ph vars = function
           | Hole _, ty' -> 
             Ok (At (e1', I0()), App(ty', I0()), Stack.append sa1 sa2)
           | _ -> 
-            let a' = if has_dangling_local 0 a then eval ind_env (At (e1', I0())) else a in
-            elaborate global ind_env ctx lvl sl ty (ph+3) vars a'
+            elaborate global ind_env ctx lvl sl ty (ph+3) vars a
         else if e2' = I1() then
           match b, ty' with
           | Hole _, Lam(_, ty') -> 
@@ -713,8 +685,7 @@ let rec elaborate global ind_env ctx lvl sl ty ph vars = function
           | Hole _, ty' -> 
             Ok (At (e1', I1()), App(ty', I1()), Stack.append sa1 sa2)
           | _ -> 
-            let b' = if has_dangling_local 0 b then eval ind_env (At (e1', I1())) else b in
-            elaborate global ind_env ctx lvl sl ty (ph+3) vars b'
+            elaborate global ind_env ctx lvl sl ty (ph+3) vars b
         else
           begin match ty' with
           | Lam(_, ty') ->
@@ -1165,13 +1136,7 @@ and unify global ind_env ctx lvl sl ph vars x lift =
 
       | e , Hole (n, l), _ | Hole (n, l), e, _ ->
         begin match l with
-        | [] ->
-          (* if has_dangling_local 0 e then
-            Error ((e, Hole (n, l)),
-              "Failed to instantiate placeholder with a term containing dangling local variables\n" ^
-              "candidate:\n  " ^ Pretty.printf e)
-          else *)
-            Ok e
+        | [] -> Ok e
         | _ ->
           let rec helper = function
           | [] -> false
@@ -1180,13 +1145,7 @@ and unify global ind_env ctx lvl sl ph vars x lift =
             let v = eval ind_env e in
             v = I0() || v = I1()
           in
-          if helper l || e_is_endpoint then 
-            (* if has_dangling_local 0 e then
-              Error ((e , Hole (n, l)),
-                "Failed to instantiate placeholder with a dangling-local candidate\n" ^
-                "candidate:\n  " ^ Pretty.printf e)
-            else *)
-            Ok e 
+          if helper l || e_is_endpoint then Ok e 
           else 
             Error ((e , Hole (n, l)),
                     "Failed to unify the placeholder\n  " ^ 
