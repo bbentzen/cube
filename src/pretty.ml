@@ -43,10 +43,10 @@ let rec print env = function
             String.concat "" [tparenthesize env e1'; "→ "; print (x' :: env) e2']
         | e' -> print env e'
       in
-      "Π (" ^ x ^ " : " ^ print (x :: env) e1 ^ ") " ^ iterate (x :: env) e2
+      "Π (" ^ x ^ " : " ^ print env e1 ^ ") " ^ iterate (x :: env) e2
     else
       begin match e2 with
-        | Void() -> "¬" ^ tparenthesize (x :: env) e1
+        | Void() -> "¬" ^ tparenthesize env e1
         | _ ->
           let rec iterate env = function
             | Pi (_, e1', Void()) -> "¬" ^ tparenthesize env e1'
@@ -57,7 +57,7 @@ let rec print env = function
                 String.concat "" [tparenthesize env e1'; "→ "; iterate (x' :: env) e2']
             | e' -> print env e'
           in
-          tparenthesize (x :: env) e1 ^ "→ " ^ iterate (x :: env) e2
+          tparenthesize env e1 ^ "→ " ^ iterate (x :: env) e2
       end
 
   | Sigma (x, e1, e2) ->
@@ -71,7 +71,7 @@ let rec print env = function
             String.concat "" [tparenthesize env e1'; "× "; print (x' :: env) e2']
         | e' -> print env e'
       in
-      "Σ (" ^ x ^ " : " ^ print (x :: env) e1 ^ ") " ^ iterate (x :: env) e2
+      "Σ (" ^ x ^ " : " ^ print env e1 ^ ") " ^ iterate (x :: env) e2
       end
     else
       let rec iterate env = function
