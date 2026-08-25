@@ -1,0 +1,21 @@
+/*
+ * Copyright (c) 2026 Bruno Bentzen. All rights reserved.
+ * Released under the Apache License 2.0 (see "License");
+ * Author: Bruno Bentzen
+ */
+
+import ../../core/function.cube
+
+universe k
+
+/* The identity type (not to be confused with path type) */
+
+inductive eq (A : type k) (a : A) : A → type k :=
+| r : eq A a a
+
+def J {A : type k} {a : A} {C : Π (x : A) eq A a x → type k} :
+  C a (r A a ) → Π (x : A ) (p : eq A a x) C x p  :=
+λ c x, eqrec A a C c x
+
+def id_to_path {A : type k} {a b : A} (p : eq A a b) : path A a b :=
+J (<i> a) b p

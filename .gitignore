@@ -11,4 +11,7 @@
 /vscode/node_modules
 /vscode/out
 
+src/syntax.conflicts
+src/syntax.ml
+
 dune-workspace

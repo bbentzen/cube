@@ -997,13 +997,15 @@ let rec elaborate global ind_env ctx lvl sl ty ph vars = function
           | Int(), Type n | Hole _, Type n ->
             begin match ty with
             | Type m ->
-              if m >= n then 
+              if Level.leq n m then 
                 Ok (Pathd(ty1', e1', e2'), Type m, Stack.lappend sa sa1 sa2) 
+              else if Level.is_arbitrary m then 
+                Ok (Pathd(ty1', e1', e2'), Type n, Stack.lappend sa sa1 sa2)
               else 
                 Error (Stack.lappend sa sa1 sa2, 
                   "Failed to check that\n  pathd " ^ 
                   Pretty.printf ty1' ^ " " ^  Pretty.printf e1' ^ " " ^  Pretty.printf e2' ^ 
-                  "\nhas type\n  " ^ Pretty.printf ty)
+                  "\nhas the expected type\n  " ^ Pretty.printf ty)
             | Hole _ -> 
               Ok (Pathd(ty1', e1', e2'), Type n, Stack.lappend sa sa1 sa2)
             | _ -> 

@@ -105,8 +105,8 @@ constr:
   | BAR ID COLON expr constr                                {(($2, $4) :: $5)}
 
 ctx: 
-  | LPAREN ids COLON expr RPAREN ctx                         {(($2, $4), true) :: $6}
-  | LBRACE ids COLON expr RBRACE ctx                         {(($2, $4), false) :: $6}
+  | LPAREN ids COLON expr RPAREN ctx                        {(($2, $4), true) :: $6}
+  | LBRACE ids COLON expr RBRACE ctx                        {(($2, $4), false) :: $6}
   | COLON                                                   {([])}
 
 ids:

@@ -18,7 +18,7 @@ def sum_eq_inl {A B : type l} {a a' : A} :
 def sum_eq_inr {A B : type l} {b b' : B} :
   path (A + B) (inr A B b) (inr A B b') → path B b b' :=
 λ p, <i> sumrec A B _ (λ _, b) id (p @ i)
- 
+
 def sum_neq {A B : type l} {a : A} {b : B} :
   ¬ path (A + B) (inl A B a) (inr A B b) :=
 λ p, coe i0 i1 (λ i, sumrec A B (λ _, type 0) (λ _, unit) (λ _, void) (p @ i)) ()
