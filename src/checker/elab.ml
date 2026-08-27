@@ -832,8 +832,8 @@ let rec elaborate global ind_env ctx lvl sl ty ph vars = function
     | Error (sa, msg), _ -> 
       Error (sa, "Failed to check that the domain\n  " ^ Pretty.printf (eval ind_env ty1) ^ "\nis a type\n" ^ msg)
     | Ok (ty1', u1, _), Ok (ty2', u2, _) -> 
-      Error (sl, "Could not type check the dependent function. Can only check that\n  " ^ Pretty.printf ty1' ^ "\nhas a type " ^ Pretty.printf u1 ^
-        "\nand that\n  " ^ Pretty.printf ty2' ^ "\nhas a type " ^ Pretty.printf u2)
+      Error (sl, "Failed to show that the dependent function " ^ Pretty.printf (Pi(x, ty1, ty2)) ^ " has the expected type " ^ Pretty.printf ty ^ ". Can only check that\n  " ^ Pretty.printf ty1' ^ "\nhas type " ^ Pretty.printf u1 ^
+        "\nand that\n  " ^ Pretty.printf ty2' ^ "\nhas type " ^ Pretty.printf u2)
     end
   
   | Sigma(x, ty1, ty2) ->
@@ -928,7 +928,9 @@ let rec elaborate global ind_env ctx lvl sl ty ph vars = function
   | Pathd(ty1, e1, e2) ->
     let h1 = Placeholder.generate ph [] in
     let ty = eval ind_env ty in
+    (* First consider the inference case: the type line is a placeholder *)
     begin match ty1 with
+    (* Subcase 1: dependent type placeholder *)
     | Hole (n,l) ->
       begin match e1, e2 with 
       | Hole (n1,l1), Hole (n2,l2) ->
@@ -941,21 +943,44 @@ let rec elaborate global ind_env ctx lvl sl ty ph vars = function
             Error (sl, "Failed to check that\n  " ^ Pretty.printf ty ^ "\nis a type")
           end
       | _ ->
-        let elab1 = elaborate global ind_env ctx lvl sl (Hole (n,l)) (ph+1) vars e1 in
-        let elab2 = elaborate global ind_env ctx lvl sl (Hole (n,l)) (ph+1) vars e2 in
+        (* Neither endpoint is a placeholder *)
+        let elab1 = elaborate global ind_env ctx lvl sl h1 (ph+1) vars e1 in
+        let elab2 = elaborate global ind_env ctx lvl sl h1 (ph+1) vars e2 in
         begin match elab1, elab2 with
         | Ok (e1', tye1, sa1), Ok (e2', tye2, sa2) ->
-          begin match ty with
-          | Type m ->
-            if eval ind_env tye1 = eval ind_env tye2 then
-              Ok (Pathd(tye1, e1', e2'), Type m, Stack.append sa1 sa2)
-            else
-              Ok (Pathd(Hole (n,l), e1', e2'), Type m, Stack.append sa1 sa2)
-          | Hole (m,k) ->
-            if eval ind_env tye1 = eval ind_env tye2 then
-              Ok (Pathd(eval ind_env tye1, e1', e2'), Hole (m,k), Stack.append sa1 sa2)
-            else 
-              Ok (Pathd(Hole (n,l), e1', e2'), Hole (m,k), Stack.append sa1 sa2)
+          let tye1 = eval ind_env tye1 in
+          let tye2 = eval ind_env tye2 in
+          begin match ty, tye1, tye2 with
+          (* Target type has been specified *)
+          | Type m, tye1, Hole _ ->
+            let v1 = Expr.init_fresh vars in
+            let tyei = Pi(v1, Int(), Expr.fullsubst 0 (I0()) (Local 0) true tye1) in
+            Ok (Pathd(tyei, e1', e2'), Type m, Stack.append sa1 sa2)
+          | Type m, _ , tye2 -> 
+            let v1 = Expr.init_fresh vars in
+            let tyei = Pi(v1, Int(), Expr.fullsubst 0 (I1()) (Local 0) true tye2) in
+            Ok (Pathd(tyei, e1', e2'), Type m, Stack.append sa1 sa2)
+          (* Target type is a placeholder *)
+          | Hole _, tye1, Hole _ ->
+            let v1 = Expr.init_fresh vars in
+            let tyei = Pi(v1, Int(), Expr.fullsubst 0 (I0()) (Local 0) true tye1) in
+            let h2 = Placeholder.generate (ph+1) [] in
+            begin match elaborate global ind_env ctx lvl sl h2 (ph+2) vars tye1 with
+            | Ok (_, tTye1, _) ->
+                Ok (Pathd(tyei, e1', e2'), tTye1, Stack.append sa1 sa2)
+            | Error (_, msg) ->
+              Error (Stack.append sa1 sa2, "Failed to check that\n  " ^ Pretty.printf tye1 ^ "\nis a type\n" ^ msg)
+            end
+          | Hole _, _, tye2 -> 
+            let v1 = Expr.init_fresh vars in
+            let tyei = Pi(v1, Int(), Expr.fullsubst 0 (I1()) (Local 0) true tye2) in
+            let h2 = Placeholder.generate (ph+1) [] in
+            begin match elaborate global ind_env ctx lvl sl h2 (ph+2) vars tye2 with
+            | Ok (_, tTye2, _) ->
+                Ok (Pathd(tyei, e1', e2'), tTye2, Stack.append sa1 sa2)
+            | Error (_, msg) ->
+              Error (Stack.append sa1 sa2, "Failed to check that\n  " ^ Pretty.printf tye1 ^ "\nis a type\n" ^ msg)
+            end
           | _ -> 
             Error (Stack.append sa1 sa2, "Failed to check that\n  " ^ Pretty.printf ty ^ "\nis a type")
           end
@@ -963,6 +988,7 @@ let rec elaborate global ind_env ctx lvl sl ty ph vars = function
           Error (sl, "Failed to check that\n  " ^ Pretty.printf e1 ^ "\nhas type\n ?0?")
         end
       end
+      (* Subcase 2: Non-dependent type with placeholder *)
     | Lam(x, Hole (n,l)) ->
       begin match e1, e2 with 
       | Hole (n1,l1), Hole (n2,l2) ->
@@ -975,15 +1001,34 @@ let rec elaborate global ind_env ctx lvl sl ty ph vars = function
             Error (sl, "Failed to check that\n  " ^ Pretty.printf ty ^ "\nis a type")
           end
       | _ ->
-        let elab1 = elaborate global ind_env ctx lvl sl (Hole (n,l)) (ph+1) vars e1 in
-        let elab2 = elaborate global ind_env ctx lvl sl (Hole (n,l)) (ph+1) vars e2 in
+        (* Neither endpoint is a placeholder *)
+        let elab1 = elaborate global ind_env ctx lvl sl h1 (ph+1) vars e1 in
+        let elab2 = elaborate global ind_env ctx lvl sl h1 (ph+1) vars e2 in
         begin match elab1, elab2 with
-        | Ok (e1', _, sa1), Ok (e2', _, sa2) ->
-          begin match ty with
-          | Type m ->
-            Ok (Pathd(Lam(x,Hole (n,l)), e1', e2'), Type m, Stack.append sa1 sa2)
-          | Hole (m,k) ->
-            Ok (Pathd(Lam(x,Hole (n,l)), e1', e2'), Hole (m,k), Stack.append sa1 sa2)
+        | Ok (e1', tye1', sa1), Ok (e2', tye2', sa2) ->
+          (* Target type is well-specified *)
+          begin match ty, tye1', tye2' with
+          | Type m, tye1, Hole _ -> Ok (Pathd(Lam(x, tye1), e1', e2'), Type m, Stack.append sa1 sa2)
+          | Type m, Hole _, tye2 -> Ok (Pathd(Lam(x, tye2), e1', e2'), Type m, Stack.append sa1 sa2)
+          | Type m, tye1, _ ->
+            Ok (Pathd(Lam(x, tye1), e1', e2'), Type m, Stack.append sa1 sa2)
+          (* If target type is also a placeholder we pick a well-specified type of an endpoint*)
+          | Hole _, tye1, Hole _ ->
+            let h2 = Placeholder.generate (ph+1) [] in
+            begin match elaborate global ind_env ctx lvl sl h2 (ph+2) vars tye1 with
+            | Ok (tye1, tTye1, _) ->
+                Ok (Pathd(Lam(x, tye1), e1', e2'), tTye1, Stack.append sa1 sa2)
+            | Error (_, msg) ->
+              Error (Stack.append sa1 sa2, "Failed to check that\n  " ^ Pretty.printf tye1 ^ "\nis a type\n" ^ msg)
+            end  
+          | Hole _, _, tye2 ->
+            let h2 = Placeholder.generate (ph+1) [] in
+            begin match elaborate global ind_env ctx lvl sl h2 (ph+2) vars tye2 with
+            | Ok (tye2, tTye2, _) ->
+              Ok (Pathd(Lam(x, tye2), e1', e2'), tTye2, Stack.append sa1 sa2)
+            | Error (_, msg) ->
+              Error (Stack.append sa1 sa2, "Failed to check that\n  " ^ Pretty.printf tye2 ^ "\nis a type\n" ^ msg)
+            end
           | _ -> 
             Error (Stack.append sa1 sa2, "Failed to check that\n  " ^ Pretty.printf ty ^ "\nis a type")
             end
@@ -993,6 +1038,7 @@ let rec elaborate global ind_env ctx lvl sl ty ph vars = function
           Error (sa, "Failed to check that\n  " ^ Pretty.printf e1 ^ "\nhas type\n " ^ Pretty.printf (Hole (n,l)) ^ "\n" ^ msg)
         end
       end
+    (* Now consider the case where the type line is well-specified *)
     | ty1 ->
       let elabi0 = elaborate global ind_env ctx lvl sl h1 (ph+1) vars (eval ind_env (App (ty1, I0()))) in
       let elabi1 = elaborate global ind_env ctx lvl sl h1 (ph+1) vars (eval ind_env (App (ty1, I1()))) in

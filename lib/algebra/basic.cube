@@ -20,4 +20,4 @@ def has_left_identity {A : type k} (op : A → A → A) : type k :=
   Σ (y : A) Π (x : A) path A (op y x) x
 
 def has_identity {A : type k} (op : A → A → A) : type k :=
-  has_right_identity op
+  has_right_identity op × has_left_identity op
