@@ -1,6 +1,24 @@
-# Cube
+<p align="center">
+  <img src="https://github.com/bbentzen/cube/blob/inductive/doc/assets/cube-logo.png?raw=true" width="600"/>
+</p>
 
-Cube is an experimental proof assistant for the formalization of constructive mathematics as developed in the informal cubically-flavored style advocated by Bentzen <a id="1">[1]</a>. It implements a version of the cubical type theory with reflection-free extensional equality proposed by Sterling, Angiuli, and Gratzer <a id="1">[2]</a><a id="1">[3]</a>, facilitating formalization with proof irrelevance while maintaining core cubical features. 
+<p align="center">
+  <a href="https://github.com/bbentzen/cube/stargazers" target="_blank">
+    <img src="https://img.shields.io/github/stars/bbentzen/cube?style=social" alt="GitHub stars">
+  </a>
+  <a href="https://github.com/bbentzen/cube/blob/main/LICENSE" target="_blank">
+    <img src="https://img.shields.io/github/license/bbentzen/cube" alt="License">
+  </a>
+  <a href="https://github.com/bbentzen/cube/releases" target="_blank">
+    <img src="https://img.shields.io/github/v/release/bbentzen/cube?include_prereleases" alt="Release">
+  </a>
+  <a href="https://github.com/ocaml/ocaml" target="_blank">
+    <img src="https://img.shields.io/badge/Ocaml-4.14.2-blue">
+  </a>
+</p>
+
+
+Cube is an experimental interactive theorem prover for the formalization of constructive mathematics as developed in the informal cubically-flavored style advocated by Bentzen <a id="1">[1]</a>. It implements a version of the cubical type theory with reflection-free extensional equality proposed by Sterling, Angiuli, and Gratzer <a id="1">[2]</a><a id="1">[3]</a>, facilitating formalization with proof irrelevance while maintaining core cubical features.
 
 ## Installation
 
