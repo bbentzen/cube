@@ -129,14 +129,24 @@ let rec elaborate global ind_env ctx lvl sl ty ph vars = function
       | Ok (e1', Pi(_, ty1, ty2), sa1) ->
         (* Evaluates the inferred domain before type checking *)
         let ty1' = eval ind_env ty1 in
+        let h3 = Placeholder.generate (ph+3) [] in
         let elab2 = elaborate global ind_env ctx lvl sl ty1' (ph+2) (vars+1) e2 in
-        begin
-          match elab2 with
-          | Ok (e2', _, sa2) ->
+        begin match elab2, ty1' with
+          | Ok (e2', ty1', sa2), Hole _ ->
+            (* If domain ty1 is a hole infer codomain type ty2 from e2 and unify *)
+            let ty2' = eval ind_env (Expr.fullsubst 0 ty1' ty1 true ty2) in
+            let u = unify global ind_env ctx lvl sl (ph+3) (vars+1) (eval ind_env ty, ty2', h3) true in
+            begin match u with
+            | Ok _ -> Ok (App (e1', e2'), ty2', Stack.append sa1 sa2)
+            | Error (_, msg) ->
+              Error (Stack.append sa1 sa2,
+                "Failed application after type inference: the term in the argument position \n  " ^ Pretty.printf e2' ^ 
+                "\nis expected to have type\n  " ^ Pretty.printf ty1' ^ "\n" ^ msg)
+            end
+          | Ok (e2', _, sa2), _ ->
+            (* Otherwise unify both types possibly lifting the universe levels *)
             let ty2' = eval ind_env (Expr.open_var 0 e2' ty2) in
-            let h3 = Placeholder.generate (ph+3) [] in 
-            (* Unify both types possibly lifting the universe level when needed *)
-            let u = unify global ind_env ctx lvl sl (ph+3) (vars+1) (eval ind_env ty, eval ind_env ty2', h3) true in
+            let u = unify global ind_env ctx lvl sl (ph+3) (vars+1) (eval ind_env ty, ty2', h3) true in
             begin match u with
             | Ok _ -> 
               Ok (App (e1', e2'), ty2', Stack.append sa1 sa2)
@@ -145,7 +155,7 @@ let rec elaborate global ind_env ctx lvl sl ty ph vars = function
                 "Failed application: the term in the argument position \n  " ^ Pretty.printf e2' ^ 
                 "\nis expected to have type\n  " ^ Pretty.printf ty1' ^ "\n" ^ msg)
             end
-          | Error (sa2, msg) -> 
+          | Error (sa2, msg), _ -> 
             Error (Stack.append sa1 sa2,
               "Failed application: the term in the argument\n  " ^ Pretty.printf e2 ^ 
               "\nis expected to have type\n  " ^ Pretty.printf ty1' ^ "\n" ^ msg)
@@ -822,7 +832,7 @@ let rec elaborate global ind_env ctx lvl sl ty ph vars = function
     | Error (sa, msg), _ -> 
       Error (sa, "Failed to check that the domain\n  " ^ Pretty.printf (eval ind_env ty1) ^ "\nis a type\n" ^ msg)
     | Ok (ty1', u1, _), Ok (ty2', u2, _) -> 
-      Error (sl, "Can only check that\n  " ^ Pretty.printf ty1' ^ "\nhas a type " ^ Pretty.printf u1 ^
+      Error (sl, "Could not type check the dependent function. Can only check that\n  " ^ Pretty.printf ty1' ^ "\nhas a type " ^ Pretty.printf u1 ^
         "\nand that\n  " ^ Pretty.printf ty2' ^ "\nhas a type " ^ Pretty.printf u2)
     end
   
@@ -892,7 +902,7 @@ let rec elaborate global ind_env ctx lvl sl ty ph vars = function
       end
     | Ok (_, Type _, _), Error (sa, msg) ->
       Error (sa, "Failed to check that\n  " ^ Pretty.printf ty2 ^ "\nis a type\n" ^ msg)
-    | Error (sa, msg), _ -> Error (sa, "Failed1 to check that\n  " ^ Pretty.printf ty1 ^ "\nis a type\n" ^ msg)
+    | Error (sa, msg), _ -> Error (sa, "Failed to check that\n  " ^ Pretty.printf ty1 ^ "\nis a type\n" ^ msg)
     | _ -> Error (sl, "Failed to check that\n  " ^ Pretty.printf ty1 ^ "\nis a type")
     end
   
