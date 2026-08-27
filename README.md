@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="https://github.com/bbentzen/cube/blob/inductive/doc/assets/cube-logo.png?raw=true" width="600"/>
+  <img src="https://github.com/bbentzen/cube/blob/master/doc/assets/cube-logo.png?raw=true" width="600"/>
 </p>
 
 <p align="center">
