@@ -3,7 +3,7 @@
  * Released under the Apache License 2.0 (see "License");
  * Author: Bruno Bentzen
  */
- 
+
 import ./laws.cube
 
 universe l
@@ -13,7 +13,7 @@ universe l
 def bool_code (b b' : bool) :
   type 1 :=
 if b (if b' (path bool true true) void) (if b' void (path bool false false))
- 
+
 def bool_eq (b b' : bool) :
   path bool b b' ↔ bool_code b b' :=
 if b 

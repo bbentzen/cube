@@ -15,7 +15,7 @@ inductive nat : type 0 :=
 | succ : nat → nat
 
 def rec {C : nat → type k} (n : nat)  :
-  Π (c : C zero) (d : Π (k : nat) C k → C (succ k)) C n :=
+  Π (c : C zero) (d : Π (k : nat), C k → C (succ k)), C n :=
 λ c d, natrec _ c d n
 
 /* Basic arithmetic operations */

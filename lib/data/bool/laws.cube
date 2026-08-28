@@ -22,7 +22,7 @@ def bool_neq' :
 def bneg_inv (b : bool) :
   path bool (bneg (bneg b)) b :=
 if b (<i> true) (<i> false)
- 
+
 def band_comm (b b' : bool) :
   path bool (band b b') (band b' b) :=
 if b (if b' (<_> true) (<_> false)) (if b' (<_> false) (<_> false))

@@ -4,46 +4,46 @@
  * Author: Bruno Bentzen
  */
 
-universe l 
+universe l
 
 /* Heterogeneous composition for paths */
- 
+
 def fill_def {A : I → type l} {a b : A i0} {c d : A i1} (p : path (A i0) a b) (q : pathd (λ j, A j) a c) (r : pathd (λ j, A j) b d) :
   I → I → A i1 := 
 λ j i, (hcom i0 j (λ i, coe i0 i1 (λ i, A i) (p @ i))
   | i0 →  (λ j, coe j i1 (λ i, A i) (q @ j)) 
   | i1 → (λ j, coe j i1 (λ i, A i) (r @ j))) i
-  
+
 def com_def {A : I → type l} {a b : A i0} {c d : A i1} (p : path (A i0) a b) (q : pathd (λ j, A j) a c) (r : pathd (λ j, A j) b d) :
   I → A i1 := 
 (fill_def p q r) i1
- 
+
 def com_def2 {A : I → type l} {a b : A i0} {c d : A i1} (p : path (A i0) a b) (q : pathd (λ j, A j) a c) (r : pathd (λ j, A j) b d) :
   I → A i1 := 
 com i0 i1 A (λ i, p @ i)
   | i0 → (λ j, q @ j) 
   | i1 → (λ j, r @ j) 
- 
+
 /* Coercion structure */
- 
-def product_coe (A : I → type l) (B : Π (i : I) A i → type l) (w : Σ (x : A i0) B i0 x)  :
-  path (Σ (x : A i1) B i1 x) 
-  (coe i0 i1 (λ i, Σ (x : A i) B i x) w)
+
+def product_coe (A : I → type l) (B : Π (i : I), A i → type l) (w : Σ (x : A i0), B i0 x)  :
+  path (Σ (x : A i1), B i1 x) 
+  (coe i0 i1 (λ i, Σ (x : A i), B i x) w)
   (coe i0 i1 (λ i, A i) fst w, coe i0 i1 (λ i, B i (coe i0 i (λ i, A i) fst w)) snd w) :=
-<_> coe i0 i1 (λ i, Σ (x : A i) B i x) w
-  
+<_> coe i0 i1 (λ i, Σ (x : A i), B i x) w
+
 def path_com {A : I → type l} {a : A i0} {b : A i1} (p : pathd A a b) (k : I) :
   pathd A a b := 
 <k> (hcom i0 i1 (λ i, coe i k A (p @ i))
   | i0 →  (λ _, coe i0 k A (p @ i0)) 
   | i1 → (λ _, coe i1 k A (p @ i1))) k
- 
+
 def path_coe_com1 (A : I → type l) {a b : A i0} (p : path (A i0) a b) :
   I → I → A i1 :=   
 λ j, hcom i0 j (λ i, coe i0 i1 A (p @ i))
   | i0 →  λ j, coe j i1 A (coe i0 j A a) 
   | i1 → λ j, coe j i1 A (coe i0 j A b)
- 
+
 def coe_path (A : I → type l) {a b : A i0} (p : path (A i0) a b) :
   path (A i1) (coe i0 i1 A a) (coe i0 i1 A b) :=
 coe i0 i1 
@@ -63,7 +63,7 @@ def coe_path_com (A : I → type l) {a b : A i0} (p : path (A i0) a b) :
 <k> (hcom i0 i1 (λ i, coe i0 i1 A (p @ i))
   | i0 →  λ j, coe j i1 A (coe i0 j A a) 
   | i1 → λ j, coe j i1 A (coe i0 j A b)) k
- 
+
 def path_coe (A : I → I → type l) {a : A i0 i0} {b : A i0 i1} (p : pathd (A i0) a b)  :
   pathd (A i1) 
   coe i0 i1 (λ i, A i i0) a 
@@ -75,23 +75,23 @@ coe i0 i1
 ) p
 
 def fill_side {A : I → type l} {a c : A i0} {b d : A i1} (p : pathd (λ j, A j) a b) (q : path (A i0) a c) (r : path (A i1) b d) :
-  I → Π (k : I) A k := 
+  I → Π (k : I), A k := 
 λ i k, (hcom i0 i (λ i, coe i k (λ i, A i) (p @ i))
   | i0 →  (λ j, coe i0 k (λ i, A i) (q @ j)) 
   | i1 → (λ j, coe i1 k (λ i, A i) (r @ j))) k
- 
+
 def coe_path_side (A : I → I → type l) {a : A i0 i0} {b : A i0 i1} (p : pathd (A i0) a b)  :
-  I → Π (k : I) A i0 k := 
+  I → Π (k : I), A i0 k := 
 λ i k, (hcom i0 i (λ i, coe i k (λ i, A i0 i) (p @ i))
   | i0 →  (λ j, coe i0 k (λ j, A i0 j) a) 
   | i1 → (λ j, coe i1 k (λ j, A i0 j) b)) k
 
 def coe_path_side_coe (A : I → I → type l) {a : A i0 i0} {b : A i0 i1} (p : pathd (A i0) a b)  :
-  I → Π (k : I) A i1 k := 
+  I → Π (k : I), A i1 k := 
 λ i k, (hcom i0 i (λ i, coe i0 i1 (λ i, A i k) coe i k (λ i, A i0 i) (p @ i))
   | i0 →  (λ j, coe i0 i1 (λ i, A i k) coe i0 k (λ j, A i0 j) a) 
   | i1 → (λ j, coe i0 i1 (λ i, A i k) coe i1 k (λ j, A i0 j) b)) k
-  
+
 def coe_path_side_coes (A : I → I → type l) {a : A i0 i0} {b : A i0 i1} (p : pathd (A i0) a b)  :
   pathd (A i1) 
   (coe i0 i1 (λ i, A i i0) a) 
@@ -99,13 +99,13 @@ def coe_path_side_coes (A : I → I → type l) {a : A i0 i0} {b : A i0 i1} (p :
 <k> (hcom i0 i1 (λ i, coe i0 i1 (λ i, A i k) coe i k (λ i, A i0 i) (p @ i))
   | i0 →  (λ j, coe i0 i1 (λ i, A i k) coe i0 k (λ j, A i0 j) a) 
   | i1 → (λ j, coe i0 i1 (λ i, A i k) coe i1 k (λ j, A i0 j) b)) k
- 
+
 def path_coe_beta (A : I → I → type l) (a : A i0 i0) (b : A i0 i1) (p : pathd (A i0) a b)  :
   pathd (A i0) a b :=
 <k> (hcom i0 i1 (λ j, coe j k (λ i, A i0 i) (p @ j))
   | i0 →  (λ _, coe i0 k (λ i, A i0 i) (p @ i0)) 
   | i1 → (λ _, coe i1 k (λ i, A i0 i) (p @ i1))) k
- 
+
 /* Coercion along types */
 
 def path_type_coe {A : I → I → type l} {a : A i0 i0} {b : A i0 i1} (p : pathd (A i0) a b)  :

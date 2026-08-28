@@ -6,16 +6,14 @@
 
 universe l
 
-def is_refl {A : type l} (R : A → A → type l) : type l := 
-Π (x : A) R x x
+def is_refl {A : type l} (R : A → A → type l) : type l :=
+Π (x : A), R x x
 
-def is_symm {A : type l} (R : A → A → type l) : type l := 
-Π (x : A) (y : A) R x y → R y x
-/* Π (x y : A) R x y → R y x */
+def is_symm {A : type l} (R : A → A → type l) : type l :=
+Π (x y : A), R x y → R y x
 
-def is_trans {A : type l} (R : A → A → type l) : type l := 
-Π (x : A) (y : A) (z : A) R x y → R y z → R x z
-/* Π (x y z : A) R x y → R y z → R x z */
+def is_trans {A : type l} (R : A → A → type l) : type l :=
+Π (x y z : A), R x y → R y z → R x z
 
-def is_equiv {A : type l} (R : A → A → type l) : type l := 
+def is_equiv {A : type l} (R : A → A → type l) : type l :=
 is_refl R × is_symm R × is_trans R

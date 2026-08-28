@@ -7,20 +7,19 @@
 universe l1 l2
 
 /** Lifting **/
- 
+
 def lift {f : type (max l1 l2) → type l2} {A : type l1} :
   type l2 := 
 f A
-  
+
 def next_lvl :
-  type (next l2) := 
+  type (next l2) :=
 type l2
- 
+
 def max_left :
-  type (max l1 l2) := 
+  type (max l1 l2) :=
 type l1
- 
+
 def max_right :
-  type (max l1 l2) := 
+  type (max l1 l2) :=
 type l2
- 

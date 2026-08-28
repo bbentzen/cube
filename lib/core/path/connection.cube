@@ -3,13 +3,13 @@
  * Released under the Apache License 2.0 (see "License");
  * Author: Bruno Bentzen
  */
- 
+
 import ../function.cube
 
-universe l 
+universe l
 
 /* Connections for paths */
- 
+
 def meet {A : type l} {a b : A} (p : path A a b) :
   pathd (λ i, path A a (p @ i)) (<_> a) p  := 
 <j> <i> (hcom i0 j (λ _, a) 

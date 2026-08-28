@@ -11,13 +11,13 @@ universe k
 /* Basic algebraic notions */
 
 def is_associative {A : type k} (op : A → A → A) : type k :=
-  Π (x : A) (y : A) (z : A) path A (op (op x y) z) (op x (op y z))
+  Π (x : A) (y : A) (z : A), path A (op (op x y) z) (op x (op y z))
 
 def has_right_identity {A : type k} (op : A → A → A) : type k :=
-  Σ (y : A) Π (x : A) path A (op x y) y
+  Σ (y : A) Π (x : A), path A (op x y) y
 
 def has_left_identity {A : type k} (op : A → A → A) : type k :=
-  Σ (y : A) Π (x : A) path A (op y x) x
+  Σ (y : A) Π (x : A), path A (op y x) x
 
 def has_identity {A : type k} (op : A → A → A) : type k :=
   has_right_identity op × has_left_identity op

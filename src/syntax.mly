@@ -120,8 +120,8 @@ vars:
   | WILDCARD vars                                           { "v?" :: $2 }
 
 blocks:
-  | expr %prec PI                                          { ([], $1) }
-  | LPAREN ids COLON expr RPAREN blocks                    { (ids_to_bindings $2 $4 @ fst $6, snd $6) }
+  | COMMA expr %prec PI                                     { ([], $2) }
+  | LPAREN ids COLON expr RPAREN blocks                     { (ids_to_bindings $2 $4 @ fst $6, snd $6) }
 
 level:
   | ID                                                     { RVar ($1) }

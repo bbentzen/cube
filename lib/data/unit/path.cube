@@ -7,7 +7,7 @@
 import ./basic.cube
 
 /* Paths */
- 
+
 def unit_eq (u : unit) :
   path unit u () :=
 let u (<_> ())

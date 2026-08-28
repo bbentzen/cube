@@ -7,23 +7,23 @@
 universe l 
 
 /* Function application and extensionality */
- 
-def ap {A B : type l} (f : A → B) {a b : A}  : 
+
+def ap {A B : type l} (f : A → B) {a b : A} :
   path A a b → path B (f a) (f b) :=
 λp, <i> f (p @ i)
- 
-def apd {A : type l} {B : A → type l} (f : Π (x : A) B x) {a b : A} (p : path A a b) : 
+
+def apd {A : type l} {B : A → type l} (f : Π (x : A), B x) {a b : A} (p : path A a b) :
   pathd (λi, B (p @ i)) (f a) (f b) :=
 <i> f (p @ i)	
- 
-def funext {A : type l} {B : A → type l} (f g : Π (x : A) B x)  : 
-  (Π (x : A) path (B x) (f x) (g x)) → path (Π (x : A) B x) f g :=
+
+def funext {A : type l} {B : A → type l} (f g : Π (x : A), B x) :
+  (Π (x : A), path (B x) (f x) (g x)) → path (Π (x : A), B x) f g :=
 λh, <i> (λ x, (h x) @ i)
 
 /* Homogeneous composition */
 
-def function_hcom {A : type l} {B : A → type l} {f f' g g' : Π (x : A) B x} (p : path (Π (x : A) B x) f g) (q : path (Π (x : A) B x) f f') (r : path (Π (x : A) B x) g g') (i : I) : 
-  path (Π (x : A) B x) 
+def function_hcom {A : type l} {B : A → type l} {f f' g g' : Π (x : A), B x} (p : path (Π (x : A), B x) f g) (q : path (Π (x : A), B x) f f') (r : path (Π (x : A), B x) g g') (i : I) :
+  path (Π (x : A), B x) 
   ((hcom i0 i1 (λ i, p @ i) | i0 → λ j, q @ j | i1 → λ j, r @ j) i) 
   (λ x, (hcom i0 i1 (λ j, (p @ j) x) | i0 → λ j, (q @ j) x | i1 → λ j, (r @ j) x) i) := 
 <_> (hcom i0 i1 (λ i, p @ i) 
@@ -31,9 +31,9 @@ def function_hcom {A : type l} {B : A → type l} {f f' g g' : Π (x : A) B x} (
   | i1 → λ j, r @ j) i
 
 /* Coercion structure */
- 
-def function_coe (A : I → type l) (B : Π (i : I) A i → type l) (f : Π (x : A i0) B i0 x)  :
-  path (Π (x : A i1) B i1 x) 
-  (coe i0 i1 (λ i, Π (x : A i) B i x) f)
+
+def function_coe (A : I → type l) (B : Π (i : I), A i → type l) (f : Π (x : A i0), B i0 x) :
+  path (Π (x : A i1), B i1 x) 
+  (coe i0 i1 (λ i, Π (x : A i), B i x) f)
   (λ a, coe i0 i1 (λ i, B i (coe i1 i (λ i, A i) a)) (f (coe i1 i0 (λ i, A i) a))) :=
-<_> coe i0 i1 (λ i, Π (x : A i) B i x) f
+<_> coe i0 i1 (λ i, Π (x : A i), B i x) f

@@ -3,7 +3,7 @@
  * Released under the Apache License 2.0 (see "License");
  * Author: Bruno Bentzen
  */
- 
+
 import ../../core/function.cube
 
 universe l k
@@ -14,7 +14,7 @@ inductive sum (A B : type l) : type l :=
 | inl : A → sum A B
 | inr : B → sum A B
 
-def case {A B : type l} {C : A + B → type k} (v : A + B) (cl : Π (x : A) C (inl A B x)) (cr : Π (x : B) C (inr A B x)) :
+def case {A B : type l} {C : A + B → type k} (v : A + B) (cl : Π (x : A), C (inl A B x)) (cr : Π (x : B), C (inr A B x)) :
   C v :=
 sumrec _ _ _ cl cr v
 

@@ -10,20 +10,20 @@ universe l1 l2
 
 def pi_form {A : type l1} {B : A → type l2} :
   type (max l1 l2) :=
-Π (x : A) B x
- 
+Π (x : A), B x
+
 def sigma_form {A : type l1} {B : A → type l2} :
   type (max l1 l2) :=
-Σ (x : A) B x
- 
+Σ (x : A), B x
+
 def path_form {A : type l1} (a b : A) :
   type l1 :=
 path A a b
- 
+
 def pathd_form {A : I → type l1} (a : A i0) (b : A i1) :
   type l1 :=
 pathd A a b
- 
-def pathd_type {A : I → type l1} (p : Π (i : I) A i) :
+
+def pathd_type {A : I → type l1} (p : Π (i : I), A i) :
   type l1 :=
 pathd A (p i0) (p i1)

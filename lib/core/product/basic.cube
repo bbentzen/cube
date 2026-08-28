@@ -73,41 +73,41 @@ def prod_to_neg_fun_1 {A B : type l} :
 /* Dependent product type */
 
 def sigma_intro {A B : type l} {C : A → type l} (a : A) (u : C a) :
-  Σ (x : A) C x :=
+  Σ (x : A), C x :=
 (a, u)
 
 def sigma_prod_distrb1 {A B : type l} {C : A → type l} :
-  (B × Σ (x : A) C x) → Σ (x : A) (B × C x) :=
+  (B × Σ (x : A), C x) → Σ (x : A), B × C x :=
 λ w, (fst (snd w), (fst w, snd (snd w)))
 
 def sigma_prod_distrb2 {A B : type l} {C : A → type l} :
-  (Σ (x : A) (B × C x)) → (B × Σ (x : A) C x) :=
+  (Σ (x : A), B × C x) → (B × Σ (x : A), C x) :=
 λ w, (fst (snd w), (fst w, snd (snd w)))
 
 def sigma_prod_distrb {A : type l} {B C : A → type l} :
-  (Σ (x : A) B x × C x) → (Σ (x : A) B x) × (Σ (x : A) C x) :=
+  (Σ (x : A), B x × C x) → (Σ (x : A), B x) × (Σ (x : A), C x) :=
 λ w, ((fst w, fst (snd w)), (fst w, snd (snd w)))
 
 def pi_to_not_sigma {A B : type l} {C : A → type l} :
-  (Π (x : A) C x) → ¬(Σ (x : A) ¬ C x) :=
+  (Π (x : A), C x) → ¬(Σ (x : A), ¬ C x) :=
 λ f w, (snd w) ((f (fst w)))
 
 def pi_not_to_not_sigma {A B : type l} {C : A → type l} :
-  (Π (x : A) ¬ C x) → ¬(Σ (x : A) C x) :=
+  (Π (x : A), ¬ C x) → ¬(Σ (x : A), C x) :=
 λ f w, (f (fst w)) (snd w)
 
 def sigma_to_not_pi {A B : type l} {C : A → type l} :
-  (Σ (x : A) C x) → ¬(Π (x : A) ¬ C x) :=
+  (Σ (x : A), C x) → ¬(Π (x : A), ¬ C x) :=
 λ w f, (f (fst w)) (snd w)
 
 def not_sigma_to_pi_not {A B : type l} {C : A → type l} :
-  (¬(Σ (x : A) C x)) → (Π (x : A) ¬ C x) :=
+  (¬(Σ (x : A), C x)) → (Π (x : A), ¬ C x) :=
 λ f x y, f (x, y)
 
 def sigma_not_to_not_pi {A : type l} {C : A → type l} :
-  (Σ (x : A) ¬ C x) → ¬ (Π (x : A) C x) :=
+  (Σ (x : A), ¬ C x) → ¬ (Π (x : A), C x) :=
 λ w f, (snd w) (f (fst w))
 
 def sigma_pi_exchg {A B : type l} {C : A → B → type l} :
-  (Σ (x : A) (Π (y : B) C x y)) → (Π (y : B) (Σ (x : A) C x y)) :=
+  (Σ (x : A), Π (y : B), C x y) → (Π (y : B), Σ (x : A), C x y) :=
 λ w y, (fst w, (snd w) y)

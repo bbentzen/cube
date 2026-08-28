@@ -26,7 +26,7 @@ def eq_to_pair {A B : type l} {a a' : A} {b b' : B} :
 snd pair_iff_eq
 
 /* Homogeneous composition */
- 
+
 def product_hcom {A B : type l} {w1 w1' w2 w2' : A × B} (p : path (A × B) w1 w2) (q : path (A × B) w1 w1') (r : path (A × B) w2 w2') (i : I) :
   path (A × B) 
   ((hcom i0 i1 (λ i, p @ i) | i0 → λ j, q @ j | i1 → λ j, r @ j) i) 
@@ -34,6 +34,6 @@ def product_hcom {A B : type l} {w1 w1' w2 w2' : A × B} (p : path (A × B) w1 w
    (hcom i0 i1 (λ i, snd (p @ i)) | i0 → λ j, snd (q @ j) | i1 → λ j, snd (r @ j)) i) :=
 <_> (hcom i0 i1 (λ i, p @ i) 
   | i0 → λ j, q @ j 
-  | i1 → λ j, r @ j) i 
+  | i1 → λ j, r @ j) i
 
 /* Coercion TODO */

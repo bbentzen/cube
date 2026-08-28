@@ -106,13 +106,13 @@ def sum_elim {A B C : type l} :
 /* Distribution over dependent types */
 
 def sigma_sum_distrb {A B : type l} {C : A → type l} :
-  (Σ (x : A) B + C x) → (B + Σ (x : A) C x) :=
-λ w, sumrec B (C (fst w)) _ (λ x, inl B (Σ (x : A) C x) x) (λ y, inr B (Σ (x : A) C x) (fst w, y)) (snd w)
+  (Σ (x : A), B + C x) → (B + Σ (x : A), C x) :=
+λ w, sumrec B (C (fst w)) _ (λ x, inl B (Σ (x : A), C x) x) (λ y, inr B (Σ (x : A), C x) (fst w, y)) (snd w)
 
 theorem pi_sum_distr {A : type l} {B C : A → type l} :
-  ((Π (x : A) B x) + (Π (x : A) C x)) → (Π (x : A) B x + C x) :=
-λ w x, sumrec (Π (x : A) B x) (Π (x : A) C x) _ (λ f, inl (B x) (C x) (f x)) (λ g, inr (B x) (C x) (g x)) w
+  ((Π (x : A), B x) + (Π (x : A), C x)) → (Π (x : A), B x + C x) :=
+λ w x, sumrec (Π (x : A), B x) (Π (x : A), C x) _ (λ f, inl (B x) (C x) (f x)) (λ g, inr (B x) (C x) (g x)) w
 
 theorem pi_sum_distrb {A B : type l} {C : A → type l} :
-  (B + (Π (x : A) C x)) → (Π (x : A) B + C x) :=
-λ w x, sumrec B (Π (x : A) C x) _ (λ y, inl B (C x) y) (λ f, inr B (C x) (f x)) w
+  (B + (Π (x : A), C x)) → (Π (x : A), B + C x) :=
+λ w x, sumrec B (Π (x : A), C x) _ (λ y, inl B (C x) y) (λ f, inr B (C x) (f x)) w

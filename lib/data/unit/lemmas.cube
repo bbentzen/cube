@@ -19,7 +19,7 @@ inl unit (¬unit) ()
 def unit_to_bool :
   (unit + unit) → bool :=
 λ v, sumrec unit unit _ (λ u, let u true) (λ u, let u false) v
- 
+
 theorem bool_to_unit :
   bool → (unit + unit) :=
 λ b, if b (inl unit unit ()) (inr unit unit ())
