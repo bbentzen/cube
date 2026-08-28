@@ -111,3 +111,11 @@ def path_coe_beta (A : I → I → type l) (a : A i0 i0) (b : A i0 i1) (p : path
 def path_type_coe {A : I → I → type l} {a : A i0 i0} {b : A i0 i1} (p : pathd (A i0) a b)  :
   type l :=
 pathd (A i1) (coe i0 i1 (λ j, A j i0) a) (coe i0 i1 (λ j, A j i1) b)
+
+/* Forming two-dimensional paths from one-dimensional composition */
+
+def get_square {A : type l} {a b c d : A} (p : path A a b) (q : path A c d) (r : path A a c) (s : path A b d) :
+  pathd (λ i, path A (r @ i) (s @ i)) p q := 
+<j> <i> (hcom i0 j (λ i, p @ i) 
+  | i0 → λ j, r @ j 
+  | i1 → λ j, s @ j) i
