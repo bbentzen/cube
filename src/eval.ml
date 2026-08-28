@@ -5,7 +5,7 @@
   Desc: Untyped weak head normal form reduction with β-reduction and η-reduction for 
         dependent functions and paths, but not ε-reduction (i0/i1 endpoints) for dependent paths. 
         Endpoint reduction is only performed at elaboration stage when we look at type checking. 
-        We also reduce recursors of inductive families when they are fully applied to a constructor.
+        We also ι-reduce recursors of inductive families when they are fully applied to a constructor.
  **)
 
 open Ast 

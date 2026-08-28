@@ -14,21 +14,25 @@ let diagnosticCollection: vscode.DiagnosticCollection;
 
 // Dictionary mapping abbreviations to Unicode symbols
 const UNICODE_ABBREVIATIONS: { [key: string]: string } = {
-    'rightarrow': '→',
-    'to': '→',
-    'leftrightarrow': '↔',
-    'iff': '↔',
-    'lambda': 'λ',
-    'let': 'λ',
+    'rightarrow': '→', 'to': '→', 'leftrightarrow': '↔', 'iff': '↔',
+    'lambda': 'λ', 'let': 'λ',
     'neg': '¬',
     'Pi': 'Π',
     'Sigma': 'Σ',
     'times': '×',
-    'nat': 'ℕ',
+    'nat': 'ℕ', 'int': 'ℤ', 'rat': 'ℚ', 'real': 'ℝ',
     'I': '𝕀',
-    'inv': '⁻¹',
-    'comp': '·',
-    'vdash': '⊢',
+    'inv': '⁻¹', 'comp': '·',
+    'forall': '∀', 'exists': '∃', 'and': '∧', 'or': '∨', 'vdash': '⊢',
+    'in': '∈', 'notin': '∉', 'subset': '⊂', 'subseteq': '⊆', 'supset': '⊃', 'supseteq': '⊇', 'emptyset': '∅', 'cup': '∪', 'cap': '∩',
+    'Rightarrow': '⇒', 'Leftrightarrow': '⇔',
+    '_0': '₀', '_1': '₁', '_2': '₂', '_3': '₃', '_4': '₄', '_5': '₅', '_6': '₆', '_7': '₇', '_8': '₈', '_9': '₉',
+    '^0': '⁰', '^1': '¹', '^2': '²', '^3': '³', '^4': '⁴', '^5': '⁵', '^6': '⁶', '^7': '⁷', '^8': '⁸', '^9': '⁹',
+    'alpha': 'α', 'beta': 'β', 'gamma': 'γ', 'delta': 'δ', 'epsilon': 'ε', 'zeta': 'ζ', 'eta': 'η', 'theta': 'θ',
+    'iota': 'ι', 'kappa': 'κ', 'mu': 'μ', 'nu': 'ν', 'xi': 'ξ', 'omicron': 'ο', 'pi': 'π',
+    'rho': 'ρ', 'sigma': 'σ', 'tau': 'τ', 'upsilon': 'υ', 'phi': 'φ', 'chi': 'χ', 'psi': 'ψ', 'omega': 'ω',
+    'Gamma': 'Γ', 'Delta': 'Δ', 'Theta': 'Θ', 'Lambda': 'Λ', 'Xi': 'Ξ', 'Upsilon': 'Υ', 'Phi': 'Φ', 'Psi': 'Ψ', 'Omega': 'Ω'
+    // Add more abbreviations and symbols as needed
 };
 
 export function activate(context: vscode.ExtensionContext) {
