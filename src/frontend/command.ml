@@ -158,22 +158,27 @@ let rec compile global ind_env ind lopen filename lvl next_location = function
                     ("Naming conflict with constructor '" ^ c_name ^ "'")
                 else
                   let c_ty = of_raw_expr c_ty_raw in
-                  if not (Inductive.strictly_positive id c_ty) then
-                    failwith_at location
-                      ("Strict positivity check failed for constructor '" ^ c_name ^
-                       "' in inductive type '" ^ id ^ "'")
-                  else
-                    let ind' = Inductive.add [(id, ty_fam)] ctx' in
-                    begin match Type.check global ind_env ind' lvl (eval ind_env c_ty) with
-                    | Ok (c_ty', c_univ) ->
-                      let c_indexed_ty = Inductive.parametrize_constructor_ty c_ty' ctx in
-                      (* Store indexed, non-indexed versions, and their type universes *)
-                      (c_name, c_indexed_ty), (c_name, c_ty), (c_name, c_univ)
-                    | Error msg ->
+                  (* Unfolds any definitions of identifiers occuring in constructor type*)
+                  begin match Env.unfold_all global 0 c_ty with
+                  | Ok c_ty ->
+                    if not (Inductive.strictly_positive id c_ty) then
                       failwith_at location
-                        ("Type check failed for constructor '" ^ c_name ^
-                         "' in inductive type '" ^ id ^ "':\n" ^ msg)
-                    end
+                        ("Strict positivity check failed for constructor '" ^ c_name ^
+                        "' in inductive type '" ^ id ^ "'")
+                    else
+                      let ind' = Inductive.add [(id, ty_fam)] ctx' in
+                      begin match Type.check global ind_env ind' lvl (eval ind_env c_ty) with
+                      | Ok (c_ty', c_univ) ->
+                        let c_indexed_ty = Inductive.parametrize_constructor_ty c_ty' ctx in
+                        (* Store indexed, non-indexed versions, and their type universes *)
+                        (c_name, c_indexed_ty), (c_name, c_ty), (c_name, c_univ)
+                      | Error msg ->
+                        failwith_at location
+                          ("Type check failed for constructor '" ^ c_name ^
+                          "' in inductive type '" ^ id ^ "':\n" ^ msg)
+                      end
+                  | Error msg -> failwith_at location msg
+                  end
               ) constrs_raw
             in
 

@@ -11,7 +11,7 @@ universe l
 
 /* Boolean equations */
 
-def bool_neq  :
+def bool_neq :
   ¬ path bool true false :=
 λ p, coe i0 i1 (λ i, if (p @ i) unit void) ()
 

@@ -28,4 +28,8 @@ def has_inverse {A : type k} (op : A → A → A) (e : A) : type k :=
 def is_commutative {A : type k} (op : A → A → A) : type k :=
   Π (x y : A), path A (op x y) (op y x)
 
+/* Monoids */
 
+inductive monoid : type k :=
+| mk : Π (domain : type k) (op : domain → domain → domain) 
+  (e : domain) (p : has_identity op) (q : is_associative op), monoid
