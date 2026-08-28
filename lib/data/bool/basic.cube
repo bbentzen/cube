@@ -23,7 +23,7 @@ boolrec C ct cf b
 def bneg :
   bool → bool :=
 λ b, if b false true
- 
+
 def band :
   bool → bool → bool :=
 λ b b', if b (if b' true false) (if b' false false)
@@ -31,15 +31,15 @@ def band :
 def bor :
   bool → bool → bool :=
 λ b b', if b (if b' true true) (if b' true false)
- 
+
 def bimpl :
   bool → bool → bool :=
 λ b b', if b (if b' true false) (if b' true true)
- 
+
 def bnand :
   bool → bool → bool :=
 λ b b', if b (if b' false true) (if b' true true)
- 
+
 def bnor :
   bool → bool → bool :=
 λ b b', if b (if b' false false) (if b' false true)

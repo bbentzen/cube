@@ -6,3 +6,4 @@
 
 import ./core.cube
 import ./data.cube
+import ./algebra.cube

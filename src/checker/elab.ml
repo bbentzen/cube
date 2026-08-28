@@ -131,35 +131,24 @@ let rec elaborate global ind_env ctx lvl sl ty ph vars = function
         let ty1' = eval ind_env ty1 in
         let h3 = Placeholder.generate (ph+3) [] in
         let elab2 = elaborate global ind_env ctx lvl sl ty1' (ph+2) (vars+1) e2 in
-        begin match elab2, ty1' with
-          | Ok (e2', ty1', sa2), Hole _ ->
-            (* If domain ty1 is a hole infer codomain type ty2 from e2 and unify *)
-            let ty2' = eval ind_env (Expr.fullsubst 0 ty1' ty1 true ty2) in
-            let u = unify global ind_env ctx lvl sl (ph+3) (vars+1) (eval ind_env ty, ty2', h3) true in
-            begin match u with
-            | Ok _ -> Ok (App (e1', e2'), ty2', Stack.append sa1 sa2)
-            | Error (_, msg) ->
-              Error (Stack.append sa1 sa2,
-                "Failed application after type inference: the term in the argument position \n  " ^ Pretty.printf e2' ^ 
-                "\nis expected to have type\n  " ^ Pretty.printf ty1' ^ "\n" ^ msg)
-            end
-          | Ok (e2', _, sa2), _ ->
-            (* Otherwise unify both types possibly lifting the universe levels *)
-            let ty2' = eval ind_env (Expr.open_var 0 e2' ty2) in
-            let u = unify global ind_env ctx lvl sl (ph+3) (vars+1) (eval ind_env ty, ty2', h3) true in
-            begin match u with
-            | Ok _ -> 
-              Ok (App (e1', e2'), ty2', Stack.append sa1 sa2)
-            | Error (_, msg) ->
-              Error (Stack.append sa1 sa2,
-                "Failed application: the term in the argument position \n  " ^ Pretty.printf e2' ^ 
-                "\nis expected to have type\n  " ^ Pretty.printf ty1' ^ "\n" ^ msg)
-            end
-          | Error (sa2, msg), _ -> 
+        begin match elab2 with
+        | Ok (e2', _, sa2) ->
+          (* Otherwise unify both types possibly lifting the universe levels *)
+          let ty2' = eval ind_env (Expr.open_var 0 e2' ty2) in
+          let u = unify global ind_env ctx lvl sl (ph+3) (vars+1) (eval ind_env ty, ty2', h3) true in
+          begin match u with
+          | Ok _ -> 
+            Ok (App (e1', e2'), ty2', Stack.append sa1 sa2)
+          | Error (_, msg) ->
             Error (Stack.append sa1 sa2,
-              "Failed application: the term in the argument\n  " ^ Pretty.printf e2 ^ 
+              "Failed application: the term in the argument position \n  " ^ Pretty.printf e2' ^ 
               "\nis expected to have type\n  " ^ Pretty.printf ty1' ^ "\n" ^ msg)
           end
+        | Error (sa2, msg) -> 
+          Error (Stack.append sa1 sa2,
+            "Failed application: the term in the argument\n  " ^ Pretty.printf e2 ^ 
+            "\nis expected to have type\n  " ^ Pretty.printf ty1' ^ "\n" ^ msg)
+        end
         
       | Ok (e1', ty1', sa1) -> 
         Error (sa1,

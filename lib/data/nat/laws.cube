@@ -32,7 +32,7 @@ def pred_succ {n : nat} :
   path nat (pred (succ n)) n :=
 <_> n
 
-def succ_pred {n : nat} (w : Σ (k : nat) path nat (succ k) n) :
+def succ_pred {n : nat} (w : Σ (k : nat), path nat (succ k) n) :
   path nat (succ (pred n)) n :=
 coe i0 i1 (λ i, path nat (succ (pred (snd w @ i))) (snd w @ i)) (<_> succ (fst w))
 

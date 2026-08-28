@@ -4,8 +4,4 @@
  * Author: Bruno Bentzen
  */
 
-import ./data/nat.cube
-import ./data/sum.cube
-import ./data/unit.cube 
-import ./data/bool.cube 
-import ./data/eq.cube 
+import ./algebra/basic.cube

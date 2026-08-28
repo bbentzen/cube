@@ -46,23 +46,23 @@ def w_combinator {A B : type l} :
 
 def not_false :
   ¬ void :=
-λx, x
+λ x, x
 
 def dni {A : type l} :
   A → ¬¬A :=
-λx f, f x
+λ x f, f x
 
 def tne {A : type l} :
   ¬¬¬A → ¬A :=
-λf x, f (λnx, nx x)
+λ f x, f (λnx, nx x)
 
 def contrap {A B : type l} :
   (A → B) → (¬ B → ¬ A) :=
-λf g x, g (f x)
+λ f g x, g (f x)
 
 def neg_distr {A B : type l} :
   ¬ (A → B) → (A → ¬ B) :=
-λf _ y, f (λ_, y)
+λ f _ y, f (λ_, y)
 
 def neg_ant {A B : type l} :
   (A → B) → (A → ¬ B) → ¬ A :=
