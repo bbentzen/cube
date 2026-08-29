@@ -5,31 +5,43 @@
  */
 
 import ../core/function.cube
+import ../core/path.cube
 
 universe k
 
 /* Basic algebraic notions */
 
-def is_associative {A : type k} (op : A → A → A) : type k :=
-  Π (x y z : A), path A (op (op x y) z) (op x (op y z))
+definition is_associative {A : type k} (f : A → A → A) : type k :=
+  Π (x y z : A), path A (f (f x y) z) (f x (f y z))
 
-def has_right_identity {A : type k} (op : A → A → A) : type k :=
-  Σ (y x : A), path A (op x y) y
+definition is_right_identity {A : type k} (f : A → A → A) (e : A) : type k :=
+  Π (x : A), path A (f x e) x
 
-def has_left_identity {A : type k} (op : A → A → A) : type k :=
-  Σ (y : A), Π (x : A), path A (op y x) x
+definition is_left_identity {A : type k} (f : A → A → A) (e : A) : type k :=
+  Π (x : A), path A (f e x) x
 
-def has_identity {A : type k} (op : A → A → A) : type k :=
-  has_right_identity op × has_left_identity op
+definition is_identity {A : type k} (f : A → A → A) (e : A) : type k :=
+  is_right_identity f e × is_left_identity f e
 
-def has_inverse {A : type k} (op : A → A → A) (e : A) : type k :=
-  Π (x : A), Σ (y : A), path A (op x y) e
+definition has_inverse {A : type k} (f : A → A → A) (e : A) : type k :=
+  Π (x : A), Σ (y : A), path A (f x y) e
 
-def is_commutative {A : type k} (op : A → A → A) : type k :=
-  Π (x y : A), path A (op x y) (op y x)
+definition is_commutative {A : type k} (f : A → A → A) : type k :=
+  Π (x y : A), path A (f x y) (f y x)
+
+/* Uniqueness of identity */
+
+theorem identity_is_unique {A : type k} {f : A → A → A} (e e' : A) :
+  Π (p : is_identity f e) (q : is_identity f e'), path A e e' :=
+λ p q, (fst q e)⁻¹ · (snd p e')
 
 /* Monoids */
 
-inductive monoid : type k :=
-| mk : Π (domain : type k) (op : domain → domain → domain) 
-  (e : domain) (p : has_identity op) (q : is_associative op), monoid
+inductive monoid (A : type k) : type k :=
+| mk : Π  (f : A → A → A) (e : A) (p : is_identity f e) (q : is_associative f), monoid A
+
+definition get_op (A : type k) : monoid A → (A → A → A) :=
+monoidrec A (λ _, A → A → A) (λ f e p q, f)
+
+definition preserves_mult {A B : type k} (h : A → B) (M : monoid A) (N : monoid B) : type k :=
+Π (x y : A), path B (h (get_op A M x y)) (get_op B N (h x) (h y)) /* improve implicit arg handling */
