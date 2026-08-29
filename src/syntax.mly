@@ -99,6 +99,7 @@ command:
 decl:
   | DEF ID ctx expr COLONEQ expr                            {Prf($2, $3, $4, $6)}
   | INFER ctx expr                                          {Prf("infer", $2, RHole("0", []), $3)}
+  | INFER expr                                              {Prf("infer", [], RHole("0", []), $2)}
 
 constr: 
   | BAR ID COLON expr                                       {[($2, $4)]}

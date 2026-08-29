@@ -161,6 +161,8 @@ let rec compile global ind_env ind lopen filename lvl next_location = function
                   (* Unfolds any definitions of identifiers occuring in constructor type*)
                   begin match Env.unfold_all global 0 c_ty with
                   | Ok c_ty ->
+                    let c_ty = Eval.eval ind_env c_ty in (* This needs to be replaced with eager evaluation later *)
+                    (* Checks that the inductive type occurs strictly positively in the constructor type *)
                     if not (Inductive.strictly_positive id c_ty) then
                       failwith_at location
                         ("Strict positivity check failed for constructor '" ^ c_name ^

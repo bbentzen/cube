@@ -13,10 +13,12 @@ open Basis
 open Ast
 open Data
 
+(* This occurs_name function ignores bound variables *)
+
 let rec occurs_name id l = function
   | Global t -> t = id 
-  | Lam (x, e) | Pabs (x, e) -> x = id || occurs_name x l e
-  | Pi (x, e1, e2) | Sigma (x, e1, e2) -> x = id || occurs_name x l e1 || occurs_name x l e2
+  | Lam (x, e) | Pabs (x, e) ->  occurs_name x l e
+  | Pi (x, e1, e2) | Sigma (x, e1, e2) -> occurs_name x l e1 || occurs_name x l e2
   | Local index -> 
     begin match List.nth_opt l index with
     | Some h -> h = id | None -> false
@@ -170,6 +172,7 @@ let generate_recursor ind_name ind_ty constrs ctx ctx_rev = (*ind_ty *)
       let app_params x = Expr.shift 0 1 (app_constr_args x (ar_type_fam ind_ty)) in
       abs_params (Pi (var, motive_dom, App (app_params (Global motive_name), Local 0))) 
     | (c_name, c_ty) :: rest ->
+      (* Generates minor premises for each constructor *)
       let minor_ty = build_ihs ind_name ind_ty motive_name 0 0 ctx c_name c_ty in
       Pi ("c_" ^ c_name, minor_ty, add_minor_premises rest)
   in

@@ -90,7 +90,8 @@ let rec print env = function
       match e with
       | Lam (i, ty) ->
         if not (occurs_index 0 0 ty) then
-          "path " ^ parenthesize env ty ^ parenthesize env e1 ^ parenthesize env e2
+          (* even so we add i to the environment to preserve the binding order *)
+          "path " ^ parenthesize (i :: env) ty ^ parenthesize env e1 ^ parenthesize env e2
         else
           "pathd (" ^ print env (Lam (i, ty)) ^ ") " ^ parenthesize env e1 ^ parenthesize env e2
       | _ ->
