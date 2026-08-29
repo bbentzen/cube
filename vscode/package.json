@@ -1,7 +1,7 @@
 {
   "name": "cube-vscode",
-  "displayName": "Cube Language Support",
-  "description": "Syntax highlighting and diagnostics for the Cube proof assistant",
+  "displayName": "Cube VS Code Extension",
+  "description": "Language support and diagnostics for the Cube theorem prover",
   "version": "0.1.0",
   "engines": {
     "vscode": "^1.80.0"

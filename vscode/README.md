@@ -25,30 +25,30 @@ If you see a message "Cube binary cannot be located", this is most likely becaus
 
 ### Features 
 
-The Cube VS Code Extension extension supports syntax highlighting, snippet completion, bracket matching, bracket autoclosing, bracket autosurrounding, comment toggling (`Ctrl` + `/`), and the following Unicode abbreviations: 
+The Cube VS Code Extension extension supports syntax highlighting, snippet completion, bracket matching, bracket autoclosing, bracket autosurrounding, comment toggling (`Ctrl` + `/`), and various LaTeX-style abbreviations for Unicode characters, including
 
-* λ can be typed as `\lambda` or `\let`
+* λ as `\lambda` or `\let`
 
-* → can be typed as `\rightarrow` or `\to`
+* → as `\rightarrow` or `\to`
 
-* ↔ can be typed as `\leftrightarrow` or `\iff`
+* ↔ as `\leftrightarrow` or `\iff`
 
-* ¬ can be typed as `\neg`
+* ¬ as `\neg`
 
-* Π can be typed as `\Pi`
+* Π as `\Pi`
 
-* Σ can be typed as `\Sigma` 
+* Σ as `\Sigma` 
  
-* × can be typed as `\times`
+* × as `\times`
 
-* Σ can be typed as `\Sigma` 
+* Σ as `\Sigma` 
 
-* ℕ can be typed as `\nat` 
+* ℕ as `\nat` 
 
-* 𝕀 can be typed as `\I` 
+* 𝕀 as `\I` 
 
-* ⁻¹ can be typed as `\inv`
+* ⁻¹ as `\inv`
 
-* · can be typed as `\comp`
+* · as `\comp`
 
-* ⊢ can be typed as `\vdash` 
+* ⊢ as `\vdash` 
