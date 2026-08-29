@@ -4,7 +4,9 @@ Before preparing a pull request (PR), please test your changes beforehand, runni
 
 Here are some items on our TODO list:
 
-- Expand the library with more formalized math for testing the limits of Cube
+- Do not automatically unfold terms tagged as theorem or as lemma
+- Inductive type declarations need to handle evaluation better
+- Expand the library with more formalized math for testing strengths and limits
 - Coercion reduction rules for constructors of inductive types
 - Add type constructor inference
 - Add explicit @ handling of implicit arguments
@@ -12,11 +14,12 @@ Here are some items on our TODO list:
 - Fix universe polymorphism bug when universe level occurs in proof
 - Add structures
 - Parse unicode subscript, superscript, Greek letters properly
-- Add a better syntax Infer without : for empty ctx
+- Proper handling of Infer in command apart from Thm
 - Wildcard printing: user should not see inductive data as part of context when _ is entered in a proof (remove ind@ctx hack)
 - Parse numbers in applied exprs (but not as levels) as sss...s0, e.g 2 as ss0
 - Let-in local definitions
 - Introduce Quotients types
-- readthedocs documentation
 - Opening of modules for referring to module.foo as foo
 - Go to definition VS code extension feature
+- Publish VS Code extension
+- readthedocs documentation
