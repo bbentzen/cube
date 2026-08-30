@@ -19,15 +19,15 @@ let make_motive n ty =
 
 (* Infer the motive of a well-applied recursor *)
 
-let try_infer_motive rec_env ty args = function
+let rec_motive rec_env ty args = function
   | Global rec_name ->
     begin match Hashtbl.find_opt rec_env rec_name with
     | Some rec_spec -> 
       let num_minors = List.length rec_spec.constructors in
       let expected_args = rec_spec.num_indices + 1 + rec_spec.num_params + num_minors + 1 in
-  
+      (* Only proceed when the list is fully applied *)
       if List.length args < expected_args then
-        None (* Not fully applied yet *)
+        None 
       else
         let motive_arg = List.nth args rec_spec.num_indices in
         if Placeholder.is motive_arg then

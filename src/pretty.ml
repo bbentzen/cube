@@ -15,7 +15,7 @@ open Expr
 let rec print env = function
   | Global("zero") -> "0 "
   | Global("nat") -> "ℕ "
-  | App(App(App(App (Global "pair", Wild _ ), Wild _), e1), e2) -> 
+  | App(App(App(App (Global "pair", _ ), _), e1), e2) -> 
     "(" ^ parenthesize env e1 ^ ", " ^ parenthesize env e2 ^ ") "
   | Global y -> y ^ " "
   | Local index -> (name_at index env) ^ " "
