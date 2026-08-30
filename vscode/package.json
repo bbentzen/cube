@@ -3,12 +3,14 @@
   "displayName": "Cube VS Code Extension",
   "description": "Language support and diagnostics for the Cube theorem prover",
   "version": "0.1.0",
+  "icon": "images/cube-icon.png",
   "engines": {
     "vscode": "^1.80.0"
   },
   "categories": [
     "Programming Languages"
   ],
+  "repository": { "type": "git", "url": "https://github.com/bbentzen/cube" },
   "activationEvents": [],
   "main": "./out/extension.js",
   "contributes": {
