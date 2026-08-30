@@ -113,10 +113,11 @@ let rec reduce ind_env = function
     (Coe (j', Local 0, Lam(k, shift 1 1 ty1), Local 1)) ty2))),
     (App(shift 0 1 e, Coe (j', i', Lam(k, shift 1 1 ty1), Local 0)))))
 
-  | Coe (i, j, Lam(k, Sigma(_, ty1, ty2)), e) ->
+  (* TODO: Reimplement this as instance of general constructor scheme *)
+  (* | Coe (i, j, Lam(k, Sigma(_, ty1, ty2)), e) ->
     Pair(Coe (i, j, Lam(k, ty1), Fst e), 
     Coe (i, j, Lam(k, 
-    open_var 0 (shift 1 1 (Coe (i, Local 0, Lam(k, ty1), Fst e))) ty2), Snd (e)))
+    open_var 0 (shift 1 1 (Coe (i, Local 0, Lam(k, ty1), Fst e))) ty2), Snd (e))) *)
 
   | Coe (i, j, Lam(k, Pathd(ty, e1, e2)), e) ->
       let v = create_fresh [ty; e1; e2; e] 3 in (* TODO: replace, passing vars param *)
@@ -191,26 +192,6 @@ let rec reduce ind_env = function
         | _ -> full_app
         end
       end
-    end
-
-  | Pair (Fst e1, Snd e2) ->
-      if e1 = e2 then
-        reduce ind_env e1 (* eta reduction *)
-      else
-        Pair (Fst e1, Snd e2)
-
-  | Fst e ->
-    let e' = reduce ind_env e in
-    begin match e' with
-    | Pair (e1 , _) -> reduce ind_env e1
-    | _ -> Fst e'
-    end
-
-  | Snd e -> 
-    let e' = reduce ind_env e in
-    begin match e' with
-    | Pair (_ , e2) -> reduce ind_env e2
-    | _ -> Snd e'
     end
   
   | Pabs (x, At (e , Local 0)) -> 

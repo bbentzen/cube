@@ -4,30 +4,20 @@
  * Author: Bruno Bentzen
  */
 
+import ./basic.cube
+
 universe l 
 
 /* Product type */
 
-def pr1 {A B : type l} :
-  (A × B) → A :=
-λ w, fst w
-
-def pr2 {A B : type l}:
-  (A × B) → B :=
-λ w, snd w
-
-def pair {A B : type l} :
-  A → B → A × B :=
-λ x, λ y, (x, y)
-
 def prod_swap {A B : type l} :
   (A × B) → (B × A) :=
-λ w, (snd w, fst w)
+λ w, (snd A (λ_, B) w, fst A (λ_, B) w)
 
 def prod_assoc {A B C : type l} :
   A × B × C ↔ (A × B) × C :=
-(λ w, ((fst w, fst (snd w)), snd (snd w)),
- λ w, (fst (fst w), (snd (fst w), snd w)))
+(λ w, ((fst A (λ_, B × C) w, fst B (λ_, C) (snd A (λ_, B × C) w)), snd B (λ_, C) (snd A (λ_, B × C) w)),
+ λ w, (fst A (λ_, B) (fst (A × B) (λ_, C) w), (snd A (λ_, B) (fst (A × B) (λ_, C) w), snd (A × B) (λ_, C) w)))
 
 def prod_distrib_fst {A B C : type l} :
   ((A → C) × (B → C)) → ((A × B) → C) :=

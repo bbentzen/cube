@@ -71,13 +71,9 @@ let rec placeholder_level = function
 let rec placeholder_levels = function
   | Type lvl -> Type (placeholder_level lvl)
   | Pi (x, l1, l2) -> Pi (x, placeholder_levels l1, placeholder_levels l2)
-  | Sigma (x, l1, l2) -> Sigma (x, placeholder_levels l1, placeholder_levels l2)
   | Coe (i, j, l1, l2) -> Coe (placeholder_levels i, placeholder_levels j, placeholder_levels l1, placeholder_levels l2)
   | Hcom (i, j, l1, l2, l3) -> Hcom (placeholder_levels i, placeholder_levels j, placeholder_levels l1, placeholder_levels l2, placeholder_levels l3)
   | App (l1, l2) -> App (placeholder_levels l1, placeholder_levels l2)
-  | Pair (l1, l2) -> Pair (placeholder_levels l1, placeholder_levels l2)
-  | Fst l -> Fst (placeholder_levels l)
-  | Snd l -> Snd (placeholder_levels l)
   | Abort l -> Abort (placeholder_levels l)
   | Pabs (s, l) -> Pabs (s, placeholder_levels l)
   | At (l1, l2) -> At (placeholder_levels l1, placeholder_levels l2)

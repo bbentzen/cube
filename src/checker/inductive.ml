@@ -18,7 +18,7 @@ open Data
 let rec occurs_name id l = function
   | Global t -> t = id 
   | Lam (x, e) | Pabs (x, e) ->  occurs_name x l e
-  | Pi (x, e1, e2) | Sigma (x, e1, e2) -> occurs_name x l e1 || occurs_name x l e2
+  | Pi (x, e1, e2) -> occurs_name x l e1 || occurs_name x l e2
   | Local index -> 
     begin match List.nth_opt l index with
     | Some h -> h = id | None -> false
@@ -27,8 +27,8 @@ let rec occurs_name id l = function
   | Hole (_, l') -> List.exists (occurs_name id l) l'
   | Coe (i, j, e1, e2) -> occurs_name id l i || occurs_name id l j || occurs_name id l e1 || occurs_name id l e2
   | Hcom (i, j, e, e1, e2) -> occurs_name id l i || occurs_name id l j || occurs_name id l e || occurs_name id l e1 || occurs_name id l e2
-  | App (e1, e2) | Pair (e1, e2) | At (e1, e2) -> occurs_name id l e1 || occurs_name id l e2
-  | Fst e | Snd e | Abort e -> occurs_name id l e
+  | App (e1, e2) | At (e1, e2) -> occurs_name id l e1 || occurs_name id l e2
+  | Abort e -> occurs_name id l e
   | Pathd (e, e1, e2) ->
     occurs_name id l e || occurs_name id l e1 || occurs_name id l e2
 

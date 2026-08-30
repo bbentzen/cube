@@ -83,12 +83,6 @@ let rec lift n = function
   | App (e1, e2) -> App (lift n e1, lift n e2)
   | Pi (y, e1, e2) -> 
     Pi (y, lift n e1, lift n e2)
-  | Pair (e1, e2) -> 
-    Pair (lift n e1, lift n e2)
-  | Fst e -> Fst (lift n e)
-  | Snd e -> Snd (lift n e)
-  | Sigma (y, e1, e2) ->
-    Sigma (y, lift n e1, lift n e2)
   | Abort e -> Abort (lift n e)
   | Pabs (y, e) -> 
     Pabs (y, lift n e)
@@ -137,14 +131,6 @@ let rec unfold_all env vars = function
       | Ok e1', Ok e2' -> Ok (App (e1', e2'))
       | Error msg, _ | _, Error msg -> Error msg
     end
-    
-  | Pair (e1, e2) ->
-    let u1 = unfold_all env vars e1 in
-    let u2 = unfold_all env vars e2 in
-    begin match u1, u2 with
-      | Ok e1', Ok e2' -> Ok (Pair (e1', e2'))
-      | Error msg, _ | _, Error msg -> Error msg
-    end
 
   | At (e1, e2) ->
     let u1 = unfold_all env vars e1 in
@@ -152,20 +138,6 @@ let rec unfold_all env vars = function
     begin match u1, u2 with
       | Ok e1', Ok e2' -> Ok (At (e1', e2'))
       | Error msg, _ | _, Error msg -> Error msg
-    end
-
-  | Fst e ->
-    begin match unfold_all env vars e with
-    | Ok e' -> 
-      Ok (Fst e')
-    | Error msg -> Error msg
-    end
-
-  | Snd e ->
-    begin match unfold_all env vars e with
-    | Ok e' -> 
-      Ok (Snd e')
-    | Error msg -> Error msg
     end
 
   | Abort e -> 
@@ -183,17 +155,6 @@ let rec unfold_all env vars = function
       let u2 = unfold_all env vars e2 in
       begin match u1, u2 with
       | Ok e1', Ok e2' -> Ok (Pi (x, e1', e2'))
-      | Error msg, _ | _, Error msg -> Error msg
-      end
-
-  | Sigma (x, e1, e2) -> 
-    if is_declared x env then
-      Error ("Naming conflict with the name '" ^ x ^ "'\nIt occurs as definition/theorem identifier but is used as a variable name ")
-    else
-      let u1 = unfold_all env vars e1 in
-      let u2 = unfold_all env vars e2 in
-      begin match u1, u2 with
-      | Ok e1', Ok e2' -> Ok (Sigma (x, e1', e2'))
       | Error msg, _ | _, Error msg -> Error msg
       end
 

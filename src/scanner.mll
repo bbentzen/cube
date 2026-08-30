@@ -56,8 +56,6 @@ rule token = parse
   | "("                { LPAREN }
   | ","                { COMMA }
   | ")"                { RPAREN }
-  | "fst"              { FST }
-  | "snd"              { SND }
   | "×"                { PROD }
   | "⨉"                { PROD }
   | "Σ"                { SIGMA }

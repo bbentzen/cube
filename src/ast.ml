@@ -26,10 +26,6 @@ type rawexpr =
   | RLam of string * rawexpr
   | RApp of rawexpr * rawexpr
   | RPi of string * rawexpr * rawexpr  
-  | RPair of rawexpr * rawexpr
-  | RFst of rawexpr
-  | RSnd of rawexpr
-  | RSigma of string * rawexpr * rawexpr
   | RAbort of rawexpr
   | RVoid of unit
   | RPabs of string * rawexpr
@@ -44,10 +40,10 @@ let rec has_var x = function
   | RId y -> x = y
   | RLam (y, e) | RPabs (y, e) -> 
     if x = y then false else has_var x e 
-  | RPi (y, e1, e2) | RSigma (y, e1, e2) -> 
+  | RPi (y, e1, e2)  -> 
     if x = y then false else has_var x e1 || has_var x e2
-  | RFst e | RSnd e | RAbort e -> has_var x e
-  | RApp (e1, e2) | RPair (e1, e2) | RAt(e1, e2) -> 
+  | RAbort e -> has_var x e
+  | RApp (e1, e2) | RAt(e1, e2) -> 
     has_var x e1 || has_var x e2
   | RPathd (e, e1, e2) -> 
     has_var x e || has_var x e1 || has_var x e2
@@ -105,10 +101,6 @@ type expr =
   | Lam of string * expr
   | App of expr * expr
   | Pi of string * expr * expr
-  | Pair of expr * expr
-  | Fst of expr
-  | Snd of expr
-  | Sigma of string * expr * expr
   | Abort of expr
   | Void of unit
   | Pabs of string * expr
@@ -169,11 +161,6 @@ let rec of_raw_expr_with_env env = function
   | RApp (e1, e2) -> App (of_raw_expr_with_env env e1, of_raw_expr_with_env env e2)
   | RPi (x, e1, e2) ->
     Pi (x, of_raw_expr_with_env env e1, of_raw_expr_with_env (x :: env) e2)
-  | RPair (e1, e2) -> Pair (of_raw_expr_with_env env e1, of_raw_expr_with_env env e2)
-  | RFst e -> Fst (of_raw_expr_with_env env e)
-  | RSnd e -> Snd (of_raw_expr_with_env env e)
-  | RSigma (x, e1, e2) ->
-    Sigma (x, of_raw_expr_with_env env e1, of_raw_expr_with_env (x :: env) e2)
   | RAbort e -> Abort (of_raw_expr_with_env env e)
   | RVoid () -> Void ()
   | RPabs (x, e) -> Pabs (x, of_raw_expr_with_env (x :: env) e)
@@ -233,20 +220,6 @@ let rec of_raw_expr_with_vars env = function
     let e1', v1 = of_raw_expr_with_vars env e1 in
     let e2', v2 = of_raw_expr_with_vars (x :: env) e2 in
     Pi (x, e1', e2'), v1 @ v2
-  | RPair (e1, e2) ->
-    let e1', v1 = of_raw_expr_with_vars env e1 in
-    let e2', v2 = of_raw_expr_with_vars env e2 in
-    Pair (e1', e2'), v1 @ v2
-  | RFst e ->
-    let e', v = of_raw_expr_with_vars env e in
-    Fst e', v
-  | RSnd e ->
-    let e', v = of_raw_expr_with_vars env e in
-    Snd e', v
-  | RSigma (x, e1, e2) ->
-    let e1', v1 = of_raw_expr_with_vars env e1 in
-    let e2', v2 = of_raw_expr_with_vars (x :: env) e2 in
-    Sigma (x, e1', e2'), v1 @ v2
   | RAbort e ->
     let e', v = of_raw_expr_with_vars env e in
     Abort e', v

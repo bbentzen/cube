@@ -14,17 +14,18 @@ open Ast
 let rec abs_of_list e = function
   | [] -> e
   | id :: l ->
-    Ast.RLam(id, abs_of_list e l)
+    RLam(id, abs_of_list e l)
 
 let rec pi_of_list e = function
   | [] -> e
   | (id, ty) :: l ->
-    Ast.RPi (id, ty, pi_of_list e l)
+    RPi (id, ty, pi_of_list e l)
 
 let rec sigma_of_list e = function
   | [] -> e
   | (id, ty) :: l ->
-    Ast.RSigma (id, ty, sigma_of_list e l)
+    RApp (RApp (RId "sigma", ty), RLam(id, sigma_of_list e l))
+    (* Ast.RSigma (id, ty, sigma_of_list e l) *)
 
 let rec ids_to_bindings ids ty =
   match ids with
@@ -36,6 +37,15 @@ let fill_def i j ty e e1 e2 =
   RHcom(i, j, RLam(v1, RCoe (i, j, ty, RApp(e, RId v1))), 
   RLam(v1, RCoe (RId v1, j, ty, RApp(e1, RId v1))),
   RLam(v1, RCoe (RId v1, j, ty, RApp(e2, RId v1))))
+
+let prod_def e1 e2 =
+RApp (RApp (RId "sigma", e1), RLam("v?", e2))
+
+let pair_def e1 e2 =
+RApp(RApp(RApp(RApp (RId "pair", RWild 0), RWild 0), e1), e2)
+
+let iff_def e1 e2 =
+RApp (RApp (RId "sigma", RPi("v?",e1, e2)), RLam("v?", RPi("v?",e2, e1)))
 
 let single_id = function
   | [id] -> id
@@ -50,7 +60,7 @@ let single_id = function
 %token TYPE MAX NEXT COLON
 %token I0 I1 INTERVAL COE HCOM COM BAR
 %token ABS APP RARROW LRARROW PI
-%token LPAREN RPAREN COMMA FST SND PROD SIGMA
+%token LPAREN RPAREN COMMA PROD SIGMA
 %token ZERO NAT
 %token STAR SUM
 %token ABORT VOID NEG
@@ -64,7 +74,6 @@ let single_id = function
 %right SUM PROD
 %right TRANS
 %nonassoc NEG
-%nonassoc FST SND 
 %nonassoc ABORT
 %left APP
 %nonassoc ID LPAREN I0 I1 INTERVAL COE COM HCOM ABS SIGMA PATHD PATH ZERO NAT STAR VOID REFL TYPE PLACEHOLDER WILDCARD LANGLE
@@ -134,9 +143,9 @@ level:
 
 expr: 
   | app_expr %prec NEG                                      { $1 }
-  | expr RARROW expr                                        { RPi("v?",$1, $3) }
-  | expr LRARROW expr                                       { RSigma("v?", RPi("v?",$1, $3), RPi("v?",$3, $1)) }
-  | expr PROD expr                                          { RSigma("v?",$1, $3) }
+  | expr RARROW expr                                        { RPi("v?", $1, $3) }
+  | expr LRARROW expr                                       { iff_def $1 $3 }
+  | expr PROD expr                                          { prod_def $1 $3 }
   | expr SUM expr                                           { RApp(RApp(RId "sum", $1), $3) }
   | expr AT expr                                            { RAt($1,$3) }
   | expr SYMM                                               { RApp(RId "path_symm", $1) }
@@ -159,8 +168,6 @@ head_expr:
   | ABS vars COMMA expr %prec PI                            { abs_of_list ($4) ($2) }
   | ABS LPAREN ids COLON expr RPAREN COMMA expr %prec PI    { RLam(single_id $3,$8) }
   | PI blocks                                               { pi_of_list (snd $2) (fst $2) }
-  | FST head_expr                                           { RFst($2) }
-  | SND head_expr                                           { RSnd($2) }
   | SIGMA blocks                                            { sigma_of_list (snd $2) (fst $2) }
   | ABORT head_expr %prec ABORT                             { RAbort($2) }
   | NEG app_expr %prec NEG                                  { RPi("v?", $2, RVoid()) }
@@ -173,8 +180,8 @@ face_expr:
   | face_head                                               { $1 }
   | atom atom %prec APP                                     { RApp($1, $2) }
   | face_expr RARROW face_expr                              { RPi("v?",$1, $3) }
-  | face_expr LRARROW face_expr                             { RSigma("v?", RPi("v?",$1,$3), RPi("v?",$3,$1)) }
-  | face_expr PROD face_expr                                { RSigma("v?",$1, $3) }
+  | face_expr LRARROW face_expr                             { iff_def $1 $3 }
+  | face_expr PROD face_expr                                { prod_def $1 $3 }
   | face_expr SUM face_expr                                 { RApp(RApp(RId "sum", $1), $3) }
   | face_expr AT face_head                                  { RAt($1,$3) }
   | face_expr SYMM                                          { RApp(RId "path_symm", $1) }
@@ -193,8 +200,6 @@ face_head:
   | ABS vars COMMA face_expr %prec PI                       { abs_of_list ($4) ($2) }
   | ABS LPAREN ids COLON expr RPAREN COMMA face_expr %prec PI { RLam(single_id $3,$8) }
   | PI blocks                                               { pi_of_list (snd $2) (fst $2) }
-  | FST face_head                                           { RFst($2) }
-  | SND face_head                                           { RSnd($2) }
   | SIGMA blocks                                            { sigma_of_list (snd $2) (fst $2) }
   | ABORT face_head %prec ABORT                             { RAbort($2) }
   | NEG face_expr                                           { RPi("v?", $2, RVoid()) }
@@ -209,7 +214,7 @@ atom:
   | I0                                                      { RI0() }
   | I1                                                      { RI1() }
   | INTERVAL                                                { RInt() }
-  | LPAREN expr COMMA expr RPAREN                           { RPair($2, $4) }
+  | LPAREN expr COMMA expr RPAREN                           { pair_def $2 $4 }
   | ZERO                                                    { RId("zero") }
   | NAT                                                     { RId("nat") }
   | STAR                                                    { RId("star") }

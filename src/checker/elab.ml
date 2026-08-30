@@ -170,94 +170,7 @@ let rec elaborate global ind_env ctx lvl sl ty ph vars = function
         end
       end
     end
-    
-  | Pair (e1, e2) -> 
-    let e1 = eval ind_env e1 and e2 = eval ind_env e2 in
-    let ty = eval ind_env ty in
-    begin match ty with
-    | Sigma(y, ty1, ty2) ->
-      let elab1 = elaborate global ind_env ctx lvl sl ty1 ph vars e1 in
-      let elab2 = elaborate global ind_env ctx lvl sl (Expr.open_var 0 e1 ty2) ph vars e2 in
-      begin match elab1, elab2 with
-      | Ok (e1', ty1', sa1), Ok (e2', ty2', sa2) ->
-        begin match ty2 with
-        | Hole (n, l) ->
-          let ty' = Expr.fullsubst 0 e1' (Hole (n, e1 :: e1' :: Global y :: l)) true ty2' in
-          Ok (Pair (e1', e2'), Sigma(y, ty1', ty'), Stack.append sa2 sa1)
-        | _ ->
-          let ty' = Expr.fullsubst 0 e1' (Global y) true ty2' in (* to be improved *)
-          Ok (Pair (e1', e2'), Sigma(y, ty1', ty'), Stack.append sa2 sa1)
-        end
-      | Error msg, _ | _, Error msg -> 
-        Error msg
-      end
-    | Hole _ -> 
-      let v1 = Expr.init_fresh vars in
-      let h1 = Placeholder.generate ph [] in
-      let h2 = Placeholder.generate (ph+1) [] in
-      elaborate global ind_env ctx lvl sl (Sigma(v1, h1, h2)) (ph+2) (vars+1) (Pair (e1, e2))
-    | _ ->
-      Error (sl, "Type mismatch when checking that the term (" ^ 
-      Pretty.printf e1 ^ ", " ^ Pretty.printf e2 ^ ") of type Σ (v? : ?0?) ?1? has type " ^ Pretty.printf ty)
-    end
-    
-  | Fst e ->
-    let h1 = Placeholder.generate ph [] in
-    let elab = elaborate global ind_env ctx lvl sl h1 (ph+1) vars e in
-    begin match elab with
-    | Ok (e', ty', sa) ->
-      let ty' = eval ind_env ty' in
-      begin match ty' with
-      | Sigma(_, ty', _) -> 
-        let elabTy = elaborate global ind_env ctx lvl sl h1 (ph+1) vars ty in
-        begin match elabTy with
-        | Ok (_, tTy, _) ->
-          let u = unify global ind_env ctx lvl sl (ph+1) vars (eval ind_env ty, ty', tTy) false in
-          begin match u with
-          | Ok _ ->
-            Ok (Fst e', ty', sa) 
-          | Error (_, msg) ->
-            Error (sa, "The term\n  " ^ Pretty.printf e' ^ "\nhas type \n  " ^ Pretty.printf ty' ^ "\nbut failed to unify it with the expected type\n  " ^ Pretty.printf ty ^ "\n" ^ msg)
-          end
-        | Error msg -> (* This case is impossible *)
-          Error msg
-        end
-      | _ -> 
-        Error (sa, "The term\n  " ^ Pretty.printf e' ^ "\nhas type\n  " ^ Pretty.printf ty' ^ "\nbut is expected to have type\n  Σ (v0 : ?0?) ?1?")
-      end
-    | Error (sa, msg) ->
-      Error (sa, "The term\n  " ^ Pretty.printf e ^ "\nis expected to have type\n  Σ (v0 : ?0?) ?1?" ^ "\n" ^ msg)
-    end
-
-  | Snd e ->
-    let h1 = Placeholder.generate ph [] in
-    let elab = elaborate global ind_env ctx lvl sl h1 (ph+1) vars e in
-    begin match elab with
-    | Ok (e', ty', sa) ->
-      let ty' = eval ind_env ty' in
-      begin match ty' with
-      | Sigma(_, _, ty2) ->
-        let ty2' = Expr.open_var 0 (Fst e') ty2 in
-        let elabTy = elaborate global ind_env ctx lvl sl h1 (ph+1) vars ty in
-        begin match elabTy with
-        | Ok (_, tTy, _) ->
-          let u = unify global ind_env ctx lvl sl (ph+1) vars (eval ind_env ty, eval ind_env ty2', tTy) false in
-          begin match u with
-          | Ok _ ->
-            Ok (Snd e', ty2', sa)
-          | Error (_, msg) ->
-            Error (sa, "The term\n  " ^ Pretty.printf e' ^ "\nhas type \n  " ^ Pretty.printf ty2' ^ "\nbut failed to unify it with the expected type\n  " ^ Pretty.printf ty ^ "\n" ^ msg)
-          end
-        | Error msg -> (* This case is impossible *)
-          Error msg
-        end
-      | _ -> 
-        Error (sa, "The projected term\n  " ^ Pretty.printf e' ^ "\nhas type\n  " ^ Pretty.printf ty' ^ "\nbut is expected to have type\n  Σ (v0 : ?0?) ?1?")
-    end
-    | Error (sa, msg) ->
-      Error (sa, "The projected term\n  " ^ Pretty.printf e ^ "\nis expected to have type\n  Σ (v0 : ?0?) ?1?" ^ "\n" ^ msg)
-    end
-
+  
   | Abort e ->
     let elab = elaborate global ind_env ctx lvl sl (Void()) ph vars e in
     begin match elab with
@@ -833,76 +746,6 @@ let rec elaborate global ind_env ctx lvl sl ty ph vars = function
         "\nand that\n  " ^ Pretty.printf ty2' ^ "\nhas type " ^ Pretty.printf u2)
     end
   
-  | Sigma(x, ty1, ty2) ->
-    let ty1 = eval ind_env ty1 in
-    let h1 = Placeholder.generate ph [] in
-    let elab1 = elaborate global ind_env ctx lvl sl h1 (ph+1) vars ty1 in
-    let ty2 = eval ind_env ty2 in
-    let elab2 = elaborate global ind_env ((x, ty1, true) :: ctx) lvl sl h1 (ph+1) vars (Expr.open_var 0 (Global x) ty2)
-    in
-    begin match elab1, elab2 with
-    | Ok (ty1', Type n1, sa1), Ok (ty2', Type n2, sa2) ->
-      let max = Level.reduce (Max(n1, n2)) in
-      begin match ty with
-      | Type (Var par) when Level.is_arbitrary_string par ->
-        (* Synthesize type levels placeholder *)
-        Ok (Sigma(x, ty1', Expr.close_bound x ty2'), Type (Suc(max)), Stack.append sa1 sa2)
-      | Type m -> 
-        (* Check if levels are compatible *)
-        if Level.leq max m then 
-          Ok (Sigma(x, ty1', Expr.close_bound x ty2'), Type m, Stack.append sa1 sa2) 
-        else 
-          Error (Stack.append sa1 sa2, "Type mismatch when checking that \n  Σ ( " ^ x ^ " : " ^ Pretty.printf ty1 ^ ") " ^ Pretty.printf ty2 ^ 
-            "\nof type \n  " ^ Pretty.printf (eval ind_env (Type (Max(n1, n2)))) ^ "\n has type\n  " ^ Pretty.printf (Type m))
-      | Hole _ -> 
-        Ok (Sigma(x, ty1', Expr.close_bound x ty2'), Type max, Stack.append sa1 sa2)
-      | _ ->
-        Error (Stack.append sa1 sa2, "Type mismatch when checking that\n  Σ ( " ^ x ^ " : " ^ 
-          Pretty.printf ty1 ^ ") " ^ Pretty.printf ty2 ^ "\nhas type\n  " ^ Pretty.printf ty)
-      end
-    
-    | Ok (ty1', Type n, sa), Ok (Hole (k,l), _, _) -> 
-      begin match ty with
-      | Type m ->
-        if Level.leq n m then 
-          Ok (Sigma(x, ty1', Hole (k,l)), Type m, sa) 
-        else 
-          Error (sa, "Type mismatch when checking that \n  Σ ( " ^ x ^ " : " ^ Pretty.printf ty1 ^ ") " ^ Pretty.printf ty2 ^ 
-                "\nof type \n  " ^ Pretty.printf (Type n) ^ "\n has type\n  " ^ Pretty.printf (Type m))
-      | Hole _ -> 
-        Ok (Sigma(x, ty1', Hole (k,l)), Type n, sa) (* TODO: hole might have live in a higher universe *)
-      | _ ->
-        Error (sa, "Type mismatch when checking that\n  Σ ( " ^ x ^ " : " ^ Pretty.printf ty1 ^ ") " ^ Pretty.printf ty2 ^ "\nhas type\n  " ^ Pretty.printf ty)
-      end
-    | Ok (Hole (k,l), _, _), Ok (ty2', Type n, sa) -> 
-      begin match ty with
-      | Type m -> 
-        if Level.leq n m then 
-          Ok (Sigma(x, Hole (k,l), Expr.close_bound x ty2'), Type m, sa) 
-        else 
-          Error (sa, "Type mismatch when checking that \n  Σ ( " ^ x ^ " : " ^ Pretty.printf ty1 ^ ") " ^ Pretty.printf ty2 ^ 
-                "\nof type \n  " ^ Pretty.printf (Type n) ^ "\n has type\n  " ^ Pretty.printf (Type m))
-      | Hole _ -> 
-        Ok (Sigma(x, Hole (k,l), Expr.close_bound x ty2'), Type n, sa) (* TODO: hole might have live in a higher universe *)
-      | _ ->
-        Error (sa, "Type mismatch when checking that\n  Σ ( " ^ x ^ " : " ^ Pretty.printf ty1 ^ ") " ^ Pretty.printf ty2 ^ "\nhas type\n  " ^ Pretty.printf ty)
-      end
-    | Ok (Hole (k1,l1), _, _), Ok (Hole (k2,l2), _, _) ->
-      begin match ty with
-      | Type m ->
-          Ok (Sigma(x, Hole (k1,l1), Hole (k2,l2)), Type m, sl)
-      | Hole (k, l) ->
-          Ok (Sigma(x, Hole (k1,l1), Hole (k2,l2)), Hole(k, l), sl)
-      | _ ->
-        Error (sl, 
-        "Type mismatch when checking that\n  Σ ( " ^ x ^ " : " ^ Pretty.printf ty1 ^ ") " ^ Pretty.printf ty2 ^ "\nhas type\n  " ^ Pretty.printf ty)
-      end
-    | Ok (_, Type _, _), Error (sa, msg) ->
-      Error (sa, "Failed to check that\n  " ^ Pretty.printf ty2 ^ "\nis a type\n" ^ msg)
-    | Error (sa, msg), _ -> Error (sa, "Failed to check that\n  " ^ Pretty.printf ty1 ^ "\nis a type\n" ^ msg)
-    | _ -> Error (sl, "Failed to check that\n  " ^ Pretty.printf ty1 ^ "\nis a type")
-    end
-  
   | Int() ->
     let ty = eval ind_env ty in
     begin match ty with
@@ -1230,21 +1073,6 @@ and unify global ind_env ctx lvl sl ph vars x lift =
         | Error ((e1, e2), msg) -> Error ((e1, e2), "Unification failed at function type: " ^ msg)
         end
 
-      | Sigma (_, ty1, ty2), Sigma (_, ty1', ty2'), ty ->
-        let u1 = unify global ind_env ctx lvl sl ph vars (ty1, ty1', ty) lift in
-        begin match u1 with
-        | Ok s1 ->
-          let v1 = Expr.init_fresh vars in
-          let ty2_open = Expr.fullsubst 0 ty1 s1 true (Expr.open_bound (Global v1) ty2) in
-          let ty2'_open = Expr.fullsubst 0 ty1' s1 true (Expr.open_bound (Global v1) ty2') in
-          let u2 = unify global ind_env ((v1, s1, true) :: ctx) lvl sl ph (vars+1) (ty2_open, ty2'_open, ty) lift in
-          begin match u2 with
-          | Ok s2 -> Ok (Sigma (v1, s1, Expr.close_bound v1 s2))
-          | Error (s, msg) -> Error (s, "Don't know how to unify the codomains of the dependent product type\n  " ^ Pretty.printf ty2_open ^ "\nwith\n  " ^ Pretty.printf ty2'_open ^ "\n" ^ msg)
-          end
-        | Error (s, msg) -> Error (s, "Don't know how to unify the domains of the dependent product type\n  " ^ Pretty.printf ty1 ^ "\nwith\n  " ^ Pretty.printf ty1' ^ "\n" ^ msg)
-        end
-
       | Pathd (e, e1, e2) , Pathd (e', e1', e2'), ty ->
         let e = eval ind_env e and e' = eval ind_env e' in
         let e1 = eval ind_env e1 and e1' = eval ind_env e1' in
@@ -1394,14 +1222,6 @@ and unify global ind_env ctx lvl sl ph vars x lift =
               unify global ind_env ctx lvl sl ph vars (app, e', ty) lift *)
           end
       
-      | Pair (e1, e2), Pair (e1', e2'), Sigma(_, ty1, ty2) ->
-        let u1 = unify global ind_env ctx lvl sl ph vars (e1, e1', ty1) lift in
-        let u2 = unify global ind_env ctx lvl sl ph vars (e2, e2', Expr.open_var 0 (Fst e1) ty2) lift in
-        begin match u1, u2 with
-        | Ok s1, Ok s2 -> Ok (Pair (s1, s2))
-        | Error msg, _ | _, Error msg -> Error msg
-        end
-      
       | Coe (i, j, e1, e2) , Coe (i', j', e1', e2'), _ ->
         let ui = unify global ind_env ctx lvl sl ph vars (i, i', Int()) lift in
         let uj = unify global ind_env ctx lvl sl ph vars (j, j', Int()) lift in
@@ -1517,36 +1337,6 @@ and unify global ind_env ctx lvl sl ph vars x lift =
           | _ ->
             Error ((e, e'), "Don't know how to unify\n  " ^ Pretty.printf (App (e, i)) ^ "\nwith\n  " ^ Pretty.printf e')
           end
-            
-      | Fst e, Fst e', ty ->
-        let v1 = Expr.init_fresh vars in
-        let h1 = Placeholder.generate ph [] in
-        let elab = elaborate global ind_env ctx lvl sl (Sigma(v1, ty, h1)) (ph+1) (vars+1) e in
-        begin match elab with
-        | Ok (_, ety, _) ->
-          let u = unify global ind_env ctx lvl sl (ph+1) (vars+1) (e, e', ety) lift in
-          begin match u with
-          | Ok s -> Ok (Fst s)
-          | Error msg -> Error msg
-          end
-        | Error (_, msg) -> (* This case is impossible *)
-          Error ((Fst e, Fst e'), msg)
-        end
-
-      | Snd e, Snd e', ty ->
-        let v1 = Expr.init_fresh vars in
-        let h1 = Placeholder.generate ph [] in
-        let elab = elaborate global ind_env ctx lvl sl (Sigma(v1, h1, Expr.fullsubst 0 (Fst e) (Local 0) true ty)) (ph+1) (vars+1) e in
-        begin match elab with
-        | Ok (_, ety, _) ->
-          let u = unify global ind_env ctx lvl sl (ph+1) (vars+1) (e, e', ety) lift in
-          begin match u with
-          | Ok s -> Ok (Snd s)
-          | Error msg -> Error msg
-          end
-        | Error (_, msg) -> (* This case is impossible *)
-          Error ((Snd e, Snd e'), msg)
-        end
 
       | Abort e, Abort e', _ ->
         let u = unify global ind_env ctx lvl sl ph vars (e, e', Void()) lift in
@@ -1576,15 +1366,6 @@ and unify global ind_env ctx lvl sl ph vars x lift =
           Error ((Lam (x, e), e'), "Don't know how to unify the abstraction\n  " ^ Pretty.printf (Lam (x, e)) ^ "\nwith the term\n  " ^ Pretty.printf e')
         else
           unify global ind_env ctx lvl sl ph vars (abs, e', ty) lift
-      
-      | Pair (e1, e2) , e', _ | e', Pair (e1, e2), _ ->
-        let e1 = eval ind_env e1 and e2 = eval ind_env e2 in
-        let pair = eval ind_env (Pair (e1, e2)) in (* for any possible eta reduction *)
-        (* Needs to be optimized to avoid reevaluation *)
-        if Pair (e1, e2) = pair && not (e' = pair) then
-          Error ((Pair (e1, e2), e'), "Don't know how to unify the pair\n  " ^ Pretty.printf (Pair (e1, e2)) ^ "\nwith the term\n  " ^ Pretty.printf e')
-        else
-          unify global ind_env ctx lvl sl ph vars (pair, e', ty) lift
       
       | Pabs (i, e) , e', _ | e', Pabs (i, e), _ ->
         let e1 = eval ind_env e in

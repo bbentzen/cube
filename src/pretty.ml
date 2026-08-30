@@ -15,6 +15,8 @@ open Expr
 let rec print env = function
   | Global("zero") -> "0 "
   | Global("nat") -> "ℕ "
+  | App(App(App(App (Global "pair", Wild _ ), Wild _), e1), e2) -> 
+    "(" ^ parenthesize env e1 ^ ", " ^ parenthesize env e2 ^ ") "
   | Global y -> y ^ " "
   | Local index -> (name_at index env) ^ " "
   | Coe (i, j, e1, e2) -> String.concat "" ["coe "; parenthesize env i; parenthesize env j; parenthesize env e1; parenthesize env e2]
@@ -59,12 +61,14 @@ let rec print env = function
           in
           tparenthesize env e1 ^ "→ " ^ iterate (x :: env) e2
       end
-
-  | Sigma (x, e1, e2) ->
+  
+  (* Inductively-defined sigma type *)
+  | App(App (Global "sigma", e1), Lam(x, e2)) ->
     if occurs_index 0 0 e2 then
       begin
       let rec iterate env = function
-        | Sigma (x', e1', e2') ->
+        | App(App (Global "sigma", e1'), Lam(x', e2')) ->
+        (* | Sigma (x', e1', e2') -> *)
           if occurs_index 0 0 e2' then
             String.concat "" ["("; x'; " : "; print env e1'; ") "; iterate (x' :: env) e2']
           else
@@ -75,7 +79,8 @@ let rec print env = function
       end
     else
       let rec iterate env = function
-        | Sigma (x', e1', e2') ->
+        (* | Sigma (x', e1', e2') -> *)
+        | App(App (Global "sigma", e1'), Lam(x', e2')) ->
           if occurs_index 0 0 e2' then
             String.concat "" ["Σ ("; x'; " : "; print env e1'; ") "; print (x' :: env) e2']
           else
@@ -108,9 +113,6 @@ let rec print env = function
   | Type l -> 
     "type " ^ print_level l ^ " "
 
-  | Pair (e1, e2) -> "(" ^ parenthesize env e1 ^ ", " ^ parenthesize env e2 ^ ") "
-  | Fst e -> "fst " ^ parenthesize env e
-  | Snd e -> "snd " ^ parenthesize env e
   | Abort e -> String.concat "" ["abort "; parenthesize env e]
   | At (e1, e2) -> String.concat "" [parenthesize env e1; "@ "; parenthesize env e2]
   | Hole (n, _) -> "?" ^ n ^ "? "
@@ -123,8 +125,8 @@ let rec print env = function
 
 and parenthesize env e = 
   let helper = function
-    | Lam _ | Pabs _ | Pi _ | Sigma _ | Fst _ | Snd _ 
-    | Abort _ | App _ | Pair _ 
+    | Lam _ | Pabs _ | Pi _ 
+    | Abort _ | App _   
     | At _ | Pathd _ | Coe _ -> true
     | _ -> false
   in
@@ -136,7 +138,7 @@ and parenthesize env e =
 
 and tparenthesize env e = 
   let helper = function
-    | Pi _ | Sigma _ | Pathd _ | Hcom _ | Coe _ -> true
+    | Pi _ | App (App (Global "sigma", _), _) | Pathd _ | Hcom _ | Coe _ -> true
     | _ -> false
   in
   if helper e then

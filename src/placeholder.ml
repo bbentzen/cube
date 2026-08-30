@@ -30,10 +30,9 @@ let has_placeholder term =
       match x with
       | Hole _ -> true
       | Lam (_, e) | Pabs (_, e)
-      | Fst e | Snd e | Abort e ->
+      | Abort e ->
           helper (e :: rest)
-      | Pi (_, e1, e2) | Sigma (_, e1, e2)
-      | App (e1, e2) | Pair (e1, e2) | At (e1, e2) ->
+      | Pi (_, e1, e2) | App (e1, e2) | At (e1, e2) ->
           helper (e1 :: e2 :: rest)
       | Pathd (e, e1, e2) ->
           helper (e :: e1 :: e2 :: rest)
@@ -55,10 +54,9 @@ let has term =
       match x with
        Wild _ | Hole _ -> true
       | Lam (_, e) | Pabs (_, e)
-      | Fst e | Snd e | Abort e ->
+      | Abort e ->
           helper (e :: rest)
-      | Pi (_, e1, e2) | Sigma (_, e1, e2)
-      | App (e1, e2) | Pair (e1, e2) | At (e1, e2) ->
+      | Pi (_, e1, e2) | App (e1, e2) | At (e1, e2) ->
           helper (e1 :: e2 :: rest)
       | Pathd (e, e1, e2) ->
           helper (e :: e1 :: e2 :: rest)

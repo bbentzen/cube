@@ -31,24 +31,10 @@ let rec read n = function
     let r_e1 = read n e1 in
     let r_e2 = read (snd r_e1) e2 in
     App (fst r_e1, fst r_e2), snd r_e2
-  | Pair (e1, e2) ->
-    let r_e1 = read n e1 in
-    let r_e2 = read (snd r_e1) e2 in
-    Pair (fst r_e1, fst r_e2), snd r_e2
-  | Fst e -> 
-    let r_e = read n e in
-    Fst (fst r_e), snd r_e
-  | Snd e -> 
-    let r_e = read n e in
-    Snd (fst r_e), snd r_e
   | Pi (y, e1, e2) ->
     let r_e1 = read n e1 in
     let r_e2 = read (snd r_e1) e2 in
     Pi (y, fst r_e1, fst r_e2), snd r_e2
-  | Sigma (y, e1, e2) ->
-    let r_e1 = read n e1 in
-    let r_e2 = read (snd r_e1) e2 in
-    Sigma (y, fst r_e1, fst r_e2), snd r_e2
   | Abort e ->
     let r_e = read n e in
     Abort (fst r_e), snd r_e
