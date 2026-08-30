@@ -169,7 +169,8 @@ let rec reduce ind_env = function
       let recursor_opt =
         begin match head with
         | Global rec_name ->
-            begin match Hashtbl.find_opt ind_env rec_name with
+            let rec_env, _ = ind_env in
+            begin match Hashtbl.find_opt rec_env rec_name with
             | Some rec_spec ->
                 begin match reduce_recursor rec_spec args with
                 | Some reduced -> Some (reduce ind_env reduced)

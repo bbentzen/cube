@@ -161,9 +161,9 @@ let rec compile global ind_env ind lopen filename lvl next_location = function
                   (* Unfolds any definitions of identifiers occuring in constructor type*)
                   begin match Env.unfold_all global 0 c_ty with
                   | Ok c_ty ->
-                    let c_ty = Eval.eval ind_env c_ty in (* This needs to be replaced with eager evaluation later *)
+                    let c_ty = Eval.eval ind_env c_ty in
                     (* Checks that the inductive type occurs strictly positively in the constructor type *)
-                    if not (Inductive.strictly_positive id c_ty) then
+                    if not (Inductive.strictly_positive ind_env id c_ty) then
                       failwith_at location
                         ("Strict positivity check failed for constructor '" ^ c_name ^
                         "' in inductive type '" ^ id ^ "'")
@@ -215,11 +215,12 @@ let rec compile global ind_env ind lopen filename lvl next_location = function
               begin match Inductive.extract_universe_level ty' with
               | Some target_lvl ->
                 if Inductive.check_universe_levels ctx_univ univ_constr (Suc target_lvl) then
-                  
-                  (* Registers the inductive type into a hash table *)
-
+                  (* Unfolds recursor and constructor environments *)
+                  let rec_env, cons_env = ind_env in
+                  (* Registers the inductive type data into them *)
                   let num_indices = List.length ctx_checked in
                   let num_params = Inductive.ar_type_fam ty' in
+                  (* Register constructors data for recursor and type inference *)
                   let constructors = List.map (fun (c_name, c_ty') ->
                     let rec extract_args rec_acc num_args = function
                       | Pi (_, arg_ty, cod) ->
@@ -228,12 +229,19 @@ let rec compile global ind_env ind lopen filename lvl next_location = function
                       | _ -> (num_args, List.rev rec_acc)
                     in
                     let c_num_args, c_rec_args = extract_args [] 0 c_ty' in
+                    (* Register data for constructor type inference *)
+                    Hashtbl.add cons_env (c_name) {
+                    ind_name = id;
+                    num_params = num_params;
+                    num_indices = num_indices};
+                    (* Register constructor data for recursor generation *)
                     { c_name = c_name; 
                     c_num_args = c_num_args; 
                     c_rec_args = c_rec_args }
                   ) nonidx_constr in (* skips type indices *)
                   
-                  Hashtbl.add ind_env (id ^ "rec") {
+                  (* Register recursor data *)
+                  Hashtbl.add rec_env (id ^ "rec") {
                     ind_name = id;
                     num_params = num_params;
                     num_indices = num_indices;

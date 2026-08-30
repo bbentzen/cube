@@ -9,7 +9,7 @@
  **)
 
 
-(* Hash table for tracking inductive type information *)
+(* Hash tables for generating and evaluating recursors *)
 
 type constr_spec = {
   c_name : string;
@@ -22,4 +22,12 @@ type ind_spec = {
   num_indices : int;
   num_params : int;
   constructors : constr_spec list;
+}
+
+(* Hash table for inferring constructor type information *)
+
+type con_spec = {
+  ind_name : string;
+  num_indices : int;
+  num_params : int;
 }

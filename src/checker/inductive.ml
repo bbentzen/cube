@@ -41,11 +41,14 @@ let rec head_symbol = function
 
 (* Checks that 'ty' appears only strictly positively in a constructor argument *)
 
-let rec strictly_positive_arg ty = function
+let rec strictly_positive_arg ind_env ty = function
   | Pi (x, dom, cod) ->
-      not (occurs_name ty [x] dom) && strictly_positive_arg ty cod
+    let dom = Eval.eval ind_env dom in
+    let cod = Eval.eval ind_env cod in
+    not (occurs_name ty [x] dom) && strictly_positive_arg ind_env ty cod
   | expr ->
       (* If ind_name occurs in the target of an argument, it must be the head symbol *)
+      let expr = Eval.eval ind_env expr in
       if occurs_name ty [] expr then
         match head_symbol expr with
         | Some x -> x = ty
@@ -54,12 +57,15 @@ let rec strictly_positive_arg ty = function
 
 (* Validates strict positivity across an entire constructor type signature *)
 
-let rec strictly_positive ind_name = function
+let rec strictly_positive ind_env ind_name = function
   | Pi (_, arg_ty, rest_ty) ->
-      strictly_positive_arg ind_name arg_ty &&
-      strictly_positive ind_name rest_ty
+      let arg_ty = Eval.eval ind_env arg_ty in
+      let rest_ty = Eval.eval ind_env rest_ty in
+      strictly_positive_arg ind_env ind_name arg_ty &&
+      strictly_positive ind_env ind_name rest_ty
   | target_ty ->
       (* The final return type of the constructor must target ind_name *)
+      let target_ty = Eval.eval ind_env target_ty in
       match head_symbol target_ty with
       | Some x -> x = ind_name
       | None -> false
@@ -233,7 +239,8 @@ let rec_name id_name = id_name ^ "rec"
 
 (* Useful for testing purposes *)
 
-let print_spec id ind = 
+let print_spec : string -> ind_spec -> string =
+  fun id ind ->
   "\nType: " ^ id ^ "\nNum_indices: " ^ string_of_int ind.num_indices ^ "\nNum_params: " ^ string_of_int ind.num_params ^ "\nConstructors: " ^
   String.concat "" (List.map (fun c -> "\nConstructor name: " ^ c.c_name ^ "\nConstructor Num_args: " ^ string_of_int c.c_num_args ^ "\nConstructor Rec_args: " ^ String.concat "" (List.map string_of_bool c.c_rec_args)) ind.constructors)
 

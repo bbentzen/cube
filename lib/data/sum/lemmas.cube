@@ -57,7 +57,7 @@ def disj_syll_2 {A B : type l} :
 
 def not_not_lem {A : type l} :
   ¬¬ (A + ¬A) :=
-λ f, f (inr A (¬A) (λ x, f (inl A (¬A) x)))
+λ f, f (inr A (¬A) (λ x, f (inl _ _ x)))
 
 def lem_implies_dne {A : type l} (v : A + ¬A) :
   ¬¬A → A :=
@@ -65,7 +65,7 @@ def lem_implies_dne {A : type l} (v : A + ¬A) :
 
 def dne_implies_lem {A : type l} (dne : ¬¬(A + ¬A) → (A + ¬A)) :
   A + ¬A :=
-dne (λ f, f (inr _ (¬A) (λ x, f (inl _ (¬A) x))))
+dne (λ f, f (inr _ _ (λ x, f (inl _ _ x))))
 
 def sum_up_1 {A B C : type l} :
   (A → C) → (B → C) → ((A + B) → C) :=
@@ -93,7 +93,7 @@ def de_morgan_sum_1 {A B : type l} :
 
 def de_morgan_sum_2 {A B : type l} :
   ¬(A + B) → (¬A × ¬B) :=
-λ f, (λ x, f (inl A B x) , λ y, f (inr A B y))
+λ f, (λ x, f (inl _ _ x) , λ y, f (inr A B y))
 
 def de_morgan_sum_3 {A B : type l} :
   (¬ A + ¬ B) → (¬ (A × B)) :=
@@ -107,12 +107,12 @@ def sum_elim {A B C : type l} :
 
 def sigma_sum_distrb {A B : type l} {C : A → type l} :
   (Σ (x : A), B + C x) → (B + Σ (x : A), C x) :=
-λ w, sumrec B (C (fst w)) _ (λ x, inl B (Σ (x : A), C x) x) (λ y, inr B (Σ (x : A), C x) (fst w, y)) (snd w)
+λ w, sumrec B (C (fst w)) _ (λ x, inl B _ x) (λ y, inr _ _ (fst w, y)) (snd w)
 
 theorem pi_sum_distr {A : type l} {B C : A → type l} :
   ((Π (x : A), B x) + (Π (x : A), C x)) → (Π (x : A), B x + C x) :=
-λ w x, sumrec (Π (x : A), B x) (Π (x : A), C x) _ (λ f, inl (B x) (C x) (f x)) (λ g, inr (B x) (C x) (g x)) w
+λ w x, sumrec (Π (x : A), B x) (Π (x : A), C x) _ (λ f, inl _ _ (f x)) (λ g, inr (B x) (C x) (g x)) w
 
 theorem pi_sum_distrb {A B : type l} {C : A → type l} :
   (B + (Π (x : A), C x)) → (Π (x : A), B + C x) :=
-λ w x, sumrec B (Π (x : A), C x) _ (λ y, inl B (C x) y) (λ f, inr B (C x) (f x)) w
+λ w x, sumrec B (Π (x : A), C x) _ (λ y, inl _ _ y) (λ f, inr _ _ (f x)) w

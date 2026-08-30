@@ -4,13 +4,11 @@ Before preparing a pull request (PR), please test your changes beforehand, runni
 
 Here are some items on our TODO list:
 
+- Reintroduce Prod/Sigma as an inductive type to simplify the kernel
 - Do not automatically unfold terms tagged as theorem or as lemma
-- Inductive type declarations need to handle evaluation better
 - Expand the library with more formalized math for testing strengths and limits
 - Coercion reduction rules for constructors of inductive types
-- Add type constructor inference
 - Add explicit @ handling of implicit arguments
-- Reintroduce Prod/Sigma as an inductive type to simplify the kernel
 - Fix universe polymorphism bug when universe level occurs in proof
 - Add structures
 - Parse unicode subscript, superscript, Greek letters properly

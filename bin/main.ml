@@ -15,12 +15,15 @@ let () =
   if Array.length Sys.argv > 1 then
     Sys.argv.(1)
   else (
-    print_endline "Usage: cubicle <filename>";
+    print_endline "Usage: cube <filename>";
     exit 1
   )
   in
-  (* Initialize the hasthtable of inductive families and parse file *)
-  let ind_env : (string, Data.ind_spec) Hashtbl.t = Hashtbl.create 16 in
+  (* Initialize the hasthtable of inductive families *)
+  let rec_env : (string, Data.ind_spec) Hashtbl.t = Hashtbl.create 16 in
+  let cons_env : (string, Data.con_spec) Hashtbl.t = Hashtbl.create 48 in
+  let ind_env = (rec_env, cons_env) in
+  (* Parse and compile file and print the output *)
   match checkfile [] ind_env [] [] filename [] with 
   | Ok (env, _, _, (s, _)) ->
     let n = String.length s in

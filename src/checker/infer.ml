@@ -19,9 +19,9 @@ let make_motive n ty =
 
 (* Infer the motive of a well-applied recursor *)
 
-let try_infer_motive ind_env ty args = function
+let try_infer_motive rec_env ty args = function
   | Global rec_name ->
-    begin match Hashtbl.find_opt ind_env rec_name with
+    begin match Hashtbl.find_opt rec_env rec_name with
     | Some rec_spec -> 
       let num_minors = List.length rec_spec.constructors in
       let expected_args = rec_spec.num_indices + 1 + rec_spec.num_params + num_minors + 1 in
@@ -44,6 +44,25 @@ let try_infer_motive ind_env ty args = function
           let args' = List.mapi (fun i arg -> if i = rec_spec.num_indices then infer_motive else arg) args in
           Some (Eval.build_app (Global rec_name) args')
         else None
+    | _ -> None
+    end
+  | _ -> None
+
+let constr_indices cons_env ty args = function
+  | Global cons_name ->
+    let _, ty_args = Eval.break_args [] ty in
+    begin match Hashtbl.find_opt cons_env cons_name with
+    | Some cons_spec -> 
+      let expected_args = cons_spec.num_indices in
+      if List.length ty_args < expected_args || List.length args < expected_args then
+        None
+      else
+        let infer_index i = List.nth ty_args i in
+        let args' = List.mapi (fun i arg -> if i < expected_args && Placeholder.is (List.nth args i) then infer_index i else arg) args in
+        if args = args' then (* not super efficient but that'd do for now *)
+          None 
+        else
+          Some (Eval.build_app (Global cons_name) args')
     | _ -> None
     end
   | _ -> None
