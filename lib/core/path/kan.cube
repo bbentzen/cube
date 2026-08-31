@@ -26,12 +26,6 @@ com i0 i1 A (λ i, p @ i)
 
 /* Coercion structure */
 
-def product_coe (A : I → type l) (B : Π (i : I), A i → type l) (w : Σ (x : A i0), B i0 x)  :
-  path (Σ (x : A i1), B i1 x) 
-  (coe i0 i1 (λ i, Σ (x : A i), B i x) w)
-  (coe i0 i1 (λ i, A i) fst w, coe i0 i1 (λ i, B i (coe i0 i (λ i, A i) fst w)) snd w) :=
-<_> coe i0 i1 (λ i, Σ (x : A i), B i x) w
-
 def path_com {A : I → type l} {a : A i0} {b : A i1} (p : pathd A a b) (k : I) :
   pathd A a b := 
 <k> (hcom i0 i1 (λ i, coe i k A (p @ i))
@@ -112,10 +106,17 @@ def path_type_coe {A : I → I → type l} {a : A i0 i0} {b : A i0 i1} (p : path
   type l :=
 pathd (A i1) (coe i0 i1 (λ j, A j i0) a) (coe i0 i1 (λ j, A j i1) b)
 
-/* Forming two-dimensional paths from one-dimensional composition */
+/* Application distribution */
 
-def get_square {A : type l} {a b c d : A} (p : path A a b) (q : path A c d) (r : path A a c) (s : path A b d) :
-  pathd (λ i, path A (r @ i) (s @ i)) p q := 
-<j> <i> (hcom i0 j (λ i, p @ i) 
-  | i0 → λ j, r @ j 
-  | i1 → λ j, s @ j) i
+def ap_hcom {A B : type l} {a b c d : A} (p : path A a b) (q : path A a c) (r : path A b d) (f : A → B) :
+  path (I → B)
+    (λ i, f ((hcom i0 i1 (λ i, p @ i) 
+    | i0 → (λ j, q @ j) 
+    | i1 → λ j, r @ j) i))
+    (hcom i0 i1 (λ i, f (p @ i)) 
+    | i0 → (λ j, f (q @ j)) 
+    | i1 → λ j, f (r @ j))
+  :=
+<_> (λ i, f ((hcom i0 i1 (λ i, p @ i) 
+    | i0 → (λ j, q @ j) 
+    | i1 → λ j, r @ j) i))

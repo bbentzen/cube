@@ -4,11 +4,16 @@
  * Author: Bruno Bentzen
  */
 
+import ../../core/function.cube
 import ./basic.cube
 
 universe l 
 
 /* Product type */
+
+def id_iff_id {A : type l} : 
+  A ↔ A :=
+(id, id)
 
 def prod_swap {A B : type l} :
   (A × B) → (B × A) :=
@@ -104,3 +109,15 @@ def sigma_not_to_not_pi {A : type l} {C : A → type l} :
 def sigma_pi_exchg {A B : type l} {C : A → B → type l} :
   (Σ (x : A), Π (y : B), C x y) → (Π (y : B), Σ (x : A), C x y) :=
 λ w y, (fst A (λ x, Π (y : B), C x y) w, (snd A (λ x, Π (y : B), C x y) w) y)
+
+theorem dprod_up_2_fst {A : type l} {B C : A → type l} :
+  (Π (x : A), B x × C x) → (Π (x : A), B x) :=
+λ f x, fst (B x) (λ _, C x) (f x)
+
+theorem dprod_up_2_snd {A : type l} {B C : A → type l} :
+  (Π (x : A), B x × C x) → (Π (x : A), C x) :=
+λ f x, snd (B x) (λ _, C x) (f x)
+
+theorem pi_prod_distr {A B : type l} {C : A → type l} :
+  (B × Π (x : A), C x) → (Π (x : A), B × C x) :=
+λ w x, (fst B (λ _, Π (x : A), C x) w, (snd B (λ _, Π (x : A), C x) w) x)

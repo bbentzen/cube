@@ -12,10 +12,6 @@ def id {A : type l} :
   A → A :=
 λ x, x
 
-def id_iff_id {A : type l} : 
-  A ↔ A :=
-(id, id)
-
 def comp {A B C : type l}  :
   (A → B) → (B → C) → (A → C) :=
 λf g x, g (f x)
@@ -93,15 +89,3 @@ theorem pi_fun_distr1 {A B : type l} {C : A → type l} :
 theorem pi_fun_distr2 {A B : type l} {C : A → type l} :
   (Π (x : A), B → C x) → (B → (Π (x : A), C x)) :=
 λ f y x, (f x) y
-
-theorem dprod_up_2_fst {A : type l} {B C : A → type l} :
-  (Π (x : A), B x × C x) → (Π (x : A), B x) :=
-λ f x, fst (f x)
-
-theorem dprod_up_2_snd {A : type l} {B C : A → type l} :
-  (Π (x : A), B x × C x) → (Π (x : A), C x) :=
-λ f x, snd (f x)
-
-theorem pi_prod_distr {A B : type l} {C : A → type l} :
-  (B × Π (x : A), C x) → (Π (x : A), B × C x) :=
-λ w x, (fst w, (snd w) x)

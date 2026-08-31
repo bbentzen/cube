@@ -29,7 +29,19 @@ snd (path (A × B) (a, b) (a', b')) (λ _, path A a a' × path B b b') pair_iff_
 
 /* Homogeneous composition */
 
-/* def product_hcom {A B : type l} {w1 w1' w2 w2' : A × B} (p : path (A × B) w1 w2) (q : path (A × B) w1 w1') (r : path (A × B) w2 w2') (i : I) :
+/* def product_hcom_fst {A B : type l} {w1 w1' w2 w2' : A × B} (p : path (A × B) w1 w2) (q : path (A × B) w1 w1') (r : path (A × B) w2 w2') (i : I) :
+  path A
+    (fst A (λ _, B) ((hcom i0 i1 (λ i, p @ i) 
+    | i0 → (λ j, q @ j) 
+    | i1 → λ j, r @ j) i)) 
+    ((hcom i0 i1 (λ i, fst A (λ _, B) (p @ i)) 
+      | i0 → (λ j, fst A (λ _, B) (q @ j)) 
+      | i1 → (λ j, fst A (λ _, B) (r @ j))) i) :=
+<_> (fst A (λ _, B) ((hcom i0 i1 (λ i, p @ i) 
+    | i0 → (λ j, q @ j) 
+    | i1 → λ j, r @ j) i))
+
+def product_hcom {A B : type l} {w1 w1' w2 w2' : A × B} (p : path (A × B) w1 w2) (q : path (A × B) w1 w1') (r : path (A × B) w2 w2') (i : I) :
   path (A × B) 
     ((hcom i0 i1 (λ i, p @ i) 
     | i0 → (λ j, q @ j) 
@@ -40,8 +52,18 @@ snd (path (A × B) (a, b) (a', b')) (λ _, path A a a' × path B b b') pair_iff_
      (hcom i0 i1 (λ i, snd A (λ _, B) (p @ i)) 
       | i0 → (λ j, snd A (λ _, B) (q @ j)) 
       | i1 → (λ j, snd A (λ _, B) (r @ j))) i) :=
-<_> (hcom i0 i1 (λ i, (prod_eta A B p) @ i) 
-  | i0 → λ j, (prod_eta A B q) @ j 
-  | i1 → λ j, (prod_eta A B r) @ j) i */
+prod_eta A B ((hcom i0 i1 (λ i, p @ i) 
+    | i0 → (λ j, q @ j) 
+    | i1 → λ j, r @ j) i)  */
 
 /* Coercion TODO */
+
+/* def product_coe (A : I → type l) (B : Π (i : I), A i → type l) (w : Σ (x : A i0), B i0 x)  :
+  path (Σ (x : A i1), B i1 x) 
+  (coe i0 i1 (λ i, Σ (x : A i), B i x) w)
+  (coe i0 i1 (λ i, A i) fst w, coe i0 i1 (λ i, B i (coe i0 i (λ i, A i) fst w)) snd w) :=
+<_> coe i0 i1 (λ i, Σ (x : A i), B i x) w */
+
+def path_bs {A : type 1} {a b : A} (p q : path A a b) {C : path A a b → type 1} :
+  C p ↔ C q :=
+id_iff_id

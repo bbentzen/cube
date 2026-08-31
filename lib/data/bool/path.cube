@@ -5,6 +5,7 @@
  */
 
 import ./laws.cube
+import ../sigma/lemmas.cube
 
 universe l
 

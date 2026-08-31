@@ -4,6 +4,7 @@
  * Author: Bruno Bentzen
  */
 
+import ../sigma/lemmas.cube
 import ../unit/basic.cube
 import ./lemmas.cube
 

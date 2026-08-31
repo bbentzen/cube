@@ -5,6 +5,7 @@
  */
 
 import ../../core/path.cube
+import ../sigma/lemmas.cube
 import ../unit.cube
 import ./basic.cube
 
@@ -22,11 +23,11 @@ def succ_iff_eq {n m : nat} :
 
 def succ_to_eq {n m : nat} :
   path nat (succ n) (succ m) → path nat n m :=
-fst succ_iff_eq
+fst (path nat (succ n) (succ m)) (λ _, path nat n m) succ_iff_eq
 
 def eq_to_succ {n m : nat} :
   path nat n m → path nat (succ n) (succ m) :=
-snd succ_iff_eq
+snd (path nat (succ n) (succ m)) (λ _, path nat n m) succ_iff_eq
 
 def pred_succ {n : nat} :
   path nat (pred (succ n)) n :=
@@ -34,7 +35,8 @@ def pred_succ {n : nat} :
 
 def succ_pred {n : nat} (w : Σ (k : nat), path nat (succ k) n) :
   path nat (succ (pred n)) n :=
-coe i0 i1 (λ i, path nat (succ (pred (snd w @ i))) (snd w @ i)) (<_> succ (fst w))
+coe i0 i1 (λ i, path nat (succ (pred ((snd nat (λ k, path nat (succ k) n) w) @ i))) ((snd nat (λ k, path nat (succ k) n) w) @ i)) 
+(<_> succ (fst nat (λ k, path nat (succ k) n) w))
 
 /* Inequalities */
 
@@ -113,4 +115,3 @@ def nat_eq {n m : nat} :
   path nat n m ↔ nat_code n m :=
 natrec _ (natrec _ id_iff_id (λ k _, (nat_neq, absurd)) m)
 (λ k _, natrec _ (nat_neq', absurd) (λ k' _, id_iff_id) m) n
-

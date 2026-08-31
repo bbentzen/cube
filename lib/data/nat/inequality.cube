@@ -4,6 +4,7 @@
  * Author: Bruno Bentzen
  */
 
+import ../sigma/basic.cube
 import ./laws.cube
 
 universe k
@@ -16,4 +17,4 @@ def leq (m n : ℕ) :
 
 def leq_add (m n k : ℕ) :
   leq m n → leq (add m k) (add n k) :=
-λ p, (fst p, add_comm2 m (fst p) k · (<i> add ((snd p) @ i) k) )
+λ p, (fst nat (λ i, path ℕ (add m i) n) p, add_comm2 m (fst nat (λ i, path ℕ (add m i) n) p) k · (<i> add ((snd nat (λ i, path ℕ (add m i) n) p) @ i) k) )

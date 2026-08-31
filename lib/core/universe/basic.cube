@@ -12,10 +12,6 @@ def pi_form {A : type l1} {B : A → type l2} :
   type (max l1 l2) :=
 Π (x : A), B x
 
-def sigma_form {A : type l1} {B : A → type l2} :
-  type (max l1 l2) :=
-Σ (x : A), B x
-
 def path_form {A : type l1} (a b : A) :
   type l1 :=
 path A a b

@@ -294,20 +294,20 @@ let rec elaborate global ind_env ctx lvl sl ty ph vars = function
             "\n" ^ msg)
           | _, Error (sa', msg), _, _ ->
             Error (Stack.append sa' (Stack.lappend sa sa1 sa2), 
-            "Error when checking that the homogeneous filling\n  " ^ Pretty.printf (Hcom(i1, j1, e', e1', e2')) ^ 
-            "\nhas type\n  I → I → " ^ Pretty.printf ty' ^ 
+            "Error when checking that the homogeneous composition\n  " ^ Pretty.printf (Hcom(i1, j1, e', e1', e2')) ^ 
+            "\nhas type\n  I → " ^ Pretty.printf ty' ^ 
             "\nThe i1-face of the lid\n  " ^ Pretty.printf (eval ind_env (App(e', I1()))) ^ "\ndoes not have the expected type\n  " ^ Pretty.printf ty' ^ 
             "\n" ^ msg)
           | _, _, Error (sa', msg), _ ->
             Error (Stack.append sa' (Stack.lappend sa sa1 sa2), 
-            "Error when checking that the homogeneous filling\n  " ^ Pretty.printf (Hcom(i1, j1, e', e1', e2')) ^ 
-            "\nhas type\n  I → I → " ^ Pretty.printf ty' ^ 
+            "Error when checking that the homogeneous composition\n  " ^ Pretty.printf (Hcom(i1, j1, e', e1', e2')) ^ 
+            "\nhas type\n  I → " ^ Pretty.printf ty' ^ 
             "\nThe i0-face of the i0-tube\n  " ^ Pretty.printf (eval ind_env (App(e1', I0()))) ^ "\ndoes not have the expected type\n  " ^ Pretty.printf ty' ^ 
             "\n" ^ msg)
           | _, _, _, Error (sa', msg) ->
             Error (Stack.append sa' (Stack.lappend sa sa1 sa2), 
-            "Error when checking that the homogeneous filling\n  " ^ Pretty.printf (Hcom(i1, j1, e, e1, e2)) ^ 
-            "\nhas type\n  I → I → " ^ Pretty.printf ty' ^ 
+            "Error when checking that the homogeneous composition\n  " ^ Pretty.printf (Hcom(i1, j1, e, e1, e2)) ^ 
+            "\nhas type\n  I → " ^ Pretty.printf ty' ^ 
             "\nThe i0-face of the i1-tube\n  " ^ Pretty.printf (eval ind_env (App(e2', I0()))) ^ "\ndoes not have the expected type\n  " ^ Pretty.printf ty' ^ 
             "\n" ^ msg)
           end
@@ -354,11 +354,11 @@ let rec elaborate global ind_env ctx lvl sl ty ph vars = function
                     "\n" ^ msg)
                 end
               | Error (sa, msg), _ -> 
-                Error (sa, "Error when synthesizing type for the homogeneous filling\n  " ^ Pretty.printf (Hcom(i1, j1, e', e1', e2')) ^ 
+                Error (sa, "Error when synthesizing type for the homogeneous composition\n  " ^ Pretty.printf (Hcom(i1, j1, e', e1', e2')) ^ 
                     "\nThe i0-face of the i0-tube\n  " ^ Pretty.printf (eval ind_env (App(e1', I0()))) ^ "\ndoes not have the expected type\n  " ^ Pretty.printf ty0 ^ 
                     "\n" ^ msg)
               | _, Error (sa, msg) ->
-                Error (sa, "Error when synthesizing type for the homogeneous filling\n  " ^ Pretty.printf (Hcom(i1, j1, e', e1', e2')) ^ 
+                Error (sa, "Error when synthesizing type for the homogeneous composition\n  " ^ Pretty.printf (Hcom(i1, j1, e', e1', e2')) ^ 
                     "\nThe i0-face of the i1-tube\n  " ^ Pretty.printf (eval ind_env (App(e1', I0()))) ^ "\ndoes not have the expected type\n  " ^ Pretty.printf ty0 ^ 
                     "\n" ^ msg)
               end
@@ -366,12 +366,12 @@ let rec elaborate global ind_env ctx lvl sl ty ph vars = function
               Error (Stack.append ss sa', 
                 "Failed to synthesize placeholder type. The lid " ^ Pretty.printf e' ^ " has type " ^ Pretty.printf ety ^ 
                 ", but could not check that the line\n  " ^ Pretty.printf (eval ind_env (App(e', I1()))) ^ "\nhas type\n  " ^ Pretty.printf ty' ^
-                "\nin the homogeneous filling\n  hfill (" ^ Pretty.printf e' ^ 
+                "\nin the homogeneous composition\n  hfill (" ^ Pretty.printf e' ^ 
                 ")\n    | i0 → " ^ Pretty.printf e1' ^
                 "\n    | i1 → " ^ Pretty.printf e2' ^ "\n" ^ msg)
             | _, Error msg -> Error msg
             end
-          | _ -> Error (sl, "The lid of the homogeneous filling\n  " ^ Pretty.printf e ^ 
+          | _ -> Error (sl, "The lid of the homogeneous composition\n  " ^ Pretty.printf e ^ 
             "\nis expected to have the function type but has type\n  " ^ Pretty.printf ety)
           end
         | Error msg, _, _ | _, Error msg, _ | _, _, Error msg -> 
@@ -386,7 +386,7 @@ let rec elaborate global ind_env ctx lvl sl ty ph vars = function
     
     | ty ->
       Error (sl, "The homogeneous composition\n  " ^ Pretty.printf (Hcom(i1, j1, e, e1, e2)) ^ 
-      "\nis expected to have type\n  I → I → ?0?\nand not\n  " ^ Pretty.printf ty)
+      "\nis expected to have type\n  I → ?0?\nand not\n  " ^ Pretty.printf ty)
     end
 
   | Pabs (i, e) ->
@@ -1028,7 +1028,7 @@ and unify global ind_env ctx lvl sl ph vars x lift =
                   n2 ^ "?\nwhose suitable candidates are\n" ^ 
                   (String.concat " " (List.map (fun e -> Pretty.printf e) l2))) 
         end
-
+      
       | e , _, Pathd(_, _, _) ->
         Ok e
 
@@ -1050,7 +1050,7 @@ and unify global ind_env ctx lvl sl ph vars x lift =
                     Pretty.printf (Hole (n, l)) ^ "\nwith the suitable candidates\n" ^ 
                     (String.concat " " (List.map Pretty.printf l)))
         end
-      
+
       | Pi (_, ty1, ty2), Pi (_, ty1', ty2'), ty ->
         (* For now we just evaluate, soon we'll only evaluate if they are values *)
         let ty1 = eval ind_env ty1 in 
@@ -1098,6 +1098,7 @@ and unify global ind_env ctx lvl sl ph vars x lift =
         else 
           begin match eval ind_env ty1 with
           | Int() | Hole(_,_) ->
+            (* Local boundary separation *)
             let h1 = Placeholder.generate ph [] in
             let elabt0 = elaborate global ind_env ctx lvl sl h1 (ph+1) vars (Expr.open_var 0 (I0()) ty2) in
             let elabt1 = elaborate global ind_env ctx lvl sl h1 (ph+1) vars (Expr.open_var 0 (I1()) ty2) in
@@ -1134,6 +1135,53 @@ and unify global ind_env ctx lvl sl ph vars x lift =
             | Error msg -> Error msg
             end
           end
+      
+      (* Local boundary separation *)
+      | e, e', Pi(_, Int() , ty) ->
+        (* Determine i0-endpoints and type *)
+        let ty0 = Expr.open_var 0 (I0()) ty in
+        let e0 = eval ind_env (App (e, I0())) in
+        let e0' = eval ind_env (App (e', I0())) in
+        (* Determine i0-endpoints and type *)
+        let ty1 = Expr.open_var 0 (I1()) ty in
+        let e1 = eval ind_env (App (e, I1())) in
+        let e1' = eval ind_env (App (e', I1())) in
+        (* Elaboration for endpoint reduction *)
+        let h1 = Placeholder.generate ph [] in
+        let elabt0 = elaborate global ind_env ctx lvl sl h1 (ph+1) vars ty0 in
+        let elabt1 = elaborate global ind_env ctx lvl sl h1 (ph+1) vars ty1 in
+            begin match elabt0, elabt1 with
+            | Ok (ty0, _, _), Ok (ty1, _, _) ->
+              let elab0 = elaborate global ind_env ctx lvl sl ty0 (ph+1) vars e0 in
+              let elab0' = elaborate global ind_env ctx lvl sl ty0 (ph+1) vars e0' in
+              let elab1 = elaborate global ind_env ctx lvl sl ty1 (ph+1) vars e1 in
+              let elab1' = elaborate global ind_env ctx lvl sl ty1 (ph+1) vars e1' in
+              begin match elab0, elab0', elab1, elab1' with
+              | Ok (e0, _, _), Ok (e0', _, _), Ok (e1, _, _), Ok (e1', _, _) -> 
+                let u0 = unify global ind_env ctx lvl sl (ph+1) vars (e0, e0', ty0) lift in
+                let u1 = unify global ind_env ctx lvl sl (ph+1) vars (e1, e1', ty1) lift in
+                begin match u0, u1 with
+                | Ok _, Ok _ -> Ok e
+                | Error msg, _ -> 
+                  Error ((e0, e0'), "Don't know how to unify the application i0-endpoint\n  " ^ Pretty.printf e0 ^ "\nwith\n  " ^ Pretty.printf e0' ^ "\n" ^ Pretty.printf (eval ind_env e0') ^ "\n" ^ snd msg )
+                | _, Error msg -> Error ((e1, e1'), "Don't know how to unify the application i1-endpoint\n  " ^ Pretty.printf e1 ^ "\nwith\n  " ^ Pretty.printf e1' ^ "\n" ^ snd msg)
+                end
+              | Error (_, msg), _, _, _ | _, Error (_, msg), _, _ | _, _, Error (_, msg), _ | _, _, _, Error (_, msg) -> 
+                Error ((e, e'), "Failed endpoint unification: " ^ msg)
+              end
+            | Error (_, msg), _ | _, Error (_, msg) -> (* This case is impossible *)
+              Error ((e, e'), msg)
+            end
+
+        (* let ui0 = unify global ind_env ctx lvl sl ph vars (e0, e0', ty) lift in
+        let ui1 = unify global ind_env ctx lvl sl ph vars (e1, e1', ty) lift in
+        begin match ui0, ui1 with
+        | Ok _, Ok _ -> Ok e
+        | Error msg, _ -> 
+          Error ((e0, e0'), "Can't unify the line i0-endpoint\n  " ^ Pretty.printf e0 ^ "\nwith\n  " ^ Pretty.printf e0' ^ "\n" ^ snd msg )
+        | _, Error msg -> 
+          Error ((e1, e1'), "Can't unify the line i1-endpoint\n  " ^ Pretty.printf e1 ^ "\nwith\n  " ^ Pretty.printf e1' ^ "\n" ^ snd msg)
+        end *)
 
       | App (e1, e2), App (e1', e2'), ty ->
         let h1 = Placeholder.generate ph [] in
@@ -1208,8 +1256,9 @@ and unify global ind_env ctx lvl sl ph vars x lift =
             begin match ui0, ui1 with
             | Ok _, Ok _ -> Ok (App (e, i))
             | Error msg, _ -> 
-              Error ((e0, e0'), "Don't know how to unify the application i0-endpoint\n  " ^ Pretty.printf e0 ^ "\nwith\n  " ^ Pretty.printf e0' ^ "\n" ^ Pretty.printf (eval ind_env e0') ^ "\n" ^ snd msg )
-            | _, Error msg -> Error ((e1, e1'), "Don't know how to unify the application i1-endpoint\n  " ^ Pretty.printf e1 ^ "\nwith\n  " ^ Pretty.printf e1' ^ "\n" ^ snd msg)
+              Error ((e0, e0'), "Don't know how to unify the application i0-endpoint\n  " ^ Pretty.printf e0 ^ "\nwith\n  " ^ Pretty.printf e0' ^ "\n" ^ snd msg)
+            | _, Error msg -> 
+              Error ((e1, e1'), "Don't know how to unify the application i1-endpoint\n  " ^ Pretty.printf e1 ^ "\nwith\n  " ^ Pretty.printf e1' ^ "\n" ^ snd msg)
             end
           | _ ->
             Error ((e, e'), "Don't know how to unify the applied term\n  " ^ Pretty.printf (App (e, i)) ^ "\nwith\n  " ^ Pretty.printf e')

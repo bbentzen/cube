@@ -33,8 +33,10 @@ def spread (A : type k) (B : A → type k) {C : (Σ (x : A), B x) → type k} :
 
 /* Type formation (the product type is defined as sigma A (λ x, B)) */
 
-def sigma_type {A : type k} {B : A → type k} :
-  type k :=
+universe l
+
+def sigma_form {A : type k} {B : A → type l} :
+  type (max k l) :=
 Σ (x : A), B x
 
 def prod_type {A B : type k} :

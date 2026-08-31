@@ -6,6 +6,7 @@
 
 import ../core/function.cube
 import ../core/path.cube
+import ../data/sum.cube
 
 universe k
 
@@ -33,7 +34,8 @@ definition is_commutative {A : type k} (f : A → A → A) : type k :=
 
 theorem identity_is_unique {A : type k} {f : A → A → A} (e e' : A) :
   Π (p : is_identity f e) (q : is_identity f e'), path A e e' :=
-λ p q, (fst q e)⁻¹ · (snd p e')
+λ p q, ((fst (is_right_identity f e') (λ _, is_left_identity f e') q) e)⁻¹ · 
+((snd (is_right_identity f e) (λ _, is_left_identity f e) p) e')
 
 /* Monoids */
 

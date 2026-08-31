@@ -4,6 +4,7 @@
  * Author: Bruno Bentzen
  */
  
+import ../sigma/basic.cube
 import ./basic.cube
 
 universe l k
@@ -12,15 +13,15 @@ universe l k
 
 def de_morgan_prod_1 {A B : type l} :
   (A × B) → ¬ (¬A + ¬B) :=
-λ w v, sumrec (¬A) (¬B) _ (λ f, f (fst w)) (λ g, g (snd w)) v
+λ w v, sumrec (¬A) (¬B) _ (λ f, f (fst A (λ _, B) w)) (λ g, g (snd A (λ _, B) w)) v
 
 def de_morgan_prod_2 {A B : type l} :
    (¬ A × ¬ B) → ¬ (A + B) :=
-λ w v, sumrec A B _ (λ x, (fst w) x) (λ y, (snd w) y) v
+λ w v, sumrec A B _ (λ x, (fst (¬A) (λ _, ¬B) w) x) (λ y, (snd (¬A) (λ _, ¬B) w) y) v
 
 def prod_elim_sum {A B C : type l} :
    (A × B) → ((A → C) + (B → C)) → C :=
-λ w v, sumrec (A → C) (B → C) _ (λ f, f (fst w)) (λ g, g (snd w)) v
+λ w v, sumrec (A → C) (B → C) _ (λ f, f (fst A (λ _, B) w)) (λ g, g (snd A (λ _, B) w)) v
 
 def weak_1 {A B : type l} :
   A → A + B :=
@@ -89,7 +90,7 @@ def sum_neg_to_fun {A B : type l} :
 
 def de_morgan_sum_1 {A B : type l} :
   (A + B) → ¬ (¬ A × ¬ B) :=
-λ v w, sumrec _ _ _ (λ x, (fst w) x) (λ y, (snd w) y) v
+λ v w, sumrec _ _ _ (λ x, (fst (¬ A) (λ _, ¬ B) w) x) (λ y, (snd (¬ A) (λ _, ¬ B) w) y) v
 
 def de_morgan_sum_2 {A B : type l} :
   ¬(A + B) → (¬A × ¬B) :=
@@ -97,17 +98,17 @@ def de_morgan_sum_2 {A B : type l} :
 
 def de_morgan_sum_3 {A B : type l} :
   (¬ A + ¬ B) → (¬ (A × B)) :=
-λ v w, sumrec (¬A) (¬B) _ (λ f, f (fst w)) (λ g, g (snd w)) v
+λ v w, sumrec (¬A) (¬B) _ (λ f, f (fst A (λ _, B) w)) (λ g, g (snd A (λ _, B) w)) v
 
 def sum_elim {A B C : type l} :
   (A + B) → ((A → C) × (B → C)) → C :=
-λ v f, sumrec _ _ _ (λ x, (fst f) x) (λ y, (snd f) y) v
+λ v f, sumrec _ _ _ (λ x, (fst (A → C) (λ_, B → C) f) x) (λ y, (snd (A → C) (λ_, B → C) f) y) v
 
 /* Distribution over dependent types */
 
 def sigma_sum_distrb {A B : type l} {C : A → type l} :
   (Σ (x : A), B + C x) → (B + Σ (x : A), C x) :=
-λ w, sumrec B (C (fst w)) _ (λ x, inl B _ x) (λ y, inr _ _ (fst w, y)) (snd w)
+λ w, sumrec B (C (fst A (λx, B + C x) w)) _ (λ x, inl B _ x) (λ y, inr _ _ (fst A (λx, B + C x) w, y)) (snd A (λx, B + C x) w)
 
 theorem pi_sum_distr {A : type l} {B C : A → type l} :
   ((Π (x : A), B x) + (Π (x : A), C x)) → (Π (x : A), B x + C x) :=
