@@ -168,8 +168,8 @@ let rec compile global ind_env ind lopen filename lvl next_location = function
                         ("Strict positivity check failed for constructor '" ^ c_name ^
                         "' in inductive type '" ^ id ^ "'")
                     else
-                      let ind' = Inductive.add [(id, ty_fam)] ctx' in
-                      begin match Type.check global ind_env ind' lvl (eval ind_env c_ty) with
+                      let ind_ctx = Inductive.add ((id, ty_fam) :: ind) ctx' in
+                      begin match Type.check global ind_env ind_ctx lvl (eval ind_env c_ty) with
                       | Ok (c_ty', c_univ) ->
                         let c_indexed_ty = Inductive.parametrize_constructor_ty c_ty' ctx in
                         (* Store indexed, non-indexed versions, and their type universes *)
