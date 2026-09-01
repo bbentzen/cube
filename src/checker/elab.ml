@@ -118,7 +118,7 @@ let rec elaborate global ind_env ctx lvl sl ty ph vars = function
     let ty = eval ind_env ty in
     let head, args = Eval.break_args [] (App (e1, e2)) in
     let rec_env, cons_env = ind_env in 
-    begin match Infer.rec_motive rec_env ty args head with
+    begin match Infer.rec_motive_idx ctx rec_env ty args head with
     | Some res ->
       elaborate global ind_env ctx lvl sl ty ph vars res
     | None ->
