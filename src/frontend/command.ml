@@ -29,7 +29,7 @@ let failwith_at location msg =
   (* Ind_env is a pair with inductive families in hasthtable and context forms *)
 
 let rec compile global ind_env ind lopen filename lvl next_location = function
-  | Thm (cmd, Prf (id, l, ty_raw, e_raw)) ->
+  | Thm (cmd, Prf (id, l, ty_raw, e_raw, attrb)) ->
     let location = next_location () in
     begin
       (* Convert expressions storing the index of available fresh variable *)
@@ -67,7 +67,13 @@ let rec compile global ind_env ind lopen filename lvl next_location = function
                       if id = "infer" then
                         Ok (global, ind_env, ind, ("infer := " ^ Pretty.printf e1 ^ ": \n" ^ "         " ^ Pretty.printf ty1 ^ "\n", lopen))
                       else
-                        compile (Env.add global id ctx' (e1, ty1)) ind_env ind lopen filename lvl next_location cmd
+                        (* Definition/ Theorem/ Lemma *)
+                        if attrb = 0 then
+                          compile (Env.add global id ctx' (e1, ty1)) ind_env ind lopen filename lvl next_location cmd
+                        else
+                          (* Abbreviation *)
+                          let global' = Env.add global id ctx' (e', ty1) in
+                          compile global' ind_env ind lopen filename lvl next_location cmd
                     | Error msg -> 
                       failwith_at location ("The following error was found at '" ^ id ^ "'\n" ^ msg)
                   end

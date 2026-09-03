@@ -71,7 +71,7 @@ let fresh_var e1 e2 i =
 (* The abstract syntax of commands takes raw expressions which are then converted to core expressions *)
 
 type proof = 
-  | Prf of string * (((string list * rawexpr) * bool) list) * rawexpr * rawexpr
+  | Prf of string * (((string list * rawexpr) * bool) list) * rawexpr * rawexpr * int
 
 type command = 
     | Import of command * string

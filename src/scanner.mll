@@ -93,6 +93,8 @@ rule token = parse
   | "lem"              { DEF }
   | "theorem"          { DEF }
   | "thm"              { DEF }
+  | "abbrev"           { ABBREV }
+  | "abbreviation"     { ABBREV }
   | "print"            { PRINT }
   | "infer"            { INFER }
   | "eval"             { EVAL }

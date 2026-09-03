@@ -56,7 +56,7 @@ let single_id = function
 %token <string> ID
 %token <string> FILENAME
 %token <string> NUMBER
-%token EVAL IMPORT IND UNIVERSE DEF PRINT INFER LBRACE RBRACE
+%token EVAL IMPORT IND UNIVERSE DEF ABBREV PRINT INFER LBRACE RBRACE
 %token TYPE MAX NEXT COLON
 %token I0 I1 INTERVAL COE HCOM COM BAR
 %token ABS APP RARROW LRARROW PI
@@ -106,9 +106,9 @@ command:
   | EOF                                                     {Eof()}
 
 decl:
-  | DEF ID ctx expr COLONEQ expr                            {Prf($2, $3, $4, $6)}
-  | INFER ctx expr                                          {Prf("infer", $2, RHole("0", []), $3)}
-  | INFER expr                                              {Prf("infer", [], RHole("0", []), $2)}
+  | DEF ID ctx expr COLONEQ expr                            {Prf($2, $3, $4, $6, 0)}
+  | ABBREV ID ctx expr COLONEQ expr                         {Prf($2, $3, $4, $6, 1)}
+  | INFER ctx expr                                          {Prf("infer", $2, RHole("0", []), $3, 2)}
 
 constr: 
   | BAR ID COLON expr                                       {[($2, $4)]}
