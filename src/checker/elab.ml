@@ -24,7 +24,7 @@ let rec elaborate global ind_env ctx lvl sl ty ph vars = function
   | Global x ->
     begin match Global.var_type x ctx with
     | Ok xty ->
-      (* let ty = eval ind_env ty in *)
+      let ty = eval ind_env ty in
       let c = Global.check_var_ty x ty ctx in
       let h = Placeholder.is ty in 
       let h' = Placeholder.is xty in 
@@ -1261,7 +1261,13 @@ and unify global ind_env ctx lvl sl ph vars x lift =
               Error ((e1, e1'), "Don't know how to unify the application i1-endpoint\n  " ^ Pretty.printf e1 ^ "\nwith\n  " ^ Pretty.printf e1' ^ "\n" ^ snd msg)
             end
           | _ ->
+            (* Needs more test to confirm soundness *)
+            begin match e with
+            | Hole _ -> (* we take Hole to be (\lambda x. e') *)
+              Ok e'
+            | _ ->
             Error ((e, e'), "Don't know how to unify the applied term\n  " ^ Pretty.printf (App (e, i)) ^ "\nwith\n  " ^ Pretty.printf e')
+            end
             (* Fallback case: try again after evaluating the second argument *)
             (* let i = eval ind_env i in
             let app = eval ind_env (App (e, i)) in

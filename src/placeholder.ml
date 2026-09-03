@@ -14,7 +14,7 @@ open Ast
 let generate num_holes l = 
   Hole (string_of_int (num_holes + 1), l)
 
-(* Determines whether an expression is or has a placeholder/underscore *)
+(* Determines whether an expression is a placeholder/underscore *)
 
 let is = function
 | Hole _ | Wild _ -> true

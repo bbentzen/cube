@@ -17,6 +17,15 @@ let make_motive n ty =
   | n -> Lam (vars.(n-1), helper (Expr.shift 1 0 ty) (n - 1)) 
   in helper ty n
 
+let generate_ind_pl name num_idx_params ph =
+  let rec aux acc ph = function
+    | 0 -> Global name, acc
+    | n -> 
+      let hn = Placeholder.generate ph [] in
+      let head, phs = aux acc (ph+1) (n - 1) in
+      App (head, hn), phs + 1
+  in aux 0 ph num_idx_params
+
 (* Infer the motive and indices of a well-applied recursor *)
 
 let rec_motive_idx elaborate global ind_env ctx lvl sl ph vars rec_env ty args = function
@@ -29,8 +38,8 @@ let rec_motive_idx elaborate global ind_env ctx lvl sl ph vars rec_env ty args =
       if List.length args < expected_args then
         None 
       else
+        (* Step 1: check if we proceed to motive or index inference *)
         let motive_arg = List.nth args rec_spec.num_indices in
-        (* Step 1: motive inference *)
         if Placeholder.is motive_arg then
           (* Infer based on the target type by matching parameters and the major argument *)
           let major_arg = List.nth args (expected_args - 1) in
@@ -45,8 +54,12 @@ let rec_motive_idx elaborate global ind_env ctx lvl sl ph vars rec_env ty args =
           let infer_motive = make_motive (rec_spec.num_params + 1) ty' in
           (* Step 2: elaborate major argument to infer indices *)
           let indx =
-            let h1 = Placeholder.generate ph [] and ph = ph+1 in
-            begin match elaborate global ind_env ctx lvl sl h1 ph vars major_arg with
+            (* let h1 = Placeholder.generate ph [] and ph = ph+1 in *)
+            let num_idx = rec_spec.num_indices in
+            let num_params = rec_spec.num_params in (* Clean this up *)
+            let name = rec_spec.ind_name in
+            let h1, ph' = generate_ind_pl name (num_idx + num_params) ph in
+            begin match elaborate global ind_env ctx lvl sl h1 ph' vars major_arg with
             | Ok (_, xty, _) -> 
                 let _, ind_args = Eval.break_args [] xty in
                 let num_args = List.length ind_args in
@@ -65,7 +78,8 @@ let rec_motive_idx elaborate global ind_env ctx lvl sl ph vars rec_env ty args =
               | Some idx_args -> List.nth idx_args i
               | None -> arg
             else
-            if i = rec_spec.num_indices then infer_motive else arg) args in
+            if i = rec_spec.num_indices then infer_motive else arg) args 
+          in
           Some (Eval.build_app (Global rec_name) args')
         else None
     | _ -> None
