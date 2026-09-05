@@ -114,14 +114,11 @@ let rec elaborate global ind_env ctx lvl sl ty ph vars = function
     end
 
   | App (e1, e2) ->
-    (* If the head expression is a recursor try to infer the motive *)
-    let ty = eval ind_env ty in
-    let head, args = Eval.break_args [] (App (e1, e2)) in
-    let rec_env, cons_env = ind_env in 
-    begin match Infer.rec_motive_idx elaborate global ind_env ctx lvl sl ph vars rec_env ty args head with
-    | Some res ->
-      elaborate global ind_env ctx lvl sl ty ph vars res
-    | None ->
+    begin match ty with
+    | Hole _ ->
+      (* First we infer the target type and then proceed to infer motive *)
+      let head, args = Eval.break_args [] (App (e1, e2)) in
+      let rec_env, cons_env = ind_env in 
       (* If the head expression is a constructor try to infer indices *)
       begin match Infer.constr_indices cons_env ty args head with
       | Some res ->
@@ -136,37 +133,73 @@ let rec elaborate global ind_env ctx lvl sl ty ph vars = function
         | Ok (e1', Pi(_, ty1, ty2), sa1) ->
           (* Evaluates the inferred domain before type checking *)
           let ty1' = eval ind_env ty1 in
-          let h3 = Placeholder.generate (ph+3) [] in
           let elab2 = elaborate global ind_env ctx lvl sl ty1' (ph+2) (vars+1) e2 in
           begin match elab2 with
           | Ok (e2', _, sa2) ->
-            (* Otherwise unify both types possibly lifting the universe levels *)
+            (* Now we might have more precise information to try to infer the motive *)
             let ty2' = eval ind_env (Expr.open_var 0 e2' ty2) in
-            let u = unify global ind_env ctx lvl sl (ph+3) (vars+1) (ty, ty2', h3) true in
-            begin match u with
-            | Ok _ -> 
+            let head, args = Eval.break_args [] (App (e1', e2')) in
+            begin match Infer.rec_motive_idx elaborate global ind_env ctx lvl sl (ph+2) (vars+1) rec_env ty2' args head with
+            | Some res ->
+              elaborate global ind_env ctx lvl sl ty2' ph vars res
+            | None ->
+              (* No need for unification since ty is a hole *)
               Ok (App (e1', e2'), ty2', Stack.append sa1 sa2)
-            | Error (_, msg) ->
-              Error (Stack.append sa1 sa2,
-                "Failed application: the term in the argument position \n  " ^ Pretty.printf e2' ^ 
-                "\nis expected to have type\n  " ^ Pretty.printf ty1' ^ "\n" ^ msg)
-            end
-          | Error (sa2, msg) -> 
-            Error (Stack.append sa1 sa2,
-              "Failed application: the term in the argument\n  " ^ Pretty.printf e2 ^ 
-              "\nis expected to have type\n  " ^ Pretty.printf ty1' ^ "\n" ^ msg)
           end
-          
+          | Error (sa2, msg) -> 
+            Error (Stack.append sa1 sa2, Msg.app_fail_2 e2 ty1' msg)
+          end
         | Ok (e1', ty1', sa1) -> 
-          Error (sa1,
-            "Failed application: the term in function position\n  " ^ Pretty.printf e1' ^ 
-            "\nis expected to have the type\n " ^ Pretty.printf h2 ^
-            "\nbut was found to have type\n " ^ Pretty.printf ty1'
-            )
+          Error (sa1, Msg.app_wrong_ty1 e1' h2 ty1')
         | Error (sa, msg) -> 
-          Error (sa, 
-          "Failed application: the term in function position\n  " ^ Pretty.printf e1 ^ 
-            "\nis expected to have a function type.\n " ^ msg)
+          Error (sa, Msg.app_wrong_ty2 e1 msg)
+        end
+      end
+    (* Since the target type is not a hole we attempt inferrence right away *)
+    (* If the head expression is a recursor try to infer the motive *)
+    | ty ->
+      let ty = eval ind_env ty in
+      let head, args = Eval.break_args [] (App (e1, e2)) in
+      let rec_env, cons_env = ind_env in 
+      begin match Infer.rec_motive_idx elaborate global ind_env ctx lvl sl ph vars rec_env ty args head with
+      | Some res ->
+        elaborate global ind_env ctx lvl sl ty ph vars res
+      | None ->
+        (* If the head expression is a constructor try to infer indices *)
+        begin match Infer.constr_indices cons_env ty args head with
+        | Some res ->
+          elaborate global ind_env ctx lvl sl ty ph vars res
+        | None ->
+          (* Otherwise infer the type of e1 and check its evaluated domain against e2 *)
+          let h1 = Placeholder.generate ph [] in
+          let v1 = Expr.init_fresh vars in
+          let h2 = Placeholder.generate (ph+1) [] in
+          let elab1 = elaborate global ind_env ctx lvl sl (Pi(v1, h1, h2)) (ph+2) (vars+1) e1 in
+          begin match elab1 with
+          | Ok (e1', Pi(_, ty1, ty2), sa1) ->
+            (* Evaluates the inferred domain before type checking *)
+            let ty1' = eval ind_env ty1 in
+            let h3 = Placeholder.generate (ph+3) [] in
+            let elab2 = elaborate global ind_env ctx lvl sl ty1' (ph+2) (vars+1) e2 in
+            begin match elab2 with
+            | Ok (e2', _, sa2) ->
+              (* Otherwise unify both types possibly lifting the universe levels *)
+              let ty2' = eval ind_env (Expr.open_var 0 e2' ty2) in
+              let u = unify global ind_env ctx lvl sl (ph+3) (vars+1) (ty, ty2', h3) true in
+              begin match u with
+              | Ok _ -> 
+                Ok (App (e1', e2'), ty2', Stack.append sa1 sa2)
+              | Error (_, msg) ->
+                Error (Stack.append sa1 sa2, Msg.app_fail_1 e2' ty1' msg)
+              end
+            | Error (sa2, msg) -> 
+              Error (Stack.append sa1 sa2, Msg.app_fail_2 e2 ty1' msg)
+            end
+          | Ok (e1', ty1', sa1) -> 
+            Error (sa1, Msg.app_wrong_ty1 e1' h2 ty1')
+          | Error (sa, msg) -> 
+            Error (sa, Msg.app_wrong_ty2 e1 msg)
+          end
         end
       end
     end
@@ -1261,7 +1294,7 @@ and unify global ind_env ctx lvl sl ph vars x lift =
               Error ((e1, e1'), "Don't know how to unify the application i1-endpoint\n  " ^ Pretty.printf e1 ^ "\nwith\n  " ^ Pretty.printf e1' ^ "\n" ^ snd msg)
             end
           | _ ->
-            (* Needs more test to confirm soundness *)
+            (* Needs more testing to confirm soundness *)
             begin match e with
             | Hole _ -> (* we take Hole to be (\lambda x. e') *)
               Ok e'

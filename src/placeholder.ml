@@ -20,6 +20,11 @@ let is = function
 | Hole _ | Wild _ -> true
     | _ -> false
 
+(* Determines whether an expression is an underscore *)
+
+let is_wild = function
+| Wild _ -> true | _ -> false
+
 (* Tail-recursive recursion with stack for placeholder tracking  *)
 
 let has_placeholder term =

@@ -31,16 +31,22 @@ let generate_ind_pl name num_idx_params ph =
 let rec_motive_idx elaborate global ind_env ctx lvl sl ph vars rec_env ty args = function
   | Global rec_name ->
     begin match Hashtbl.find_opt rec_env rec_name with
-    | Some rec_spec -> 
+    | Some rec_spec ->
       let num_minors = List.length rec_spec.constructors in
       let expected_args = rec_spec.num_indices + 1 + rec_spec.num_params + num_minors + 1 in
       (* Only proceed when the list is fully applied *)
-      if List.length args < expected_args then
-        None 
+      if (List.length args < expected_args) then
+        None
       else
-        (* Step 1: check if we proceed to motive or index inference *)
+        (* Step 1: proceed only if there are wildcards in the index and motive arguments *)
+        let index_is_wild = 
+          if rec_spec.num_indices = 0 then false else 
+            not (List.compare_length_with 
+            (List.filteri (fun i arg -> i < rec_spec.num_indices && 
+            Placeholder.is_wild arg) args) 0 = 0) in
         let motive_arg = List.nth args rec_spec.num_indices in
-        if Placeholder.is motive_arg then
+        let motive_is_wild = Placeholder.is_wild motive_arg in
+        if index_is_wild || motive_is_wild then
           (* Infer based on the target type by matching parameters and the major argument *)
           let major_arg = List.nth args (expected_args - 1) in
           let rec unpack ty = function
@@ -49,36 +55,44 @@ let rec_motive_idx elaborate global ind_env ctx lvl sl ph vars rec_env ty args =
             | n -> let param_arg = List.nth args (rec_spec.num_indices + 1 + n) in
               Expr.fullsubst 0 param_arg (Local n) true (unpack ty (n - 1))
           in
+          (* Appends 'dom_ty_arg ->' to the motive for each extra arguments *)
+          let num_extra_args = List.length args - expected_args in
+          let rec append_ty_extra ty = function
+            | 0 -> ty
+            | n -> let extra_arg = List.nth args (expected_args + n - 1) in
+              let h1 = Placeholder.generate ph [] in
+              begin match elaborate global ind_env ctx lvl sl h1 ph vars extra_arg with
+              | Ok (_, extra_arg_ty, _) -> 
+                Pi("v?", extra_arg_ty, Expr.shift 1 0 (append_ty_extra ty (n - 1)))
+              | _ -> ty (* this shouldn't happen *)
+              end
+          in
           (* Close motive with abstractions and rebuild the application with the result *)
-          let ty' = unpack ty rec_spec.num_params in
+          let ty' = append_ty_extra (unpack ty rec_spec.num_params) num_extra_args in
           let infer_motive = make_motive (rec_spec.num_params + 1) ty' in
           (* Step 2: elaborate major argument to infer indices *)
           let indx =
-            (* let h1 = Placeholder.generate ph [] and ph = ph+1 in *)
-            let num_idx = rec_spec.num_indices in
-            let num_params = rec_spec.num_params in (* Clean this up *)
-            let name = rec_spec.ind_name in
-            let h1, ph' = generate_ind_pl name (num_idx + num_params) ph in
-            begin match elaborate global ind_env ctx lvl sl h1 ph' vars major_arg with
-            | Ok (_, xty, _) -> 
-                let _, ind_args = Eval.break_args [] xty in
-                let num_args = List.length ind_args in
-                if num_args < rec_spec.num_params + rec_spec.num_indices then 
-                  None
-                else
-                  let idx_args = List.filteri (fun i _ -> i < rec_spec.num_indices) ind_args in
-                  Some idx_args
+            let h1 = Placeholder.generate ph [] and ph = ph+1 in
+            begin match elaborate global ind_env ctx lvl sl h1 ph vars major_arg with
+            | Ok (_, xty, _) ->
+              let _, ind_args = Eval.break_args [] xty in
+              let num_args = List.length ind_args in
+              if num_args < rec_spec.num_params + rec_spec.num_indices then 
+                None
+              else
+                let idx_args = List.filteri (fun i _ -> i < rec_spec.num_indices) ind_args in
+                Some idx_args
             | _ -> None
-            end 
+            end
           in
           (* Step 3: rebuild the application with the inferred motive and indices *)
           let args' = List.mapi (fun i arg -> 
-            if i < rec_spec.num_indices && Placeholder.is arg then
+            if i < rec_spec.num_indices && Placeholder.is_wild arg then
               match indx with
               | Some idx_args -> List.nth idx_args i
               | None -> arg
             else
-            if i = rec_spec.num_indices then infer_motive else arg) args 
+            if i = rec_spec.num_indices && motive_is_wild then infer_motive else arg) args 
           in
           Some (Eval.build_app (Global rec_name) args')
         else None

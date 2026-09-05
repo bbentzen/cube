@@ -120,7 +120,7 @@ let rec print env = function
   | I1() -> "i1 "
   | Int() -> "I " 
   | Void() -> "void "
-  | Wild n -> "?0" ^ string_of_int n ^ "? "
+  | Wild n -> "?_" ^ string_of_int n ^ "? "
   | Subgoal() -> "?"
 
 and parenthesize env e = 
