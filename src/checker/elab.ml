@@ -12,6 +12,18 @@ open Context
 open Ast
 open Eval
 
+let solve_meta_application args vars body = function
+  | Hole (n, _) ->
+    let rec build_lam vars body = function
+      | [] -> body
+      | _ :: args -> 
+        let v1 = Expr.init_fresh vars in
+        Lam (v1, build_lam (vars + 1) (Expr.shift 1 0 body) args)
+    in
+    if Placeholder.has_placeholder_name n body then None else 
+      Some (build_lam vars body args)
+  | _ -> None
+
 (* TODO: Retool vars as a list of used globals *)
 
 let goal_msg ctx e ty =
@@ -39,6 +51,7 @@ let rec elaborate global ind_env ctx lvl sl ty ph vars = function
         begin match elaborate global ind_env ctx lvl sl h1 (ph+1) vars xty with
         | Ok (_, tTy', sa) ->
           let u = unify global ind_env ctx lvl sl (ph+1) vars (eval ind_env ty, eval ind_env xty, tTy') true in
+          (* unify global ind_env ctx lvl sl (ph+1) vars (ty, xty, tTy') true *)
           begin match u with
           | Ok s -> 
             Ok (Global x, s, sl) 
@@ -1199,7 +1212,17 @@ and unify global ind_env ctx lvl sl ph vars x lift =
           let u1 = unify global ind_env ctx lvl sl (ph+1) (vars+1) (e1, e1', Pi(v1, ty2, Expr.fullsubst 0 e2 (Local 0) true ty)) lift in
           begin match u1, u2 with
           | Ok s1, Ok s2 -> Ok (App (s1, s2))
-          | Error (ex, msg), _ | _, Error (ex, msg) -> 
+          | Error (ex, msg), _ | _, Error (ex, msg) ->
+            (* Check for metavariable application *)
+            let head, args = Eval.break_args [] (App (e1, e2)) in
+            begin match solve_meta_application args vars (App(e1', e2')) head with
+            | Some s -> Ok s
+            | None ->
+              let head, args = Eval.break_args [] (App (e1', e2')) in
+              begin match solve_meta_application args vars (App(e1, e2)) head with
+              | Some s -> Ok s
+              | None ->
+
             (* If not unifiable check endpoints *)            
             let helper x y = 
               match x, y with
@@ -1243,12 +1266,15 @@ and unify global ind_env ctx lvl sl ph vars x lift =
                 unify global ind_env ctx lvl sl (ph+1) (vars+1) (app1', app2', ty) lift
             end
           end
+          end
+          end
         | Error (_, msg) -> (* This case is impossible *)
           Error ((App (e1, e2), App (e1', e2')), 
           "Failed to check that " ^ Pretty.printf e2 ^ " has type " ^ Pretty.printf h1 ^ "\n" ^ msg)
         end
       
       | App (e, i), e', _ | e', App (e, i), _ ->
+        (* Try endpoint unification *)
           let h1 = Placeholder.generate ph [] in
           let elab2 = elaborate global ind_env ctx lvl sl h1 (ph+1) vars i in
           begin match elab2, i with

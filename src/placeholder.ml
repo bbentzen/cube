@@ -67,6 +67,29 @@ let has_placeholder term =
   in
   helper [term]
 
+let has_placeholder_name name term =
+  let rec helper stack =
+    match stack with
+    | [] -> false
+    | x :: rest ->
+      match x with
+      | Hole (n, _) when n = name -> true
+      | Hole _ -> false
+      | Lam (_, e) | Pabs (_, e)
+      | Abort e ->
+          helper (e :: rest)
+      | Pi (_, e1, e2) | App (e1, e2) | At (e1, e2) ->
+          helper (e1 :: e2 :: rest)
+      | Pathd (e, e1, e2) ->
+          helper (e :: e1 :: e2 :: rest)
+      | Hcom (i, j, e, e1, e2) ->
+          helper (i :: j :: e :: e1 :: e2 :: rest)
+      | Coe (i, j, e1, e2) ->
+          helper (i :: j :: e1 :: e2 :: rest)
+      | _ -> helper rest
+  in
+  helper [term]
+
 (* Determines whether an expression has placeholders or underscores *)
 
 let has term =
