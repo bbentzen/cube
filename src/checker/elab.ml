@@ -114,38 +114,41 @@ let rec elaborate global ind_env ctx lvl sl ty ph vars = function
     end
 
   | App (e1, e2) ->
-    begin match ty with
-    | Hole _ ->
-      (* First we infer the target type and then proceed to infer motive *)
-      let head, args = Eval.break_args [] (App (e1, e2)) in
-      let rec_env, cons_env = ind_env in 
+    (* If the head expression is a recursor try to infer the motive *)
+    let ty = eval ind_env ty in
+    let head, args = Eval.break_args [] (App (e1, e2)) in
+    let rec_env, cons_env = ind_env in 
+    begin match Infer.rec_motive_idx elaborate global ind_env ctx lvl sl ph vars rec_env ty args head with
+    | Some res ->
+      elaborate global ind_env ctx lvl sl ty ph vars res
+    | None ->
       (* If the head expression is a constructor try to infer indices *)
       begin match Infer.constr_indices cons_env ty args head with
       | Some res ->
         elaborate global ind_env ctx lvl sl ty ph vars res
       | None ->
         (* Otherwise infer the type of e1 and check its evaluated domain against e2 *)
-        let h1 = Placeholder.generate ph [] in
+        let h1 = Placeholder.generate_a ph [] in
         let v1 = Expr.init_fresh vars in
-        let h2 = Placeholder.generate (ph+1) [] in
+        let h2 = Placeholder.generate_a (ph+1) [] in
         let elab1 = elaborate global ind_env ctx lvl sl (Pi(v1, h1, h2)) (ph+2) (vars+1) e1 in
         begin match elab1 with
         | Ok (e1', Pi(_, ty1, ty2), sa1) ->
           (* Evaluates the inferred domain before type checking *)
           let ty1' = eval ind_env ty1 in
+          let h3 = Placeholder.generate_a (ph+3) [] in
           let elab2 = elaborate global ind_env ctx lvl sl ty1' (ph+2) (vars+1) e2 in
           begin match elab2 with
           | Ok (e2', _, sa2) ->
-            (* Now we might have more precise information to try to infer the motive *)
+            (* Otherwise unify both types possibly lifting the universe levels *)
             let ty2' = eval ind_env (Expr.open_var 0 e2' ty2) in
-            let head, args = Eval.break_args [] (App (e1', e2')) in
-            begin match Infer.rec_motive_idx elaborate global ind_env ctx lvl sl (ph+2) (vars+1) rec_env ty2' args head with
-            | Some res ->
-              elaborate global ind_env ctx lvl sl ty2' ph vars res
-            | None ->
-              (* No need for unification since ty is a hole *)
+            let u = unify global ind_env ctx lvl sl (ph+3) (vars+1) (ty, ty2', h3) true in
+            begin match u with
+            | Ok _ -> 
               Ok (App (e1', e2'), ty2', Stack.append sa1 sa2)
-          end
+            | Error (_, msg) ->
+              Error (Stack.append sa1 sa2, Msg.app_fail_1 e2' ty1' msg)
+            end
           | Error (sa2, msg) -> 
             Error (Stack.append sa1 sa2, Msg.app_fail_2 e2 ty1' msg)
           end
@@ -153,53 +156,6 @@ let rec elaborate global ind_env ctx lvl sl ty ph vars = function
           Error (sa1, Msg.app_wrong_ty1 e1' h2 ty1')
         | Error (sa, msg) -> 
           Error (sa, Msg.app_wrong_ty2 e1 msg)
-        end
-      end
-    (* Since the target type is not a hole we attempt inferrence right away *)
-    (* If the head expression is a recursor try to infer the motive *)
-    | ty ->
-      let ty = eval ind_env ty in
-      let head, args = Eval.break_args [] (App (e1, e2)) in
-      let rec_env, cons_env = ind_env in 
-      begin match Infer.rec_motive_idx elaborate global ind_env ctx lvl sl ph vars rec_env ty args head with
-      | Some res ->
-        elaborate global ind_env ctx lvl sl ty ph vars res
-      | None ->
-        (* If the head expression is a constructor try to infer indices *)
-        begin match Infer.constr_indices cons_env ty args head with
-        | Some res ->
-          elaborate global ind_env ctx lvl sl ty ph vars res
-        | None ->
-          (* Otherwise infer the type of e1 and check its evaluated domain against e2 *)
-          let h1 = Placeholder.generate ph [] in
-          let v1 = Expr.init_fresh vars in
-          let h2 = Placeholder.generate (ph+1) [] in
-          let elab1 = elaborate global ind_env ctx lvl sl (Pi(v1, h1, h2)) (ph+2) (vars+1) e1 in
-          begin match elab1 with
-          | Ok (e1', Pi(_, ty1, ty2), sa1) ->
-            (* Evaluates the inferred domain before type checking *)
-            let ty1' = eval ind_env ty1 in
-            let h3 = Placeholder.generate (ph+3) [] in
-            let elab2 = elaborate global ind_env ctx lvl sl ty1' (ph+2) (vars+1) e2 in
-            begin match elab2 with
-            | Ok (e2', _, sa2) ->
-              (* Otherwise unify both types possibly lifting the universe levels *)
-              let ty2' = eval ind_env (Expr.open_var 0 e2' ty2) in
-              let u = unify global ind_env ctx lvl sl (ph+3) (vars+1) (ty, ty2', h3) true in
-              begin match u with
-              | Ok _ -> 
-                Ok (App (e1', e2'), ty2', Stack.append sa1 sa2)
-              | Error (_, msg) ->
-                Error (Stack.append sa1 sa2, Msg.app_fail_1 e2' ty1' msg)
-              end
-            | Error (sa2, msg) -> 
-              Error (Stack.append sa1 sa2, Msg.app_fail_2 e2 ty1' msg)
-            end
-          | Ok (e1', ty1', sa1) -> 
-            Error (sa1, Msg.app_wrong_ty1 e1' h2 ty1')
-          | Error (sa, msg) -> 
-            Error (sa, Msg.app_wrong_ty2 e1 msg)
-          end
         end
       end
     end
@@ -731,7 +687,24 @@ let rec elaborate global ind_env ctx lvl sl ty ph vars = function
         Error (Stack.append sa1 sa2, 
           "Type mismatch when checking that\n  " ^ Pretty.printf (Pi(x, ty1, ty2)) ^ "\nhas type\n  " ^ Pretty.printf ty)
       end
-
+    
+    (* New code *)
+    | Ok (ty1', Type n, sa), Ok (ty2', Hole _, _) 
+    | Ok (ty1', Hole _, sa), Ok (ty2', Type n, _) -> 
+      begin match ty with
+      | Type m ->
+        if Level.leq n m then 
+          Ok (Pi(x, ty1', Expr.close_bound x ty2'), Type m, sa) 
+        else 
+          Error (sa, "Type mismatch when checking that the type\n  " ^ Pretty.printf (Pi(x, ty1, ty2)) ^ 
+            "\nof type \n  " ^ Pretty.printf (Type n) ^ "\nhas type\n  " ^ Pretty.printf (Type m))
+      | Hole _ -> 
+        Ok (Pi(x, ty1', Expr.close_bound x ty2'), Type n, sa)
+      | _ ->
+        Error (sa, "Type mismatch when checking that\n  " ^ Pretty.printf (Pi(x, ty1, ty2)) ^ "\nhas type\n  " ^ Pretty.printf ty)
+      end
+    (* End of new code *)
+    
     | Ok (ty1', Type n, sa), Ok (Hole (k,l), _, _) -> 
       begin match ty with
       | Type m ->
