@@ -43,7 +43,7 @@ let rec print env = function
             String.concat "" ["("; x'; " : "; print env e1'; ") "; iterate (x' :: env) e2']
           else
             String.concat "" [tparenthesize env e1'; "→ "; print (x' :: env) e2']
-        | e' -> print env e'
+        | e' -> ", " ^ print env e'
       in
       "Π (" ^ x ^ " : " ^ print env e1 ^ ") " ^ iterate (x :: env) e2
     else
@@ -86,7 +86,7 @@ let rec print env = function
           else
             String.concat "" [tparenthesize env e1'; "× "; iterate (x' :: env) e2']
         | e' ->
-          print env e'
+          ", " ^ print env e'
       in
       tparenthesize env e1 ^ "× " ^ iterate (x :: env) e2
 
