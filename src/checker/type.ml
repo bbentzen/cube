@@ -15,7 +15,8 @@ let check global ind_env ctx lvl ty =
   | Hole _ -> Ok (Hole ("0",[]), ty)
   | _ ->
     let ty' = eval ind_env ty in
-    let elab = Elab.elaborate global ind_env ctx lvl ([], []) (Hole ("0",[])) 1 0 ty' in
+    Placeholder.restore 0;
+    let elab = Elab.elaborate global ind_env ctx lvl ([], []) (Hole ("0",[])) 1 ty' in
     match elab with
     | Ok (ty', tTy, _) ->
       begin

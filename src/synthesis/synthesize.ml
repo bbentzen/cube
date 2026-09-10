@@ -16,7 +16,8 @@ open Checker
 let rec check global ind_env ctx lvl sl e ty max vars =
   let e' = eval ind_env e in
   let ty' = eval ind_env ty in
-  let elab = Elab.elaborate global ind_env ctx lvl sl ty' 0 vars e' in
+  Placeholder.restore 0;
+  let elab = Elab.elaborate global ind_env ctx lvl sl ty' vars e' in
   begin
     match elab with
     | Ok (e', ty', sl') ->

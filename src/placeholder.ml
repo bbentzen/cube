@@ -11,26 +11,13 @@ open Ast
 
 (* Generates a placeholder *)
 
-let generate num_holes l = 
-  Hole (string_of_int (num_holes + 1), l)
+let counter = ref 0
 
-(* Variants of the function to track where placeholders come from and ensure uniqueness *)
-(* (to be sure uniqueness still needs to be further verified later) *)
+let generate l =
+  incr counter;
+  Hole (string_of_int !counter, l)
 
-let generate_m num_holes l = 
-  Hole ("mot" ^ string_of_int (num_holes + 1), l)
-
-let generate_fm num_holes l = 
-  Hole ("fmot" ^ string_of_int (num_holes + 1), l)
-
-let generate_i num_holes l = 
-  Hole ("idx" ^ string_of_int (num_holes + 1), l)
-
-let generate_fi num_holes l = 
-  Hole ("fidx" ^ string_of_int (num_holes + 1), l)
-
-let generate_a num_holes l = 
-  Hole ("app" ^ string_of_int (num_holes + 1), l)
+let restore n = counter := n
 
 (* Determines whether an expression is a placeholder/underscore *)
 

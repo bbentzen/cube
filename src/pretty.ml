@@ -18,7 +18,9 @@ let rec print env = function
   | App(App(App(App (Global "pair", _ ), _), e1), e2) -> 
     "(" ^ parenthesize env e1 ^ ", " ^ parenthesize env e2 ^ ") "
   | Global y -> y ^ " "
-  | Local index -> (name_at index env) ^ " "
+  | Local index -> 
+    (* "Local-" ^ (string_of_int index) *)
+    (name_at index env) ^ " "
   | Coe (i, j, e1, e2) -> String.concat "" ["coe "; parenthesize env i; parenthesize env j; parenthesize env e1; parenthesize env e2]
   
   | Hcom (i, j, e, e1, e2) -> 

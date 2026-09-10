@@ -17,18 +17,17 @@ let make_motive n ty =
   | n -> Lam (vars.(n-1), helper (Expr.shift 1 0 ty) (n - 1)) 
   in helper ty n
 
-let generate_ind_pl name num_idx_params ph =
-  let rec aux acc ph = function
-    | 0 -> Global name, acc
+let generate_ind_pl name num_idx_params =
+  let rec aux acc = function
+    | 0 -> Global name
     | n -> 
-      let hn = Placeholder.generate_i ph [] in
-      let head, phs = aux acc (ph+1) (n - 1) in
-      App (head, hn), phs + 1
-  in aux 0 ph num_idx_params
+      let hn = Placeholder.generate [] in
+      App (aux acc (n - 1), hn)
+  in aux 0 num_idx_params
 
 (* Infer the motive and indices of a well-applied recursor *)
 
-let rec_motive_idx elaborate global ind_env ctx lvl sl ph vars rec_env ty args = function
+let rec_motive_idx elaborate global ind_env ctx lvl sl vars rec_env ty args = function
   | Global rec_name ->
     begin match Hashtbl.find_opt rec_env rec_name with
     | Some rec_spec ->
@@ -60,12 +59,12 @@ let rec_motive_idx elaborate global ind_env ctx lvl sl ph vars rec_env ty args =
           let rec append_ty_extra ty = function
             | 0 -> ty
             | n -> let extra_arg = List.nth args (expected_args + n - 1) in
-              let h1 = Placeholder.generate_m ph [] in
-              begin match elaborate global ind_env ctx lvl sl h1 ph vars extra_arg with
+              let h1 = Placeholder.generate [] in
+              begin match elaborate global ind_env ctx lvl sl h1 vars extra_arg with
               | Ok (_, extra_arg_ty, _) -> 
                 Pi("v?", extra_arg_ty, Expr.shift 1 0 (append_ty_extra ty (n - 1)))
               | _ -> (* this might happen if the extra argument is another recursor *)
-                Pi("v?", Placeholder.generate_fm (ph + n) [], Expr.shift 1 0 (append_ty_extra ty (n - 1))) 
+                Pi("v?", Placeholder.generate [], Expr.shift 1 0 (append_ty_extra ty (n - 1))) 
               end
           in
           (* Close motive with abstractions and rebuild the application with the result *)
@@ -76,9 +75,9 @@ let rec_motive_idx elaborate global ind_env ctx lvl sl ph vars rec_env ty args =
             let num_idx = rec_spec.num_indices in
             let num_params = rec_spec.num_params in (* Clean this up *)
             let name = rec_spec.ind_name in
-            let ph = num_extra_args + ph in (* ensures uniqueness *)
-            let h1, ph = generate_ind_pl name (num_idx + num_params) ph in
-            begin match elaborate global ind_env ctx lvl sl h1 ph vars major_arg with
+            (* let ph = num_extra_args + ph in  *)(* ensures uniqueness *)
+            let h1 = generate_ind_pl name (num_idx + num_params) in
+            begin match elaborate global ind_env ctx lvl sl h1 vars major_arg with
             | Ok (_, xty, _) ->
               let _, ind_args = Eval.break_args [] xty in
               let num_args = List.length ind_args in
@@ -95,7 +94,7 @@ let rec_motive_idx elaborate global ind_env ctx lvl sl ph vars rec_env ty args =
             if i < rec_spec.num_indices && Placeholder.is_wild arg then
               match infer_index with
               | Some idx_args -> List.nth idx_args i
-              | None -> if Placeholder.is_wild arg then Placeholder.generate_fi (ph + i) [] else arg
+              | None -> if Placeholder.is_wild arg then Placeholder.generate [] else arg
             else
             if i = rec_spec.num_indices && motive_is_wild then infer_motive else arg) args 
           in

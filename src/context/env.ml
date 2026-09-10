@@ -36,7 +36,7 @@ let function_of_def id ctx (e, ty) hole =
       Pi (x, ty, close_var 0 x ty')
     | (x, _, false) :: ctx ->
       let e', ty' = helper (h'+1) ctx in
-      let h = Placeholder.generate h' [] in
+      let h = Placeholder.generate [] in
       Global.subst_global 0 h x e', 
       Global.subst_global 0 h x ty' 
   in
