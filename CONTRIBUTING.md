@@ -4,13 +4,16 @@ Before preparing a pull request (PR), please test your changes beforehand, runni
 
 Here are some items on our TODO list:
 
+- Delay unification
+- Add explicit @ handling of implicit arguments
+- Fix universe polymorphism bug when universe level occurs in proof
+- Clean elaborator with a dedicated module for error messages
 - Clearer notation for hcom
 - Improve global boundary separation
-- Add explicit @ handling of implicit arguments
+- Improve stack overflow error at synthetization attempts
 - Coercion reduction rules for constructors of inductive types
 - Do not automatically unfold terms tagged as theorem or as lemma
 - Expand the library with more formalized math for testing strengths and limits
-- Fix universe polymorphism bug when universe level occurs in proof
 - Add structures
 - Let-in local definitions
 - Introduce Quotients types

@@ -14,27 +14,27 @@ universe l k
 
 def sum_eq_inl {A B : type l} {a a' : A} :
   path (A + B) (inl A B a) (inl A B a') → path A a a' :=
-λ p, <i> sumrec A B _ id (λ _, a) (p @ i)
+λ p, <i> sumrec _ _ _ id (λ _, a) (p @ i)
 
 def sum_eq_inr {A B : type l} {b b' : B} :
   path (A + B) (inr A B b) (inr A B b') → path B b b' :=
-λ p, <i> sumrec A B _ (λ _, b) id (p @ i)
+λ p, <i> sumrec _ _ _ (λ _, b) id (p @ i)
 
 def sum_neq {A B : type l} {a : A} {b : B} :
   ¬ path (A + B) (inl A B a) (inr A B b) :=
-λ p, coe i0 i1 (λ i, sumrec A B (λ _, type 0) (λ _, unit) (λ _, void) (p @ i)) ()
+λ p, coe i0 i1 (λ i, sumrec _ _ _ (λ _, unit) (λ _, void) (p @ i)) ()
 
 def sum_neq' {A B : type l} {a : A} {b : B} :
   ¬ path (A + B) (inr A B b) (inl A B a) :=
-λ p, coe i1 i0 (λ i, sumrec A B _ (λ _, unit) (λ _, void) (p @ i)) ()
+λ p, coe i1 i0 (λ i, sumrec _ _ _ (λ _, unit) (λ _, void) (p @ i)) ()
 
 def sum_code (A B : type l) (v v' : A + B) :
   type l :=
-sumrec A B _ (λ x, sumrec A B _ (λ x', path (A + B) (inl A B x) (inl A B x')) (λ _, void) v') 
-(λ y, sumrec A B _ (λ _, void) (λ y', path (A + B) (inr A B y) (inr A B y')) v') v
+sumrec _ _ _ (λ x, sumrec _ _ _ (λ x', path (A + B) (inl A B x) (inl A B x')) (λ _, void) v') 
+(λ y, sumrec _ _ _ (λ _, void) (λ y', path (A + B) (inr A B y) (inr A B y')) v') v
 
 def sum_eq {A B : type l} (v v' : A + B) :
   path (A + B) v v' ↔ sum_code A B v v' :=
-sumrec A B _  
-  (λ y, sumrec A B _  (λ y', id_iff_id) (λ y', (sum_neq, absurd)) v') 
-  (λ y, sumrec A B _ (λ y', (sum_neq', absurd)) (λ x', id_iff_id) v') v
+sumrec _ _ _
+  (λ y, sumrec _ _ _  (λ y', id_iff_id) (λ y', (sum_neq, absurd)) v') 
+  (λ y, sumrec _ _ _ (λ y', (sum_neq', absurd)) (λ x', id_iff_id) v') v

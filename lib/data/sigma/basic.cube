@@ -17,19 +17,19 @@ def pairing {A : type k} {B : A → type k} :
   Π (x : A) (y : B x), Σ (x : A), B x :=
 λ x, λ y, (x, y)
 
-/* Sigma type projections and eliminator */
+/* Sigma type projections and eliminator (as abbreviations) */
 
-def fst (A : type k) (B : A → type k) (w : Σ (x : A), B x) :
-  A :=
-sigmarec A B _ (λ x _, x) w
+abbrev fst {A : type k} {B : A → type k} :
+  (Σ (x : A), B x) → A :=
+λ w, sigmarec _ _ _ (λ x _, x) w
 
-def snd (A : type k) (B : A → type k) (w : Σ (x : A), B x) :
-  B (fst A B w) :=
-sigmarec A B _ (λ _ y, y) w
+abbrev snd {A : type k} {B : A → type k} :
+  Π (w : Σ (x : A), B x), B (fst w) :=
+λ w, sigmarec _ _ _ (λ _ y, y) w
 
-def spread (A : type k) (B : A → type k) {C : (Σ (x : A), B x) → type k} :
+abbrev spread {A : type k} {B : A → type k} {C : (Σ (x : A), B x) → type k} :
   Π (w : Σ (x : A), B x) (c : Π (x : A) (y : B x), C (x, y)), C w :=
-λ w c, sigmarec A B _ c w
+λ w c, sigmarec _ _ _ c w
 
 /* Type formation (the product type is defined as sigma A (λ x, B)) */
 

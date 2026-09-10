@@ -23,20 +23,20 @@ def succ_iff_eq {n m : nat} :
 
 def succ_to_eq {n m : nat} :
   path nat (succ n) (succ m) → path nat n m :=
-fst (path nat (succ n) (succ m)) (λ _, path nat n m) succ_iff_eq
+fst succ_iff_eq
 
 def eq_to_succ {n m : nat} :
   path nat n m → path nat (succ n) (succ m) :=
-snd (path nat (succ n) (succ m)) (λ _, path nat n m) succ_iff_eq
+snd succ_iff_eq
 
 def pred_succ {n : nat} :
   path nat (pred (succ n)) n :=
 <_> n
 
-def succ_pred {n : nat} (w : Σ (k : nat), path nat (succ k) n) :
+/* def succ_pred {n : nat} (w : Σ (k : nat), path nat (succ k) n) :
   path nat (succ (pred n)) n :=
-coe i0 i1 (λ i, path nat (succ (pred ((snd nat (λ k, path nat (succ k) n) w) @ i))) ((snd nat (λ k, path nat (succ k) n) w) @ i)) 
-(<_> succ (fst nat (λ k, path nat (succ k) n) w))
+coe i0 i1 (λ i, path nat (succ (pred ((snd w) @ i))) ((snd w) @ i)) 
+(<_> succ (fst w)) */
 
 /* Inequalities */
 

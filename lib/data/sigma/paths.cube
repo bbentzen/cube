@@ -11,13 +11,14 @@ universe l
 /* Paths over products */
 
 def prod_eta (A B : type l) (w : A × B) :
-  path (A × B) w (fst A (λ _, B) w, snd A (λ _, B) w) :=
+  path (A × B) w (fst w, snd w) :=
 sigmarec A (λ _, B) _ (λ x y, <_> (x, y)) w
 
-def pair_iff_eq {A B : type l} {a a' : A} {b b' : B} :
+/* TODO:  */
+/* def pair_iff_eq {A B : type l} {a a' : A} {b b' : B} :
   path (A × B) (a, b) (a', b') ↔ path A a a' × path B b b' :=
-(λ p, (<i> fst A (λ _, B) (p @ i), <j> snd A (λ _, B) (p @ j)),
- λ w, <i> ((fst (path A a a') (λ _, path B b b') w) @ i, (snd (path A a a') (λ _, path B b b') w) @ i))
+(λ p, (<i> fst (p @ i), <j> snd (p @ j)),
+ λ w, <i> ((fst w) @ i, (snd w) @ i)) */
 
 /* def pair_to_eq {A B : type l} {a a' : A} {b b' : B} :
   path (A × B) (a, b) (a', b') → path A a a' × path B b b' :=

@@ -13,9 +13,9 @@ universe k
 inductive eq (A : type k) (a : A) : A → type k :=
 | r : eq A a a
 
-def J {A : type k} {a : A} {C : Π (x : A), eq A a x → type k} :
+abbrev J {A : type k} {a : A} {C : Π (x : A), eq A a x → type k} :
   C a (r A a ) → Π (x : A ) (p : eq A a x), C x p :=
-λ c x, eqrec A a C c x
+λ c x, eqrec A a _ c x
 
 lemma id_to_path {A : type k} {a b : A} : 
   eq A a b → path A a b :=

@@ -14,9 +14,9 @@ inductive bool : type 0 :=
 | true : bool
 | false : bool
 
-def if {C : bool → type l} (b : bool) (ct : C true) (cf : C false) :
+abbrev if {C : bool → type l} (b : bool) (ct : C true) (cf : C false) :
   C b :=
-boolrec C ct cf b
+boolrec _ ct cf b
 
 /* Boolean operations */
  

@@ -11,6 +11,6 @@ universe l
 inductive unit : type 0 :=
 | star : unit
 
-theorem let {C : unit → type l} (u : unit) (c : C ()) :
+abbrev let {C : unit → type l} (u : unit) (c : C ()) :
   C u :=
-unitrec C c u
+unitrec _ c u
