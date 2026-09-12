@@ -13,7 +13,7 @@ open Ast
 open Eval
 
 let solve_meta_application args vars body = function
-  | Hole (n, _) ->
+  | Meta n ->
     let rec build_lam vars body = function
       | [] -> body
       | _ :: args -> 
@@ -47,7 +47,7 @@ let rec elaborate global ind_env ctx lvl sl ty  vars = function
       | _ , true, _ , _ ->  
         Ok (Global x, xty, sl)
       | false , false, false , true ->
-        let h1 = Placeholder.generate [] in
+        let h1 = Placeholder.generate () in
         begin match elaborate global ind_env ctx lvl sl h1 vars xty with
         | Ok (_, tTy', sa) ->
           let u = unify global ind_env ctx lvl sl vars (eval ind_env ty, eval ind_env xty, tTy') true in
@@ -64,7 +64,7 @@ let rec elaborate global ind_env ctx lvl sl ty  vars = function
       | false , false, false , false -> 
         begin match Env.unfold x global with
         | Ok (_, xty) ->
-          let h1 = Placeholder.generate  [] in
+          let h1 = Placeholder.generate () in
           begin match elaborate global ind_env ctx lvl sl h1  vars xty with
           | Ok (_, tTy', sa) ->
             let u = unify global ind_env ctx lvl sl  vars (eval ind_env xty, eval ind_env ty, tTy') true in
@@ -88,7 +88,7 @@ let rec elaborate global ind_env ctx lvl sl ty  vars = function
     begin match ty with
     | Int() -> 
       Ok (I0(), Int(), sl)
-    | Hole _ -> 
+    | Meta _ -> 
       Ok (I0(), Int(), sl)
     | _ -> Error (sl, "Type mismatch when checking that the endpoint i0 of type I has type " ^ Pretty.printf ty)
   end
@@ -97,7 +97,7 @@ let rec elaborate global ind_env ctx lvl sl ty  vars = function
     begin match ty with
     | Int() -> 
       Ok (I1(), Int(), sl)
-    | Hole _ -> 
+    | Meta _ -> 
       Ok (I1(), Int(), sl)
     | _ -> Error (sl, "Type mismatch when checking that the endpoint i1 of type I has type " ^ Pretty.printf ty)
     end
@@ -116,9 +116,9 @@ let rec elaborate global ind_env ctx lvl sl ty  vars = function
         Ok (Lam (x, Expr.close_bound v1 e'), Pi (x, ty1, Expr.close_bound v1 ty2'), sa)
       | Error (sa, msg) -> Error (sa, msg)
       end
-    | Hole _ ->
-      let h1 = Placeholder.generate  [] in
-      let h2 = Placeholder.generate  [] in
+    | Meta _ ->
+      let h1 = Placeholder.generate () in
+      let h2 = Placeholder.generate () in
       elaborate global ind_env ctx lvl sl (Pi(x, h1, h2))  vars (Lam (x, e))
     | _ -> 
       Error (sl, "The term\n  " ^ Pretty.printf (Lam (x, e)) ^ 
@@ -140,15 +140,15 @@ let rec elaborate global ind_env ctx lvl sl ty  vars = function
         elaborate global ind_env ctx lvl sl ty  vars res
       | None ->
         (* Otherwise infer the type of e1 and check its evaluated domain against e2 *)
-        let h1 = Placeholder.generate [] in
+        let h1 = Placeholder.generate () in
         let v1 = Expr.init_fresh vars in
-        let h2 = Placeholder.generate [] in
+        let h2 = Placeholder.generate () in
         let elab1 = elaborate global ind_env ctx lvl sl (Pi(v1, h1, h2)) (vars+1) e1 in
         begin match elab1 with
         | Ok (e1', Pi(_, ty1, ty2), sa1) ->
           (* Evaluates the inferred domain before type checking *)
           let ty1' = eval ind_env ty1 in
-          let h3 = Placeholder.generate [] in
+          let h3 = Placeholder.generate () in
           let elab2 = elaborate global ind_env ctx lvl sl ty1'  (vars+1) e2 in
           begin match elab2 with
           | Ok (e2', _, sa2) ->
@@ -179,7 +179,7 @@ let rec elaborate global ind_env ctx lvl sl ty  vars = function
     end
   
   | Coe(i, j, ety, e) ->
-    let h0 = Placeholder.generate  [] in
+    let h0 = Placeholder.generate () in
     let elabi = elaborate global ind_env ctx lvl sl (Int())  vars i in
     let elabj = elaborate global ind_env ctx lvl sl (Int())  vars j in
     let tyi_expr = eval ind_env (App(ety, i)) in
@@ -315,9 +315,9 @@ let rec elaborate global ind_env ctx lvl sl ty  vars = function
           Error (sa, "Failed to typecheck the lid or tubes of the homogeneous composition: " ^ msg)
         end
       
-      | Hole (_, _), Hole (_, _) -> 
+      | Meta _, Meta _ -> 
         (* Infer the type of the lid and the tubes *)
-        let h0 = Placeholder.generate  [] in
+        let h0 = Placeholder.generate () in
         let elab = elaborate global ind_env ctx lvl sl (Pi("v1", Int(), h0))  vars e in
         let elab1 = elaborate global ind_env ctx lvl sl (Pi("v1", Int(), h0))  vars e1 in
         let elab2 = elaborate global ind_env ctx lvl sl (Pi("v1", Int(), h0))  vars e2 in
@@ -392,14 +392,14 @@ let rec elaborate global ind_env ctx lvl sl ty  vars = function
   | Pabs (i, e) ->
     let e = eval ind_env e in
     let ty = eval ind_env ty in
-    let h0 = Placeholder.generate  [] in
+    let h0 = Placeholder.generate () in
     let elabt = elaborate global ind_env ctx lvl sl h0  vars ty in
     begin match elabt with
-    | Ok (Pathd (Hole (n, l), e1, e2), _, _) ->
+    | Ok (Pathd (Meta n, e1, e2), _, _) ->
       let v1 = Expr.init_fresh vars in
-      let h0 = Placeholder.generate  [] in
+      let h0 = Placeholder.generate () in
       let ei = Expr.open_var 0 (Global v1) e in
-      let elab = elaborate global ind_env ((v1, Int(), true) :: ctx) lvl sl (Hole (n, l))  (vars+1) ei in
+      let elab = elaborate global ind_env ((v1, Int(), true) :: ctx) lvl sl (Meta n)  (vars+1) ei in
 
       begin match elab with
       | Ok (e', _, sa) ->
@@ -474,7 +474,7 @@ let rec elaborate global ind_env ctx lvl sl ty  vars = function
           | Error ((s,s'), msg) , Ok _ ->
             begin match s, s' with
             | At(s',I0()), s | s, At(s',I0()) ->
-              let h1 = Placeholder.generate  [] in
+              let h1 = Placeholder.generate () in
               let elab0 = elaborate global ind_env ctx lvl sl h1  vars s' in
               begin match elab0 with
               | Ok (_, Pathd(sty, sa, _), _) ->
@@ -500,7 +500,7 @@ let rec elaborate global ind_env ctx lvl sl ty  vars = function
           | _ , Error ((s,s'), msg) ->
             begin match s, s' with
             | At(s',I1()), s | s, At(s',I1()) ->
-              let h1 = Placeholder.generate  [] in
+              let h1 = Placeholder.generate () in
               let elab0 = elaborate global ind_env ctx lvl sl h1  vars s' in
               begin match elab0 with
               | Ok (_, Pathd(sty,_,sb), _) ->
@@ -544,8 +544,8 @@ let rec elaborate global ind_env ctx lvl sl ty  vars = function
         Error (sa, "Error in the body of path abstraction: failed to check that the body " ^ 
           Pretty.printf ei ^ "\nhas type\n  " ^ Pretty.printf ty1' ^ "\n" ^ msg)
       end
-    | Ok (Hole _, _, _) ->
-      let h1 = Placeholder.generate  [] in
+    | Ok (Meta _, _, _) ->
+      let h1 = Placeholder.generate () in
       let ei0 = Expr.open_var 0 (I0()) e in
       let ei1 = Expr.open_var 0 (I1()) e in
       let elab0 = elaborate global ind_env ctx lvl sl h1  vars ei0 in
@@ -577,9 +577,9 @@ let rec elaborate global ind_env ctx lvl sl ty  vars = function
     end
   
   | At (e1, e2) ->
-    let h1 = Placeholder.generate  [] in
-    let h2 = Placeholder.generate  [] in
-    let h3 = Placeholder.generate  [] in
+    let h1 = Placeholder.generate () in
+    let h2 = Placeholder.generate () in
+    let h3 = Placeholder.generate () in
     let elab1 = elaborate global ind_env ctx lvl sl (Pathd(h1, h2, h3))  vars e1 in
     let elab2 = elaborate global ind_env ctx lvl sl (Int())  vars e2 in
     begin match elab1, elab2 with
@@ -588,21 +588,21 @@ let rec elaborate global ind_env ctx lvl sl ty  vars = function
       | Pathd (ty', a, b) ->
         if e2' = I0() then (* TODO: better as pattern matching *)
           match a, ty' with
-          | Hole _, Lam(_, ty') -> (* unify ty' and ty*)
+          | Meta _, Lam(_, ty') -> (* unify ty' and ty*)
             Ok (At (e1', I0()), Expr.open_var 0 (I0()) ty', Stack.append sa1 sa2)
-          | Hole _, Hole _ -> 
+          | Meta _, Meta _ -> 
             Ok (At (e1', I0()), ty, Stack.append sa1 sa2)
-          | Hole _, ty' -> 
+          | Meta _, ty' -> 
             Ok (At (e1', I0()), App(ty', I0()), Stack.append sa1 sa2)
           | _ -> 
             elaborate global ind_env ctx lvl sl ty  vars a
         else if e2' = I1() then
           match b, ty' with
-          | Hole _, Lam(_, ty') -> 
+          | Meta _, Lam(_, ty') -> 
             Ok (At (e1', I1()), Expr.open_var 0 (I1()) ty', Stack.append sa1 sa2)
-          | Hole _, Hole _ -> 
+          | Meta _, Meta _ -> 
             Ok (At (e1', I1()), ty, Stack.append sa1 sa2)
-          | Hole _, ty' -> 
+          | Meta _, ty' -> 
             Ok (At (e1', I1()), App(ty', I1()), Stack.append sa1 sa2)
           | _ -> 
             elaborate global ind_env ctx lvl sl ty  vars b
@@ -671,7 +671,7 @@ let rec elaborate global ind_env ctx lvl sl ty  vars = function
 
   | Pi(x, ty1, ty2) ->
     let ty1 = eval ind_env ty1 in
-    let h1 = Placeholder.generate  [] in
+    let h1 = Placeholder.generate () in
     let elab1 = elaborate global ind_env ctx lvl sl h1  vars ty1 in
     let ty2 = eval ind_env ty2 in
     let ty2' = (Expr.open_var 0 (Global x) ty2) in
@@ -692,7 +692,7 @@ let rec elaborate global ind_env ctx lvl sl ty  vars = function
           Error (Stack.append sa1 sa2, 
             "Universe level mismatch when checking that the type\n  " ^ Pretty.printf (Pi(x, ty1, ty2)) ^
             "\nof type \n  " ^ Pretty.printf (Type max) ^ "\nhas type\n  " ^ Pretty.printf (Type m))
-      | Hole _ -> 
+      | Meta _ -> 
         Ok (Pi(x, ty1', Expr.close_bound x ty2'), Type max, Stack.append sa1 sa2)
       | _ ->
         Error (Stack.append sa1 sa2, 
@@ -700,8 +700,8 @@ let rec elaborate global ind_env ctx lvl sl ty  vars = function
       end
     
     (* New code *)
-    | Ok (ty1', Type n, sa), Ok (ty2', Hole _, _) 
-    | Ok (ty1', Hole _, sa), Ok (ty2', Type n, _) -> 
+    | Ok (ty1', Type n, sa), Ok (ty2', Meta _, _) 
+    | Ok (ty1', Meta _, sa), Ok (ty2', Type n, _) -> 
       begin match ty with
       | Type m ->
         if Level.leq n m then 
@@ -709,45 +709,45 @@ let rec elaborate global ind_env ctx lvl sl ty  vars = function
         else 
           Error (sa, "Type mismatch when checking that the type\n  " ^ Pretty.printf (Pi(x, ty1, ty2)) ^ 
             "\nof type \n  " ^ Pretty.printf (Type n) ^ "\nhas type\n  " ^ Pretty.printf (Type m))
-      | Hole _ -> 
+      | Meta _ -> 
         Ok (Pi(x, ty1', Expr.close_bound x ty2'), Type n, sa)
       | _ ->
         Error (sa, "Type mismatch when checking that\n  " ^ Pretty.printf (Pi(x, ty1, ty2)) ^ "\nhas type\n  " ^ Pretty.printf ty)
       end
     (* End of new code *)
     
-    | Ok (ty1', Type n, sa), Ok (Hole (k,l), _, _) -> 
+    | Ok (ty1', Type n, sa), Ok (Meta k, _, _) -> 
       begin match ty with
       | Type m ->
         if Level.leq n m then 
-          Ok (Pi(x, ty1', Hole (k,l)), Type m, sa) 
+          Ok (Pi(x, ty1', Meta k), Type m, sa) 
         else 
           Error (sa, "Type mismatch when checking that the type\n  " ^ Pretty.printf (Pi(x, ty1, ty2)) ^ 
             "\nof type \n  " ^ Pretty.printf (Type n) ^ "\nhas type\n  " ^ Pretty.printf (Type m))
-      | Hole _ -> 
-        Ok (Pi(x, ty1', Hole (k,l)), Type n, sa) (* TODO: hole might have live in a higher universe *)
+      | Meta _ -> 
+        Ok (Pi(x, ty1', Meta k), Type n, sa) (* TODO: hole might have live in a higher universe *)
       | _ ->
         Error (sa, "Type mismatch when checking that\n  " ^ Pretty.printf (Pi(x, ty1, ty2)) ^ "\nhas type\n  " ^ Pretty.printf ty)
       end
-    | Ok (Hole (k,l), _, _), Ok (ty2', Type n, sa) -> 
+    | Ok (Meta k, _, _), Ok (ty2', Type n, sa) -> 
       begin match ty with
       | Type m ->
         if Level.leq n m then 
-          Ok (Pi(x, Hole (k,l), Expr.close_bound x ty2'), Type m, sa) 
+          Ok (Pi(x, Meta k, Expr.close_bound x ty2'), Type m, sa) 
         else 
           Error (sa, "Type mismatch when checking that \n  " ^ Pretty.printf (Pi(x, ty1, ty2)) ^ 
                 "\nof type \n  " ^ Pretty.printf (Type n) ^ "\n has type\n  " ^ Pretty.printf (Type m))
-      | Hole _ -> 
-        Ok (Pi(x, Hole (k,l), Expr.close_bound x ty2'), Type n, sa) (* TODO: hole might have live in a higher universe *)
+      | Meta _ -> 
+        Ok (Pi(x, Meta k, Expr.close_bound x ty2'), Type n, sa) (* TODO: hole might have live in a higher universe *)
       | _ ->
         Error (sa, "Type mismatch when checking that\n  " ^ Pretty.printf (Pi(x, ty1, ty2)) ^ "\nhas type\n  " ^ Pretty.printf ty)
       end
-    | Ok (Hole (k1,l1), _, _), Ok (Hole (k2,l2), _, _) ->
+    | Ok (Meta k1, _, _), Ok (Meta k2, _, _) ->
       begin match ty with
       | Type m -> 
-          Ok (Pi(x, Hole (k1,l1), Hole (k2,l2)), Type m, sl) 
-      | Hole (k, l) -> 
-          Ok (Pi(x, Hole (k1,l1), Hole (k2,l2)), Hole(k, l), sl)
+          Ok (Pi(x, Meta k1, Meta k2), Type m, sl) 
+      | Meta k -> 
+          Ok (Pi(x, Meta k1, Meta k2), Meta k, sl)
       | _ ->
         Error (sl, "Type mismatch when checking that the type\n  " ^ Pretty.printf (Pi(x, ty1, ty2)) ^ "\nhas type\n  " ^ Pretty.printf ty)
       end
@@ -768,7 +768,7 @@ let rec elaborate global ind_env ctx lvl sl ty  vars = function
     begin match ty with
     | Type m -> 
       Ok (Int(), Type m, sl)
-    | Hole _ -> 
+    | Meta _ -> 
       Ok (Int(), Type (Num 0), sl)
     | _ -> 
       Error (sl, "Type mismatch when checking that\n  I\nhas type\n  " ^ Pretty.printf ty)
@@ -778,24 +778,24 @@ let rec elaborate global ind_env ctx lvl sl ty  vars = function
     let ty = eval ind_env ty in
     begin match ty with
     | Type m -> Ok (Void(), Type m, sl)
-    | Hole _ -> Ok (Void(), Type (Num 0), sl)
+    | Meta _ -> Ok (Void(), Type (Num 0), sl)
     | _ -> Error (sl, "Type mismatch when checking that\n  void\n has type\n  " ^ Pretty.printf ty)
     end
 
   | Pathd(ty1, e1, e2) ->
-    let h1 = Placeholder.generate  [] in
+    let h1 = Placeholder.generate () in
     let ty = eval ind_env ty in
     (* First consider the inference case: the type line is a placeholder *)
     begin match ty1 with
     (* Subcase 1: dependent type placeholder *)
-    | Hole (n,l) ->
+    | Meta n ->
       begin match e1, e2 with 
-      | Hole (n1,l1), Hole (n2,l2) ->
+      | Meta n1, Meta n2 ->
           begin match ty with
           | Type m ->
-            Ok (Pathd(Hole (n,l), Hole (n1,l1), Hole (n2,l2)), Type m, sl)
-          | Hole (m,k) ->
-            Ok (Pathd(Hole (n,l), Hole (n1,l1), Hole (n2,l2)), Hole (m,k), sl)
+            Ok (Pathd(Meta n, Meta n1, Meta n2), Type m, sl)
+          | Meta m ->
+            Ok (Pathd(Meta n, Meta n1, Meta n2), Meta m, sl)
           | _ -> 
             Error (sl, "Failed to check that\n  " ^ Pretty.printf ty ^ "\nis a type")
           end
@@ -809,7 +809,7 @@ let rec elaborate global ind_env ctx lvl sl ty  vars = function
           let tye2 = eval ind_env tye2 in
           begin match ty, tye1, tye2 with
           (* Target type has been specified *)
-          | Type m, tye1, Hole _ ->
+          | Type m, tye1, Meta _ ->
             let v1 = Expr.init_fresh vars in
             let tyei = Pi(v1, Int(), Expr.fullsubst 0 (I0()) (Local 0) true tye1) in
             Ok (Pathd(tyei, e1', e2'), Type m, Stack.append sa1 sa2)
@@ -818,20 +818,20 @@ let rec elaborate global ind_env ctx lvl sl ty  vars = function
             let tyei = Pi(v1, Int(), Expr.fullsubst 0 (I1()) (Local 0) true tye2) in
             Ok (Pathd(tyei, e1', e2'), Type m, Stack.append sa1 sa2)
           (* Target type is a placeholder *)
-          | Hole _, tye1, Hole _ ->
+          | Meta _, tye1, Meta _ ->
             let v1 = Expr.init_fresh vars in
             let tyei = Pi(v1, Int(), Expr.fullsubst 0 (I0()) (Local 0) true tye1) in
-            let h2 = Placeholder.generate  [] in
+            let h2 = Placeholder.generate () in
             begin match elaborate global ind_env ctx lvl sl h2  vars tye1 with
             | Ok (_, tTye1, _) ->
                 Ok (Pathd(tyei, e1', e2'), tTye1, Stack.append sa1 sa2)
             | Error (_, msg) ->
               Error (Stack.append sa1 sa2, "Failed to check that\n  " ^ Pretty.printf tye1 ^ "\nis a type\n" ^ msg)
             end
-          | Hole _, _, tye2 -> 
+          | Meta _, _, tye2 -> 
             let v1 = Expr.init_fresh vars in
             let tyei = Pi(v1, Int(), Expr.fullsubst 0 (I1()) (Local 0) true tye2) in
-            let h2 = Placeholder.generate  [] in
+            let h2 = Placeholder.generate () in
             begin match elaborate global ind_env ctx lvl sl h2  vars tye2 with
             | Ok (_, tTye2, _) ->
                 Ok (Pathd(tyei, e1', e2'), tTye2, Stack.append sa1 sa2)
@@ -846,14 +846,14 @@ let rec elaborate global ind_env ctx lvl sl ty  vars = function
         end
       end
       (* Subcase 2: Non-dependent type with placeholder *)
-    | Lam(x, Hole (n,l)) ->
+    | Lam(x, Meta n) ->
       begin match e1, e2 with 
-      | Hole (n1,l1), Hole (n2,l2) ->
+      | Meta n1, Meta n2 ->
           begin match ty with
           | Type m ->
-            Ok (Pathd(Lam(x, Hole (n,l)), Hole (n1,l1), Hole (n2,l2)), Type m, sl)
-          | Hole (m,k) ->
-            Ok (Pathd(Lam(x, Hole (n,l)), Hole (n1,l1), Hole (n2,l2)), Hole (m,k), sl)
+            Ok (Pathd(Lam(x, Meta n), Meta n1, Meta n2), Type m, sl)
+          | Meta m ->
+            Ok (Pathd(Lam(x, Meta n), Meta n1, Meta n2), Meta m, sl)
           | _ -> 
             Error (sl, "Failed to check that\n  " ^ Pretty.printf ty ^ "\nis a type")
           end
@@ -865,21 +865,21 @@ let rec elaborate global ind_env ctx lvl sl ty  vars = function
         | Ok (e1', tye1', sa1), Ok (e2', tye2', sa2) ->
           (* Target type is well-specified *)
           begin match ty, tye1', tye2' with
-          | Type m, tye1, Hole _ -> Ok (Pathd(Lam(x, tye1), e1', e2'), Type m, Stack.append sa1 sa2)
-          | Type m, Hole _, tye2 -> Ok (Pathd(Lam(x, tye2), e1', e2'), Type m, Stack.append sa1 sa2)
+          | Type m, tye1, Meta _ -> Ok (Pathd(Lam(x, tye1), e1', e2'), Type m, Stack.append sa1 sa2)
+          | Type m, Meta _, tye2 -> Ok (Pathd(Lam(x, tye2), e1', e2'), Type m, Stack.append sa1 sa2)
           | Type m, tye1, _ ->
             Ok (Pathd(Lam(x, tye1), e1', e2'), Type m, Stack.append sa1 sa2)
           (* If target type is also a placeholder we pick a well-specified type of an endpoint*)
-          | Hole _, tye1, Hole _ ->
-            let h2 = Placeholder.generate  [] in
+          | Meta _, tye1, Meta _ ->
+            let h2 = Placeholder.generate () in
             begin match elaborate global ind_env ctx lvl sl h2  vars tye1 with
             | Ok (tye1, tTye1, _) ->
                 Ok (Pathd(Lam(x, tye1), e1', e2'), tTye1, Stack.append sa1 sa2)
             | Error (_, msg) ->
               Error (Stack.append sa1 sa2, "Failed to check that\n  " ^ Pretty.printf tye1 ^ "\nis a type\n" ^ msg)
             end  
-          | Hole _, _, tye2 ->
-            let h2 = Placeholder.generate  [] in
+          | Meta _, _, tye2 ->
+            let h2 = Placeholder.generate () in
             begin match elaborate global ind_env ctx lvl sl h2  vars tye2 with
             | Ok (tye2, tTye2, _) ->
               Ok (Pathd(Lam(x, tye2), e1', e2'), tTye2, Stack.append sa1 sa2)
@@ -892,7 +892,7 @@ let rec elaborate global ind_env ctx lvl sl ty  vars = function
         | Ok _, Error (sa, msg) -> 
           Error (sa, "Failed to check that\n  " ^ Pretty.printf e2 ^ "\nhas type\n ?0?\n" ^ msg)
         | Error (sa, msg), _ -> 
-          Error (sa, "Failed to check that\n  " ^ Pretty.printf e1 ^ "\nhas type\n " ^ Pretty.printf (Hole (n,l)) ^ "\n" ^ msg)
+          Error (sa, "Failed to check that\n  " ^ Pretty.printf e1 ^ "\nhas type\n " ^ Pretty.printf (Meta n) ^ "\n" ^ msg)
         end
       end
     (* Now consider the case where the type line is well-specified *)
@@ -907,7 +907,7 @@ let rec elaborate global ind_env ctx lvl sl ty  vars = function
         begin match elab, elab1, elab2 with
         | Ok (ty1', Pi(_, i, ty2), sa), Ok (e1', _, sa1), Ok (e2', _, sa2) ->
           begin match eval ind_env i, eval ind_env ty2 with
-          | Int(), Type n | Hole _, Type n ->
+          | Int(), Type n | Meta _, Type n ->
             begin match ty with
             | Type m ->
               if Level.leq n m then 
@@ -919,13 +919,13 @@ let rec elaborate global ind_env ctx lvl sl ty  vars = function
                   "Failed to check that\n  pathd " ^ 
                   Pretty.printf ty1' ^ " " ^  Pretty.printf e1' ^ " " ^  Pretty.printf e2' ^ 
                   "\nhas the expected type\n  " ^ Pretty.printf ty)
-            | Hole _ -> 
+            | Meta _ -> 
               Ok (Pathd(ty1', e1', e2'), Type n, Stack.lappend sa sa1 sa2)
             | _ -> 
               Error (Stack.lappend sa sa1 sa2, 
               "Failed to check that\n  " ^ Pretty.printf ty2 ^ "\nis a type")
             end
-          | Int() , Hole _ | Hole _, Hole _ -> 
+          | Int() , Meta _ | Meta _, Meta _ -> 
             Ok (Pathd(ty1', e1', e2'), tTyi0, Stack.lappend sa sa1 sa2)
           | _ -> 
             Error (Stack.lappend sa sa1 sa2, "Failed to unify \n  " ^ Pretty.printf i ^ "with\n  I ")
@@ -953,7 +953,7 @@ let rec elaborate global ind_env ctx lvl sl ty  vars = function
           Error (sl, "Universe inconsistency: the universe level of\n  " ^ Pretty.printf (Type n) ^ 
           "\nmust be inferior to the universe level of\n  " ^ Pretty.printf (Type m) ^ 
           "\nFailed to prove that " ^ Pretty.print_level n ^ " ≤ " ^ Pretty.print_level m)
-      | Hole _ -> 
+      | Meta _ -> 
         Ok (Type n, Type (Suc n), sl)
       | _ -> 
         Error (sl, "Type mismatch when checking that\n  " ^ Pretty.printf (Type n) ^ 
@@ -963,12 +963,12 @@ let rec elaborate global ind_env ctx lvl sl ty  vars = function
       Error (sl, msg)
     end
   
-  | Hole (n, l) ->
+  | Meta n ->
     (* if n >= 0 then *)
-      Ok (Hole (n, l), ty, sl)
+      Ok (Meta n, ty, sl)
     (* Replaces metavariables from global definitions with unique ones *)
     (* else
-      let h = Placeholder.generate [] in 
+      let h = Placeholder.generate () in 
       Ok (h, ty, sl) *)
 
   | Wild n ->
@@ -1006,7 +1006,7 @@ and find n global ind_env ctx ty lvl sl  vars =
         Ok (id, ty) (* syntactic equality fast path *)
       else
         (* We ignore their types since they are assumed to be well-typed *)
-        let h1 = Placeholder.generate  [] in
+        let h1 = Placeholder.generate () in
         match unify global ind_env ctx lvl sl  vars (ty, ty', h1) true with
         | Ok uty -> Ok (id, uty)
         | Error _ -> search ctx'
@@ -1022,62 +1022,16 @@ and unify global ind_env ctx lvl sl vars x lift =
       Ok e
     else
       match e, e', ty with
-      | Hole (n1, l1), Hole (n2, l2), _ ->
-        begin match l1, l2 with
-        | [], [] -> Ok (Hole (n1, l1))
-        | l1, [] -> Ok (Hole (n1, l1))
-        | [], l2 -> Ok (Hole (n2, l2))
-        | _ ->
-          let rec common_el = function
-          | [], [] -> Error()
-          | _, [] | [], _ -> Error()
-          | e :: l1 , e' :: l2 ->
-            if List.mem e l2 then
-              Ok e
-            else if List.mem e' l1 then
-              Ok e'
-            else
-              common_el (l1, l2)
-          in
-          match common_el (l1,l2) with
-          | Ok e -> Ok e
-          | Error() ->
-            Error ((Hole (n1, l1), Hole (n2, l2)), 
-                  "Failed to unify the placeholder\n  ?" ^ 
-                  string_of_int n1 ^ "?\nwhose suitable candidates are\n" ^ 
-                  (String.concat " " (List.map (fun e -> Pretty.printf e) l1)) ^
-                  "\nwith the placeholder\n  ?" ^ 
-                  string_of_int n2 ^ "?\nwhose suitable candidates are\n" ^ 
-                  (String.concat " " (List.map (fun e -> Pretty.printf e) l2))) 
-        end
+      | Meta n1, Meta n2, _ ->
+        if n1 <= n2 then Ok (Meta n1) else Ok (Meta n2)
       
       | e , _, Pathd(_, _, _) ->
         Ok e
 
-      | e , Hole (n, l), _ | Hole (n, l), e, _ ->
-        begin match l with
-        | [] ->
-          if n >= 0 then
-          (Hashtbl.add Data.meta_store n { Data.solution = e}; Ok e)
-          else Ok e
-        | _ ->
-          let rec helper = function
-          | [] -> false
-          | e' :: l' -> e' = e || helper l' in
-          let e_is_endpoint =
-            let v = eval ind_env e in
-            v = I0() || v = I1()
-          in
-          if helper l || e_is_endpoint then
-            if n >= 0 then
-            (Hashtbl.add Data.meta_store n { Data.solution = e}; Ok e)
-            else Ok e 
-          else 
-            Error ((e , Hole (n, l)),
-                    "Failed to unify the placeholder\n  " ^ 
-                    Pretty.printf (Hole (n, l)) ^ "\nwith the suitable candidates\n" ^ 
-                    (String.concat " " (List.map Pretty.printf l)))
-        end
+      | e , Meta n, _ | Meta n, e, _ ->
+        if n >= 0 then
+        (Hashtbl.add Data.meta_store n { Data.solution = e}; Ok e)
+        else Ok e
 
       | Pi (_, ty1, ty2), Pi (_, ty1', ty2'), ty ->
         (* For now we just evaluate, soon we'll only evaluate if they are values *)
@@ -1125,9 +1079,9 @@ and unify global ind_env ctx lvl sl vars x lift =
           Ok (Lam (x, e'))
         else 
           begin match eval ind_env ty1 with
-          | Int() | Hole(_,_) ->
+          | Int() | Meta _ ->
             (* Local boundary separation *)
-            let h1 = Placeholder.generate  [] in
+            let h1 = Placeholder.generate () in
             let elabt0 = elaborate global ind_env ctx lvl sl h1  vars (Expr.open_var 0 (I0()) ty2) in
             let elabt1 = elaborate global ind_env ctx lvl sl h1  vars (Expr.open_var 0 (I1()) ty2) in
             begin match elabt0, elabt1 with
@@ -1175,7 +1129,7 @@ and unify global ind_env ctx lvl sl vars x lift =
         let e1 = eval ind_env (App (e, I1())) in
         let e1' = eval ind_env (App (e', I1())) in
         (* Elaboration for endpoint reduction *)
-        let h1 = Placeholder.generate  [] in
+        let h1 = Placeholder.generate () in
         let elabt0 = elaborate global ind_env ctx lvl sl h1  vars ty0 in
         let elabt1 = elaborate global ind_env ctx lvl sl h1  vars ty1 in
             begin match elabt0, elabt1 with
@@ -1212,7 +1166,7 @@ and unify global ind_env ctx lvl sl vars x lift =
         end *)
 
       | App (e1, e2), App (e1', e2'), ty ->
-        let h1 = Placeholder.generate  [] in
+        let h1 = Placeholder.generate () in
         let elab2 = elaborate global ind_env ctx lvl sl h1  vars e2 in
         begin match elab2 with
         | Ok (_, ty2, _) ->
@@ -1284,7 +1238,7 @@ and unify global ind_env ctx lvl sl vars x lift =
       
       | App (e, i), e', _ | e', App (e, i), _ ->
         (* Try endpoint unification *)
-          let h1 = Placeholder.generate  [] in
+          let h1 = Placeholder.generate () in
           let elab2 = elaborate global ind_env ctx lvl sl h1  vars i in
           begin match elab2, i with
           | Ok (_, Int(), _), Global _ ->
@@ -1304,7 +1258,7 @@ and unify global ind_env ctx lvl sl vars x lift =
           | _ ->
             (* Needs more testing to confirm soundness *)
             begin match e with
-            | Hole _ -> (* we take Hole to be (\lambda x. e') *)
+            | Meta _ -> (* we take Meta to be (\lambda x. e') *)
               Ok e'
             | _ ->
             Error ((e, e'), "Don't know how to unify the applied term\n  " ^ Pretty.printf (App (e, i)) ^ "\nwith\n  " ^ Pretty.printf e')
@@ -1321,7 +1275,7 @@ and unify global ind_env ctx lvl sl vars x lift =
       | Coe (i, j, e1, e2) , Coe (i', j', e1', e2'), _ ->
         let ui = unify global ind_env ctx lvl sl  vars (i, i', Int()) lift in
         let uj = unify global ind_env ctx lvl sl  vars (j, j', Int()) lift in
-        let h0 = Placeholder.generate  [] in
+        let h0 = Placeholder.generate () in
         let elab = elaborate global ind_env ctx lvl sl h0  vars e1 in
         begin match elab with
         | Ok (_, eTy, _) ->
@@ -1338,7 +1292,7 @@ and unify global ind_env ctx lvl sl vars x lift =
         end
       
       | Hcom (i, j, e, e1, e2) , Hcom (i', j', e', e1', e2'), _ ->
-        let h0 = Placeholder.generate  [] in
+        let h0 = Placeholder.generate () in
         let elab = elaborate global ind_env ctx lvl sl h0  vars e in
         (* Syntactic equality as interval variables are expected to be atoms *)
         if i = i' && j = j' then
@@ -1359,13 +1313,13 @@ and unify global ind_env ctx lvl sl vars x lift =
           Error ((Hcom (i, j, e, e1, e2) , Hcom (i', j', e', e1', e2')), 
           "Cannot unify " ^ Pretty.printf i ^ " with " ^ Pretty.printf i' ^ " or " ^ Pretty.printf j ^ " with " ^ Pretty.printf j')
 
-      | At (Hole _, Hole _), e', _ | e', At (Hole _, Hole _), _ ->
+      | At (Meta _, Meta _), e', _ | e', At (Meta _, Meta _), _ ->
         Ok e'
       
       | At (e1, e2), At (e1', e2'), ty ->
         let u2 = unify global ind_env ctx lvl sl  vars (e2, e2', Int()) lift in
-        let h1 = Placeholder.generate  [] in
-        let h2 = Placeholder.generate  [] in
+        let h1 = Placeholder.generate () in
+        let h2 = Placeholder.generate () in
         let v1 = Expr.init_fresh vars in
         let elab1 = elaborate global ind_env ctx lvl sl (Pathd (Pi(v1, Int(), Expr.fullsubst 0 e2 (Local 0) true ty), h1, h2))  (vars+1) e1 in
         begin match elab1 with
@@ -1397,7 +1351,7 @@ and unify global ind_env ctx lvl sl vars x lift =
         
         (* Otherwise elaborate and unify e @ ε with e' [ε/i] : ty [ε/i] *)
         else
-          let h1 = Placeholder.generate  [] in
+          let h1 = Placeholder.generate () in
           begin match i with
           | Global x ->
             (* Infer the endpoints of the type line *)

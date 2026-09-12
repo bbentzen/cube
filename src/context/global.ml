@@ -25,7 +25,7 @@ let rec subst_global k d x = function
   | Pabs (y, e) -> Pabs (y, subst_global (k+1) d x e)
   | At (e1, e2) -> At (subst_global k d x e1, subst_global k d x e2)
   | Pathd (e, e1, e2) -> Pathd (subst_global k d x e, subst_global k d x e1, subst_global k d x e2)
-  | Hole (n, l) -> Hole (n, List.map (subst_global k d x) l)
+  | Meta n -> Meta n
 
 (* Creates a context (a list (string * expr * bool)) from a list (string list * raw expr * bool) *)
 

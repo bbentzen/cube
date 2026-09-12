@@ -108,7 +108,7 @@ command:
 decl:
   | DEF ID ctx expr COLONEQ expr                            {Prf($2, $3, $4, $6, 0)}
   | ABBREV ID ctx expr COLONEQ expr                         {Prf($2, $3, $4, $6, 1)}
-  | INFER ctx expr                                          {Prf("infer", $2, RHole(0, []), $3, 2)}
+  | INFER ctx expr                                          {Prf("infer", $2, RMeta(0), $3, 2)}
 
 constr: 
   | BAR ID COLON expr                                       {[($2, $4)]}
@@ -221,6 +221,6 @@ atom:
   | VOID                                                    { RVoid() }
   | REFL                                                    { RPabs("v?", RWild 0) }
   | TYPE level                                              { RType ($2) }
-  | PLACEHOLDER NUMBER                                      { RHole(int_of_string $2, []) }
+  | PLACEHOLDER NUMBER                                      { RMeta(int_of_string $2) }
   | WILDCARD                                                { RWild 0 }
   | SUBGOAL                                                 { RSubgoal() }

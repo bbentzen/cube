@@ -32,7 +32,7 @@ type rawexpr =
   | RAt of rawexpr * rawexpr
   | RPathd of rawexpr * rawexpr * rawexpr
   | RType of rawlevel
-  | RHole of int * (rawexpr list)
+  | RMeta of int
   | RWild of int
   | RSubgoal of unit
 
@@ -51,12 +51,6 @@ let rec has_var x = function
     has_var x i || has_var x j || has_var x e1 || has_var x e2
   | RHcom (i, j, e, e1, e2) -> 
     has_var x i || has_var x j || has_var x e || has_var x e1 || has_var x e2
-  | RType _ -> false
-  | RHole (_, l) ->
-    let rec helper = function
-    | [] -> false
-    | e :: l' -> has_var x e || helper l' in
-      helper l
   | _ -> false
 
 let fresh_var_int e = 
@@ -107,7 +101,7 @@ type expr =
   | At of expr * expr
   | Pathd of expr * expr * expr
   | Type of level
-  | Hole of int * (expr list)
+  | Meta of int
   | Wild of int
   | Subgoal of unit
 
@@ -168,7 +162,7 @@ let rec of_raw_expr_with_env env = function
   | RPathd (e, e1, e2) ->
     Pathd (of_raw_expr_with_env env e, of_raw_expr_with_env env e1, of_raw_expr_with_env env e2)
   | RType l -> Type (level_of_raw l)
-  | RHole (n, l) -> Hole (n, List.map (of_raw_expr_with_env env) l)
+  | RMeta n -> Meta n
   | RWild n -> Wild n
   | RSubgoal() -> Subgoal()
 
@@ -237,9 +231,7 @@ let rec of_raw_expr_with_vars env = function
     let e2', v2 = of_raw_expr_with_vars env e2 in
     Pathd (e', e1', e2'), v @ v1 @ v2
   | RType l -> Type (level_of_raw l), []
-  | RHole (n, l) -> 
-    let of_raw_expr_with_vars_fst = fun x -> fst (of_raw_expr_with_vars env x) in
-    Hole (n, List.map of_raw_expr_with_vars_fst l), []
+  | RMeta n -> Meta n, []
   | RWild n -> Wild n, []
   | RSubgoal() -> Subgoal(), []
 

@@ -13,7 +13,7 @@ let rec shift cutoff amount = function
   | Local index ->
     if index >= cutoff then Local (index + amount)
     else Local index
-  | Global _ | Int _ | I1 _ | I0 _ | Void _ | Type _ | Wild _ | Subgoal _ as e -> e
+  | Global _ | Int _ | I1 _ | I0 _ | Void _ | Type _ | Wild _ | Meta _ | Subgoal _ as e -> e
   | Coe (i, j, e1, e2) ->
     Coe (shift cutoff amount i, shift cutoff amount j, shift cutoff amount e1, shift cutoff amount e2)
   | Hcom (i, j, e, e1, e2) ->
@@ -26,7 +26,6 @@ let rec shift cutoff amount = function
   | At (e1, e2) -> At (shift cutoff amount e1, shift cutoff amount e2)
   | Pathd (e, e1, e2) ->
     Pathd (shift cutoff amount e, shift cutoff amount e1, shift cutoff amount e2)
-  | Hole (n, l) -> Hole (n, List.map (shift cutoff amount) l)
 
   (* Additional functions *)
 
@@ -35,7 +34,7 @@ let rec open_var k replacement = function
     if index = k then shift 0 k replacement
     else if index > k then Local (index - 1)
     else Local index
-  | Global _ | Int _ | I1 _ | I0 _ | Void _ | Type _ | Wild _ | Subgoal _ as e -> e
+  | Global _ | Int _ | I1 _ | I0 _ | Void _ | Type _ | Wild _ | Subgoal _ | Meta _ as e -> e
   | Coe (i, j, e1, e2) ->
     Coe (open_var k replacement i, open_var k replacement j, open_var k replacement e1, open_var k replacement e2)
   | Hcom (i, j, e, e1, e2) ->
@@ -48,7 +47,6 @@ let rec open_var k replacement = function
   | At (e1, e2) -> At (open_var k replacement e1, open_var k replacement e2)
   | Pathd (e, e1, e2) ->
     Pathd (open_var k replacement e, open_var k replacement e1, open_var k replacement e2)
-  | Hole (n, l) -> Hole (n, List.map (open_var k replacement) l)
 
 let rec close_var k x = function
   | Global y when x = y -> Local k
@@ -64,10 +62,7 @@ let rec close_var k x = function
   | Pabs (y, e) -> Pabs (y, close_var (k + 1) x e)
   | At (e1, e2) -> At (close_var k x e1, close_var k x e2)
   | Pathd (e, e1, e2) -> Pathd (close_var k x e, close_var k x e1, close_var k x e2)
-  | Type _ as e -> e
-  | Hole (n, l) -> Hole (n, List.map (close_var k x) l)
-  | Wild _ as e -> e
-  | Subgoal _ as e -> e
+  | Type _ | Meta _ | Wild _ | Subgoal _ as e -> e
 
 (* Abbreviations for opening and closing binders *)
 
@@ -78,6 +73,7 @@ let close_bound binder body =
   close_var 0 binder body
 
 (* Legacy substitution function *)
+(* NOTE: remove b argument later *)
 
 let rec fullsubst k ex d b = function
   | e when e = (shift 0 k ex) -> shift 0 k d
@@ -91,14 +87,13 @@ let rec fullsubst k ex d b = function
   | Pabs (y, e) -> Pabs (y, fullsubst (k+1) ex d b e)
   | At (e1, e2) -> At (fullsubst k ex d b e1, fullsubst k ex d b e2)
   | Pathd (e, e1, e2) -> Pathd (fullsubst k ex d b e, fullsubst k ex d b e1, fullsubst k ex d b e2)
-  | Hole (n, l) -> if b then Hole (n, List.map (fun e -> fullsubst k ex d b e) l) else Hole (n, l)
+  | Meta n -> Meta n
 
 (* Occurrence of indices *)
 
 let rec occurs_index target cutoff = function
   | Local index -> index = target + cutoff
-  | Global _ | Int _ | I1 _ | I0 _ | Void _ | Type _ | Wild _ | Subgoal _ -> false
-  | Hole (_, l) -> List.exists (occurs_index target cutoff) l
+  | Global _ | Int _ | I1 _ | I0 _ | Void _ | Type _ | Wild _ | Subgoal _ | Meta _ -> false
   | Coe (i, j, e1, e2) -> occurs_index target cutoff i || occurs_index target cutoff j || occurs_index target cutoff e1 || occurs_index target cutoff e2
   | Hcom (i, j, e, e1, e2) -> occurs_index target cutoff i || occurs_index target cutoff j || occurs_index target cutoff e || occurs_index target cutoff e1 || occurs_index target cutoff e2
   | Lam (_, e) | Pabs (_, e) -> occurs_index target (cutoff + 1) e
@@ -112,8 +107,7 @@ let rec occurs_name s hint = function
   | Lam (x, e) | Pabs (x, e) -> x = hint || occurs_name x hint e
   | Pi (x, e1, e2) -> x = hint || occurs_name x hint e1 || occurs_name x hint e2
   | Local _ -> s = hint | Global t -> t = hint
-  | Int _ | I1 _ | I0 _ | Void _ | Type _ | Wild _ | Subgoal _ -> false
-  | Hole (_, l) -> List.exists (occurs_name s hint) l
+  | Int _ | I1 _ | I0 _ | Void _ | Type _ | Wild _ | Subgoal _ | Meta _ -> false
   | Coe (i, j, e1, e2) -> occurs_name s hint i || occurs_name s hint j || occurs_name s hint e1 || occurs_name s hint e2
   | Hcom (i, j, e, e1, e2) -> occurs_name s hint i || occurs_name s hint j || occurs_name s hint e || occurs_name s hint e1 || occurs_name s hint e2
   | App (e1, e2) | At (e1, e2) -> occurs_name s hint e1 || occurs_name s hint e2

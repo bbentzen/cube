@@ -23,8 +23,7 @@ let rec occurs_name id l = function
     begin match List.nth_opt l index with
     | Some h -> h = id | None -> false
     end
-  | Int _ | I1 _ | I0 _ | Void _ | Type _ | Wild _ | Subgoal _ -> false
-  | Hole (_, l') -> List.exists (occurs_name id l) l'
+  | Int _ | I1 _ | I0 _ | Void _ | Type _ | Wild _ | Subgoal _ | Meta _ -> false
   | Coe (i, j, e1, e2) -> occurs_name id l i || occurs_name id l j || occurs_name id l e1 || occurs_name id l e2
   | Hcom (i, j, e, e1, e2) -> occurs_name id l i || occurs_name id l j || occurs_name id l e || occurs_name id l e1 || occurs_name id l e2
   | App (e1, e2) | At (e1, e2) -> occurs_name id l e1 || occurs_name id l e2

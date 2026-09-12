@@ -78,7 +78,7 @@ let rec placeholder_levels = function
   | Pabs (s, l) -> Pabs (s, placeholder_levels l)
   | At (l1, l2) -> At (placeholder_levels l1, placeholder_levels l2)
   | Pathd (l1, l2, l3) -> Pathd (placeholder_levels l1, placeholder_levels l2, placeholder_levels l3)
-  | Hole (s, ls) -> Hole (s, List.map placeholder_levels ls)
+  | Meta n -> Meta n
   | e -> e
 
 (* Returns true when a universe level is less-than-or-equal to another, also returns false if they are incomparable *)

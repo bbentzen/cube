@@ -13,20 +13,19 @@ open Ast
 
 let counter = ref 0
 
-let generate l =
-  incr counter;
-  Hole (!counter, l)
+let generate () =
+  incr counter; Meta (!counter)
 
-let generate_neg l =
+let generate_neg () =
   decr counter;
-  Hole (!counter, l)
+  Meta (!counter)
 
 let restore n = counter := n
 
 (* Determines whether an expression is a placeholder/underscore *)
 
 let is = function
-| Hole _ | Wild _ -> true
+| Meta _ | Wild _ -> true
     | _ -> false
 
 (* Determines whether an expression is an underscore *)
@@ -42,7 +41,7 @@ let has_placeholder term =
     | [] -> false
     | x :: rest ->
       match x with
-      | Hole _ -> true
+      | Meta _ -> true
       | Lam (_, e) | Pabs (_, e)
       | Abort e ->
           helper (e :: rest)
@@ -64,8 +63,8 @@ let has_placeholder_name name term =
     | [] -> false
     | x :: rest ->
       match x with
-      | Hole (n, _) when n = name -> true
-      | Hole _ -> false
+      | Meta n when n = name -> true
+      | Meta _ -> false
       | Lam (_, e) | Pabs (_, e)
       | Abort e ->
           helper (e :: rest)
@@ -89,7 +88,7 @@ let has term =
     | [] -> false
     | x :: rest ->
       match x with
-       Wild _ | Hole _ -> true
+       Wild _ | Meta _ -> true
       | Lam (_, e) | Pabs (_, e)
       | Abort e ->
           helper (e :: rest)
@@ -106,11 +105,11 @@ let has term =
   helper [term]
 
 let rec solve = function
-  | Hole (n, l) -> 
+  | Meta n -> 
     begin match Hashtbl.find_opt Data.meta_store n with
     | Some stored ->
       stored.solution
-    | None -> Hole (n, List.map (solve) l)
+    | None -> Meta n
     end
   | Coe (i, j, e1, e2) ->
     Coe (solve i, solve j, solve e1, solve e2)
