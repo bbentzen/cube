@@ -9,7 +9,6 @@
 
 open Ast
 
-
 let rec shift cutoff amount = function
   | Local index ->
     if index >= cutoff then Local (index + amount)

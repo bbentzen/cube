@@ -117,7 +117,7 @@ let rec print env = function
 
   | Abort e -> String.concat "" ["abort "; parenthesize env e]
   | At (e1, e2) -> String.concat "" [parenthesize env e1; "@ "; parenthesize env e2]
-  | Hole (n, _) -> "?" ^ n ^ "? "
+  | Hole (n, _) -> "?" ^ string_of_int n ^ "? "
   | I0() -> "i0 "
   | I1() -> "i1 "
   | Int() -> "I " 

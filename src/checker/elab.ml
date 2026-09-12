@@ -51,7 +51,6 @@ let rec elaborate global ind_env ctx lvl sl ty  vars = function
         begin match elaborate global ind_env ctx lvl sl h1 vars xty with
         | Ok (_, tTy', sa) ->
           let u = unify global ind_env ctx lvl sl vars (eval ind_env ty, eval ind_env xty, tTy') true in
-          (* unify global ind_env ctx lvl sl  vars (ty, xty, tTy') true *)
           begin match u with
           | Ok s -> 
             Ok (Global x, s, sl) 
@@ -965,7 +964,12 @@ let rec elaborate global ind_env ctx lvl sl ty  vars = function
     end
   
   | Hole (n, l) ->
-    Ok (Hole (n, l), ty, sl)
+    (* if n >= 0 then *)
+      Ok (Hole (n, l), ty, sl)
+    (* Replaces metavariables from global definitions with unique ones *)
+    (* else
+      let h = Placeholder.generate [] in 
+      Ok (h, ty, sl) *)
 
   | Wild n ->
     let solved, used = sl in
@@ -1011,7 +1015,7 @@ and find n global ind_env ctx ty lvl sl  vars =
 
 (* Unifies two expressions at type *)
 
-and unify global ind_env ctx lvl sl  vars x lift =
+and unify global ind_env ctx lvl sl vars x lift =
   match x with
   | e, e', ty ->
     if e = e' then
@@ -1040,10 +1044,10 @@ and unify global ind_env ctx lvl sl  vars x lift =
           | Error() ->
             Error ((Hole (n1, l1), Hole (n2, l2)), 
                   "Failed to unify the placeholder\n  ?" ^ 
-                  n1 ^ "?\nwhose suitable candidates are\n" ^ 
+                  string_of_int n1 ^ "?\nwhose suitable candidates are\n" ^ 
                   (String.concat " " (List.map (fun e -> Pretty.printf e) l1)) ^
                   "\nwith the placeholder\n  ?" ^ 
-                  n2 ^ "?\nwhose suitable candidates are\n" ^ 
+                  string_of_int n2 ^ "?\nwhose suitable candidates are\n" ^ 
                   (String.concat " " (List.map (fun e -> Pretty.printf e) l2))) 
         end
       
@@ -1052,7 +1056,10 @@ and unify global ind_env ctx lvl sl  vars x lift =
 
       | e , Hole (n, l), _ | Hole (n, l), e, _ ->
         begin match l with
-        | [] -> Ok e
+        | [] ->
+          if n >= 0 then
+          (Hashtbl.add Data.meta_store n { Data.solution = e}; Ok e)
+          else Ok e
         | _ ->
           let rec helper = function
           | [] -> false
@@ -1061,7 +1068,10 @@ and unify global ind_env ctx lvl sl  vars x lift =
             let v = eval ind_env e in
             v = I0() || v = I1()
           in
-          if helper l || e_is_endpoint then Ok e 
+          if helper l || e_is_endpoint then
+            if n >= 0 then
+            (Hashtbl.add Data.meta_store n { Data.solution = e}; Ok e)
+            else Ok e 
           else 
             Error ((e , Hole (n, l)),
                     "Failed to unify the placeholder\n  " ^ 

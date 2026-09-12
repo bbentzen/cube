@@ -32,7 +32,7 @@ type rawexpr =
   | RAt of rawexpr * rawexpr
   | RPathd of rawexpr * rawexpr * rawexpr
   | RType of rawlevel
-  | RHole of string * (rawexpr list)
+  | RHole of int * (rawexpr list)
   | RWild of int
   | RSubgoal of unit
 
@@ -107,7 +107,7 @@ type expr =
   | At of expr * expr
   | Pathd of expr * expr * expr
   | Type of level
-  | Hole of string * (expr list)
+  | Hole of int * (expr list)
   | Wild of int
   | Subgoal of unit
 

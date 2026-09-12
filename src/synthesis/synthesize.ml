@@ -21,7 +21,10 @@ let rec check global ind_env ctx lvl sl e ty max vars =
   begin
     match elab with
     | Ok (e', ty', sl') ->
+      let e' = Placeholder.solve e' in
+      let ty' = Placeholder.solve ty' in
       (* Double checks that there are no placeholders left in the synthesization attempts *)
+      Hashtbl.clear Data.meta_store;
       if Attempt.trustworthy (fst sl') then
         Ok (e', ty')
       else

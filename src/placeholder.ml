@@ -15,7 +15,11 @@ let counter = ref 0
 
 let generate l =
   incr counter;
-  Hole (string_of_int !counter, l)
+  Hole (!counter, l)
+
+let generate_neg l =
+  decr counter;
+  Hole (!counter, l)
 
 let restore n = counter := n
 
@@ -100,3 +104,24 @@ let has term =
       | _ -> helper rest
   in
   helper [term]
+
+let rec solve = function
+  | Hole (n, l) -> 
+    begin match Hashtbl.find_opt Data.meta_store n with
+    | Some stored ->
+      stored.solution
+    | None -> Hole (n, List.map (solve) l)
+    end
+  | Coe (i, j, e1, e2) ->
+    Coe (solve i, solve j, solve e1, solve e2)
+  | Hcom (i, j, e, e1, e2) ->
+    Hcom (solve i, solve j, solve e, solve e1, solve e2)
+  | Lam (x, e) -> Lam (x, solve e)
+  | App (e1, e2) -> App (solve e1, solve e2)
+  | Pi (x, e1, e2) -> Pi (x, solve e1, solve e2)
+  | Abort e -> Abort (solve e)
+  | Pabs (x, e) -> Pabs (x, solve e)
+  | At (e1, e2) -> At (solve e1, solve e2)
+  | Pathd (e, e1, e2) ->
+    Pathd (solve e, solve e1, solve e2)
+  | Local _ | Global _ | Int _ | I1 _ | I0 _ | Void _ | Type _ | Wild _ | Subgoal _ as e -> e

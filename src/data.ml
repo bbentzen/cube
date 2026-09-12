@@ -31,3 +31,20 @@ type con_spec = {
   num_indices : int;
   num_params : int;
 }
+
+(* Unifier constraints *)
+
+type meta_entry = {
+  solution : Ast.expr;
+  (* ctx : (string * Ast.expr * bool) list;
+  ty : Ast.expr; *)
+}
+
+let meta_store : (int, meta_entry) Hashtbl.t = Hashtbl.create 100
+
+type constraints = {
+  (* lhs : Ast.expr; *)
+  rhs : Ast.expr;
+  ty : Ast.expr;
+  ctx : (string * Ast.expr * bool) list;
+}
