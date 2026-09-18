@@ -21,11 +21,11 @@ def pairing {A : type k} {B : A → type k} :
 
 abbrev fst {A : type k} {B : A → type k} :
   (Σ (x : A), B x) → A :=
-λ w, sigmarec _ _ _ (λ x _, x) w
+λ w, sigmarec _ _ (λ _, A) (λ x _, x) w
 
 abbrev snd {A : type k} {B : A → type k} :
   Π (w : Σ (x : A), B x), B (fst w) :=
-λ w, sigmarec _ _ _ (λ _ y, y) w
+λ w, sigmarec _ _ (λ w, B (fst w)) (λ _ y, y) w
 
 abbrev spread {A : type k} {B : A → type k} {C : (Σ (x : A), B x) → type k} :
   Π (w : Σ (x : A), B x) (c : Π (x : A) (y : B x), C (x, y)), C w :=

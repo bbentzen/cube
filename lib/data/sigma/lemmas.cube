@@ -85,10 +85,9 @@ def sigma_prod_distrb (A : type l) (B C : A → type l) :
 λ w, ((fst w, fst (snd w)), 
 (fst w, snd (snd w)))
 
-/* TODO: Delay unification  */
-/* def pi_to_not_sigma {A B : type l} {C : A → type l} :
+def pi_to_not_sigma {A B : type l} {C : A → type l} :
   (Π (x : A), C x) → ¬(Σ (x : A), ¬ C x) :=
-λ f w, (snd w) (f (fst w)) */
+λ f w, (snd w) (f (fst w))
 
 def pi_not_to_not_sigma {A B : type l} {C : A → type l} :
   (Π (x : A), ¬ C x) → ¬(Σ (x : A), C x) :=
@@ -102,14 +101,13 @@ def not_sigma_to_pi_not {A B : type l} {C : A → type l} :
   (¬(Σ (x : A), C x)) → (Π (x : A), ¬ C x) :=
 λ f x y, f (x, y)
 
-/* TODO: Delay unification  */
-/* def sigma_not_to_not_pi {A : type l} {C : A → type l} :
+def sigma_not_to_not_pi {A : type l} {C : A → type l} :
   (Σ (x : A), ¬ C x) → ¬ (Π (x : A), C x) :=
-λ w f, (snd w) (f (fst w)) 
+λ w f, (snd w) (f (fst w))
 
 def sigma_pi_exchg {A B : type l} {C : A → B → type l} :
   (Σ (x : A), Π (y : B), C x y) → (Π (y : B), Σ (x : A), C x y) :=
-λ w y, (fst w, (snd w) y) */
+λ w y, (fst w, (snd w) y)
 
 theorem dprod_up_2_fst {A : type l} {B C : A → type l} :
   (Π (x : A), B x × C x) → (Π (x : A), B x) :=
@@ -119,7 +117,6 @@ theorem dprod_up_2_snd {A : type l} {B C : A → type l} :
   (Π (x : A), B x × C x) → (Π (x : A), C x) :=
 λ f x, snd (f x)
 
-/* TODO: Delay unification  */
-/* theorem pi_prod_distr {A B : type l} {C : A → type l} :
+theorem pi_prod_distr {A B : type l} {C : A → type l} :
   (B × Π (x : A), C x) → (Π (x : A), B × C x) :=
-λ w x, (fst w, (snd w) x) */
+λ w x, (fst w, (snd w) x)

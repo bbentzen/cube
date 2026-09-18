@@ -4,7 +4,8 @@ Before preparing a pull request (PR), please test your changes beforehand, runni
 
 Here are some items on our TODO list:
 
-- Delay unification
+- Delay unification (in progress)
+- Clearly separate elaboration, type inference, checking, and look for global identifier conflict when opening a binder only at elaboration stage
 - Add explicit @ handling of implicit arguments
 - Fix universe polymorphism bug when universe level occurs in proof
 - Clean elaborator with a dedicated module for error messages
@@ -24,4 +25,4 @@ Here are some items on our TODO list:
 - Parse numbers in applied exprs (but not as levels) as sss...s0, e.g 2 as ss0
 - Go to definition VS code extension feature
 - Publish VS Code extension
-- readthedocs documentation
+- Proper readthedocs documentation
