@@ -46,3 +46,5 @@ let newfind_index n tbl =
 let lappend sa sa1 sa2 = (fst sa @ fst sa1 @ fst sa2, snd sa @ snd sa1 @ snd sa2)
 
 let append sa1 sa2 = (fst sa1 @ fst sa2, snd sa1 @ snd sa2)
+
+let append4 sa sa1 sa2 sa3 = (fst sa @ fst sa1 @ fst sa2 @ fst sa3, snd sa @ snd sa1 @ snd sa2 @ snd sa3)

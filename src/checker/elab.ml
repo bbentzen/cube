@@ -44,10 +44,8 @@ let rec elaborate global ind_env ctx lvl sl ty  vars = function
       let h' = Placeholder.is xty in 
       let d = Global.is_declared x ctx in
       begin match c, h, h', d with
-      | true , _, _ , _ | _ , _, true , _ ->  
-        Ok (Global x, ty, sl)
-      | _ , true, _ , _ ->  
-        Ok (Global x, xty, sl)
+      | true , _, _ , _ | _ , _, true , _ -> Ok (Global x, ty, sl)
+      | _ , true, _ , _ -> Ok (Global x, xty, sl)
       | false , false, false , true ->
         let h1 = Placeholder.generate () in
         begin match elaborate global ind_env ctx lvl sl h1 vars xty with
@@ -56,14 +54,11 @@ let rec elaborate global ind_env ctx lvl sl ty  vars = function
           begin match u with
           | Ok s -> 
             Ok (Global x, s, sl) 
-          | Error (_, msg) ->
-              Error (sa, "The variable " ^ x ^ " has type\n   " ^ Pretty.printf xty ^ 
-                  "\nbut is expected to have type\n  " ^ Pretty.printf ty ^ "\n" ^ msg)
+          | Error (_, msg) -> Error (sa, Msg.var_type_mismatch x xty ty msg)
           end
-        | Error (sa, msg) -> (* This case is impossible *)
-          Error (sa, "Error at type checking the variable " ^ x ^ ": " ^ msg)
+        | Error (sa, msg) -> Error (sa, Msg.var_error x msg)
         end
-      | false , false, false , false -> 
+      | false, false, false, false -> 
         begin match Env.unfold x global with
         | Ok (_, xty) ->
           let h1 = Placeholder.generate () in
@@ -72,36 +67,28 @@ let rec elaborate global ind_env ctx lvl sl ty  vars = function
             let u = unify global ind_env ctx lvl sl  vars (eval ind_env xty, eval ind_env ty, tTy') true in
             begin match u with
             | Ok s -> Ok (Global x, s, sl) (* runs faster when not body *)
-            | _ -> 
-              Error (sa, x ^ " has type \n  " ^ Pretty.printf xty ^ "\nbut is expected to have type\n  " ^ Pretty.printf ty)
+            | _ -> Error (sa, Msg.var_type_mismatch_2 x xty ty)
             end
-          | Error (sa, msg) -> (* This case is impossible *)
-            Error (sa, "Error with global variables: " ^ msg)
+          | Error (sa, msg) -> Error (sa, Msg.var_error x msg)
           end
-        | Error msg -> 
-          Error (sl, "Error with global variables: " ^ msg)
+        | Error msg -> Error (sl, Msg.var_error x msg)
         end
       end
-    | Error _ -> 
-      Error (sl, "No declaration for the variable " ^ x)
+    | Error _ -> Error (sl, Msg.undeclared x)
     end
     
   | I0() ->
     begin match ty with
-    | Int() -> 
-      Ok (I0(), Int(), sl)
-    | Meta _ -> 
-      Ok (I0(), Int(), sl)
-    | _ -> Error (sl, "Type mismatch when checking that the endpoint i0 of type I has type " ^ Pretty.printf ty)
-  end
+    | Int() -> Ok (I0(), Int(), sl)
+    | Meta _ -> Ok (I0(), Int(), sl)
+    | _ -> Error (sl, Msg.i0_error ty)
+    end
   
   | I1() ->
     begin match ty with
-    | Int() -> 
-      Ok (I1(), Int(), sl)
-    | Meta _ -> 
-      Ok (I1(), Int(), sl)
-    | _ -> Error (sl, "Type mismatch when checking that the endpoint i1 of type I has type " ^ Pretty.printf ty)
+    | Int() -> Ok (I1(), Int(), sl)
+    | Meta _ -> Ok (I1(), Int(), sl)
+    | _ -> Error (sl, Msg.i1_error ty)
     end
 
   | Lam (x, e) ->
@@ -110,7 +97,6 @@ let rec elaborate global ind_env ctx lvl sl ty  vars = function
     begin match ty with
     | Pi (_, ty1, ty2) ->
       let v1 = Expr.mk_fresh x ctx in
-      (* let v1 = Expr.init_fresh vars in *)
       let e' = Expr.open_var 0 (Global v1) e in
       let ty2' = Expr.open_var 0 (Global v1) ty2 in
       let elab = elaborate global ind_env ((v1, ty1, true) :: ctx) lvl sl ty2'  (vars+1) e' in
@@ -124,8 +110,7 @@ let rec elaborate global ind_env ctx lvl sl ty  vars = function
       let h2 = Placeholder.generate () in
       elaborate global ind_env ctx lvl sl (Pi(x, h1, h2))  vars (Lam (x, e))
     | _ -> 
-      Error (sl, "The term\n  " ^ Pretty.printf (Lam (x, e)) ^ 
-      "\nhas type\n  " ^ Pretty.printf ty ^ "\nbut is expected to have type\n  Π (v? : ?0?) ?1?")
+      Error (sl, Msg.lam_error x e ty)
     end
 
   | App (e1, e2) ->
@@ -189,10 +174,9 @@ let rec elaborate global ind_env ctx lvl sl ty  vars = function
     end
   
   | Abort e ->
-    let elab = elaborate global ind_env ctx lvl sl (Void())  vars e in
-    begin match elab with
+    begin match elaborate global ind_env ctx lvl sl (Void()) vars e with
     | Ok (e', _, sa) -> Ok (Abort e', ty, sa)
-    | Error msg -> Error msg
+    | Error (sa, msg) -> Error (sa, Msg.void_error e msg)
     end
   
   | Coe(i, j, ety, e) ->
@@ -207,46 +191,25 @@ let rec elaborate global ind_env ctx lvl sl ty  vars = function
     | Ok (i', _, _), Ok (j', _, _), Ok (tyi, eTy, sat), Ok (tyj, _, _) ->
       let e' = eval ind_env e in
       let elab = elaborate global ind_env ctx lvl sl (eval ind_env tyi)  vars e' in
-      let elabt = elaborate global ind_env ctx lvl sl h0  vars ty in
+      let elabt = elaborate global ind_env ctx lvl sl h0 vars ty in
       begin match elab, elabt with
       | Ok (e', _, sa), Ok (ty', _, sat') ->
         let u = unify global ind_env ctx lvl sl  vars (eval ind_env tyj, eval ind_env ty', eTy) false in
         begin match u with
         | Ok tty ->
           Ok (Coe (i', j', eval ind_env ety, e'), tty, Stack.lappend sa sat sat')
-        | Error (_, msg) -> 
-          Error (Stack.lappend sa sat sat', 
-            "Failed to unify the terms\n  " ^ Pretty.printf tyj ^ "\nand\n  " ^ Pretty.printf ty' ^ 
-            "\nof expected type\n  " ^ Pretty.printf eTy ^
-            "\nwhen checking that the coercion\n  " ^ Pretty.printf (Coe(i, j, ety, e)) ^
-            "\nhas type\n  " ^ Pretty.printf ty ^
-            "\n" ^ msg)
+        | Error (_, msg) -> Error (Stack.lappend sa sat sat', Msg.coercion_error_1 tyj ty' eTy i j ety e ty msg)
         end
-      | Error (sa, msg), _ ->
-        Error (sa,
-          "The coercion failed because\n  " ^ Pretty.printf e ^
-          "\ndoes not have type\n  " ^ Pretty.printf tyi ^ "\n" ^ msg)
-      | _, Error msg ->
-        Error msg
+      | Error (sa, msg), _ -> Error (sa, Msg.coercion_error_2 e tyi msg)
+      | _, Error (sa, msg) -> Error (sa, Msg.coercion_error_3 ty msg)
       end
-    | Error msg, _, _, _ ->
-      Error msg
-    | _, Error msg, _, _ ->
-      Error msg
-    | _, _, Error (sa, msg), _ ->
-      Error (sa,
-        "Failed while elaborating coercion family instance " ^ Pretty.printf tyi_expr ^ " at " ^ Pretty.printf i ^ "\n" ^ msg)
-    | _, _, _, Error (sa, msg) ->
-      Error (sa,
-        "Failed while elaborating coercion family instance " ^ Pretty.printf tyj_expr ^ " at " ^ Pretty.printf j ^ "\n" ^ msg)
+    | Error (sa, msg), _, _, _ -> Error (sa, Msg.coercion_error_i i msg)
+    | _, Error (sa, msg), _, _ -> Error (sa, Msg.coercion_error_i j msg)
+    | _, _, Error (sa, msg), _ -> Error (sa, Msg.coercion_error_ty tyi_expr i msg)
+    | _, _, _, Error (sa, msg) -> Error (sa, Msg.coercion_error_ty tyj_expr j msg)
     end
   
-  | Local index ->
-    Error (sl,
-      "Unexpected local variable when checking that the term " ^
-      Pretty.printf (Local index) ^
-      " has type " ^ Pretty.printf ty ^
-      "\n" ^ Global.printf ctx)
+  | Local index -> Error (sl, Msg.unexpected index ty ctx)
 
   | Hcom(i1, j1, e, e1, e2) ->
     begin match ty with
@@ -276,8 +239,8 @@ let rec elaborate global ind_env ctx lvl sl ty  vars = function
           begin match elabi0, elabi1, elab1i0, elab2i0 with
           | Ok (ei0, _, _), Ok (ei1, _, _), Ok (e1i0, _, _), Ok (e2i0, _, _) ->
             (* Validate the composition scenario by matching the i-corners of the square *)
-            let u1 = unify global ind_env ctx lvl sl  vars (eval ind_env ei0, e1i0, ty0) false in
-            let u2 = unify global ind_env ctx lvl sl  vars (eval ind_env ei1, e2i0, ty1) false in
+            let u1 = unify global ind_env ctx lvl sl vars (eval ind_env ei0, e1i0, ty0) false in
+            let u2 = unify global ind_env ctx lvl sl vars (eval ind_env ei1, e2i0, ty1) false in
             begin match u1, u2 with
             | Ok _, Ok _ ->
               let return x = Ok (Hcom(i1, j1, e', e1', e2'), x, Stack.lappend sa sa1 sa2) in
@@ -291,45 +254,16 @@ let rec elaborate global ind_env ctx lvl sl ty  vars = function
                 return (Pi (k, Int(), e2ty))
               else
                 return ty
-            | Error (_, msg), _ ->
-              Error (Stack.lappend sa sa1 sa2,
-                "Invalid composition scenario: Error when unifying the i0-endpoint of the lid \n  " ^ 
-                Pretty.printf (eval ind_env ei0) ^ "\nwith the " ^ Pretty.printf i1 ^ "-endpoint of the i0-tube \n  " ^ Pretty.printf (eval ind_env e1i0) ^
-                "\n" ^ msg)
-            | _, Error (_, msg) -> 
-              Error (Stack.lappend sa sa1 sa2, 
-                "Invalid composition scenario: Error when unifying the terms\n  " ^ 
-                Pretty.printf (eval ind_env ei1) ^ "\nwith the " ^ Pretty.printf i1 ^ "-endpoint of the i1-tube \n  " ^ Pretty.printf (eval ind_env e2i0) ^
-                "\n" ^ msg)
+            | Error (_, msg), _ -> Error (Stack.lappend sa sa1 sa2, Msg.lid_unify ind_env ei0 i1 e1i0 msg)
+            | _, Error (_, msg) -> Error (Stack.lappend sa sa1 sa2, Msg.tube_i1_unify ind_env ei1 i1 e2i0 msg)
             end
             
-          | Error (sa', msg), _, _, _ ->
-            Error (Stack.append sa' (Stack.lappend sa sa1 sa2), 
-            "Error when checking that the homogeneous composition  " ^ Pretty.printf (Hcom(i1, j1, e', e1', e2')) ^ 
-            "\nhas type\n  I → " ^ Pretty.printf ty' ^ 
-            "\nThe i0-face of the lid\n  " ^ Pretty.printf (eval ind_env (App(e', I0()))) ^ "\ndoes not have the expected type\n  " ^ Pretty.printf ty' ^
-            "\n" ^ msg)
-          | _, Error (sa', msg), _, _ ->
-            Error (Stack.append sa' (Stack.lappend sa sa1 sa2), 
-            "Error when checking that the homogeneous composition\n  " ^ Pretty.printf (Hcom(i1, j1, e', e1', e2')) ^ 
-            "\nhas type\n  I → " ^ Pretty.printf ty' ^ 
-            "\nThe i1-face of the lid\n  " ^ Pretty.printf (eval ind_env (App(e', I1()))) ^ "\ndoes not have the expected type\n  " ^ Pretty.printf ty' ^ 
-            "\n" ^ msg)
-          | _, _, Error (sa', msg), _ ->
-            Error (Stack.append sa' (Stack.lappend sa sa1 sa2), 
-            "Error when checking that the homogeneous composition\n  " ^ Pretty.printf (Hcom(i1, j1, e', e1', e2')) ^ 
-            "\nhas type\n  I → " ^ Pretty.printf ty' ^ 
-            "\nThe i0-face of the i0-tube\n  " ^ Pretty.printf (eval ind_env (App(e1', I0()))) ^ "\ndoes not have the expected type\n  " ^ Pretty.printf ty' ^ 
-            "\n" ^ msg)
-          | _, _, _, Error (sa', msg) ->
-            Error (Stack.append sa' (Stack.lappend sa sa1 sa2), 
-            "Error when checking that the homogeneous composition\n  " ^ Pretty.printf (Hcom(i1, j1, e, e1, e2)) ^ 
-            "\nhas type\n  I → " ^ Pretty.printf ty' ^ 
-            "\nThe i0-face of the i1-tube\n  " ^ Pretty.printf (eval ind_env (App(e2', I0()))) ^ "\ndoes not have the expected type\n  " ^ Pretty.printf ty' ^ 
-            "\n" ^ msg)
+          | Error (sa', msg), _, _, _ -> Error (Stack.append4 sa' sa sa1 sa2, Msg.lid_i0 ind_env i1 j1 e' e1' e2' ty' msg)
+          | _, Error (sa', msg), _, _ -> Error (Stack.append4 sa' sa sa1 sa2, Msg.lid_i1 ind_env i1 j1 e' e1' e2' ty' msg)
+          | _, _, Error (sa', msg), _ -> Error (Stack.append4 sa' sa sa1 sa2, Msg.tube_i0 ind_env i1 j1 e' e1' e2' ty' msg)
+          | _, _, _, Error (sa', msg) -> Error (Stack.append4 sa' sa sa1 sa2, Msg.tube_i1 ind_env i1 j1 e' e1' e2' ty' msg)
           end
-        | Error (sa, msg), _, _ | _, Error (sa, msg), _ | _, _, Error (sa, msg) -> 
-          Error (sa, "Failed to typecheck the lid or tubes of the homogeneous composition: " ^ msg)
+        | Error (sa, msg), _, _ | _, Error (sa, msg), _ | _, _, Error (sa, msg) -> Error (sa, Msg.hcom_error msg)
         end
       
       | Meta _, Meta _ -> 
@@ -360,50 +294,24 @@ let rec elaborate global ind_env ctx lvl sl ty  vars = function
                 | Ok _, Ok _ ->
                   Ok (Hcom(i1, j1, e', e1', e2'), Pi(i, Int(), ty'), Stack.lappend sa sa1 sa2)
                 | Error (_, msg), _ ->
-                  Error (Stack.lappend sa sa1 sa2,
-                  "Invalid composition scenario: Error when unifying the i0-endpoint of the lid \n  " ^ 
-                  Pretty.printf (eval ind_env ei0) ^ "\nwith the " ^ Pretty.printf i1 ^ "-endpoint of the i0-tube \n  " ^ Pretty.printf (eval ind_env e1i0) ^
-                  "\n" ^ msg)
+                  Error (Stack.lappend sa sa1 sa2, Msg.lid_unify ind_env ei0 i1 e1i0 msg)
                 | _, Error (_, msg) -> 
-                  Error (Stack.lappend sa sa1 sa2, 
-                    "Invalid composition scenario: Error when unifying the terms\n  " ^ 
-                    Pretty.printf (eval ind_env ei1) ^ "\nwith the " ^ Pretty.printf i1 ^ "-endpoint of the i1-tube \n  " ^ Pretty.printf (eval ind_env e2i0) ^
-                    "\n" ^ msg)
+                  Error (Stack.lappend sa sa1 sa2, Msg.tube_i1_unify ind_env ei1 i1 e2i0 msg)
                 end
-              | Error (sa, msg), _ -> 
-                Error (sa, "Error when synthesizing type for the homogeneous composition\n  " ^ Pretty.printf (Hcom(i1, j1, e', e1', e2')) ^ 
-                    "\nThe i0-face of the i0-tube\n  " ^ Pretty.printf (eval ind_env (App(e1', I0()))) ^ "\ndoes not have the expected type\n  " ^ Pretty.printf ty0 ^ 
-                    "\n" ^ msg)
-              | _, Error (sa, msg) ->
-                Error (sa, "Error when synthesizing type for the homogeneous composition\n  " ^ Pretty.printf (Hcom(i1, j1, e', e1', e2')) ^ 
-                    "\nThe i0-face of the i1-tube\n  " ^ Pretty.printf (eval ind_env (App(e1', I0()))) ^ "\ndoes not have the expected type\n  " ^ Pretty.printf ty0 ^ 
-                    "\n" ^ msg)
+              | Error (sa, msg), _ -> Error (sa, Msg.tube_i0_meta ind_env i1 j1 e' e1' e2' ty0 msg)
+              | _, Error (sa, msg) -> Error (sa, Msg.tube_i1_meta ind_env i1 j1 e' e1' e2' ty0 msg)
               end
-            | Error (sa', msg), _ ->
-              Error (Stack.append ss sa', 
-                "Failed to synthesize placeholder type. The lid " ^ Pretty.printf e' ^ " has type " ^ Pretty.printf ety ^ 
-                ", but could not check that the line\n  " ^ Pretty.printf (eval ind_env (App(e', I1()))) ^ "\nhas type\n  " ^ Pretty.printf ty' ^
-                "\nin the homogeneous composition\n  hfill (" ^ Pretty.printf e' ^ 
-                ")\n    | i0 → " ^ Pretty.printf e1' ^
-                "\n    | i1 → " ^ Pretty.printf e2' ^ "\n" ^ msg)
+            | Error (sa', msg), _ -> Error (Stack.append ss sa', Msg.lid_meta ind_env e' ety e1' e2' ty' msg)
             | _, Error msg -> Error msg
             end
-          | _ -> Error (sl, "The lid of the homogeneous composition\n  " ^ Pretty.printf e ^ 
-            "\nis expected to have the function type but has type\n  " ^ Pretty.printf ety)
+          | _ -> Error (sl, Msg.lid_unexpected e ety)
           end
         | Error msg, _, _ | _, Error msg, _ | _, _, Error msg -> 
           Error msg
         end
-        
-      | _, _ ->
-        Error (sl, "The homogeneous composition " ^ Pretty.printf (Hcom(i1, j1, e, e1, e2)) ^ 
-          "\nhas type\n  " ^ Pretty.printf (Pi(k, int, ty')) ^
-          "\nbut is expected to have type\n  I → ?0?")
+      | _, _ -> Error (sl, Msg.hcom_unexpected_1 i1 j1 e e1 e2 k int ty')
       end
-    
-    | ty ->
-      Error (sl, "The homogeneous composition\n  " ^ Pretty.printf (Hcom(i1, j1, e, e1, e2)) ^ 
-      "\nis expected to have type\n  I → ?0?\nand not\n  " ^ Pretty.printf ty)
+    | ty -> Error (sl, Msg.hcom_unexpected_2 i1 j1 e e1 e2 ty)
     end
 
   | Pabs (i, e) ->
@@ -413,12 +321,10 @@ let rec elaborate global ind_env ctx lvl sl ty  vars = function
     let elabt = elaborate global ind_env ctx lvl sl h0  vars ty in
     begin match elabt with
     | Ok (Pathd (Meta n, e1, e2), _, _) ->
-      (* let v1 = Expr.init_fresh vars in *)
       let v1 = Expr.mk_fresh i ctx in
       let h0 = Placeholder.generate () in
       let ei = Expr.open_var 0 (Global v1) e in
       let elab = elaborate global ind_env ((v1, Int(), true) :: ctx) lvl sl (Meta n)  (vars+1) ei in
-
       begin match elab with
       | Ok (e', _, sa) ->
         let e_closed = Expr.close_bound v1 e' in
@@ -428,7 +334,7 @@ let rec elaborate global ind_env ctx lvl sl ty  vars = function
         let elab2 = elaborate global ind_env ((v1, Int(), true) :: ctx) lvl sl h0  (vars+1) ei1 in
         begin match elab1, elab2 with
         | Ok (ei0, tyi0, _), Ok (ei1, tyi1, _) ->
-        
+          (* Proceed with unification *)
           let u1 = unify global ind_env ctx lvl sl  (vars+1) (eval ind_env ei0, eval ind_env e1, tyi0) false in
           let u2 = unify global ind_env ctx lvl sl  (vars+1) (eval ind_env ei1, eval ind_env e2, tyi1) false in
           begin match u1, u2 with
@@ -437,40 +343,24 @@ let rec elaborate global ind_env ctx lvl sl ty  vars = function
             let ty' = Expr.fullsubst 0 (I0()) (Global v2) true tyi0 in
             let ty'' = Expr.fullsubst 0 (I1()) (Global v2) true tyi1 in
             let elabTy = elaborate global ind_env ctx lvl sl h0  (vars+2) ty in
-
             begin match elabTy with
             | Ok (_, tTy, _) ->
               let u = unify global ind_env ctx lvl sl  (vars+2) (ty', ty'', tTy) false in
               begin match u with
-              | Ok st ->
-                Ok (Pabs (v1, e_closed), Pathd (Lam(v2, st), ui0, ui1), sa)
-              | Error (_, msg) -> 
-                Error (sa, 
-                "Type unification error in path abstraction.\n" ^ msg)
+              | Ok st -> Ok (Pabs (v1, e_closed), Pathd (Lam(v2, st), ui0, ui1), sa)
+              | Error (_, msg) -> Error (sa, Msg.pabs_unify msg)
               end
-
-            | Error (sa', msg) -> (* This case is impossible *)
-              Error (Stack.append sa sa', 
-              "Typehood error in path abstraction.\n" ^ msg)
+            | Error (sa', msg) -> Error (Stack.append sa sa', Msg.pabs_error msg)
             end
-          | _ , Ok _ ->
-            Error (sa, "Error in path abstraction over " ^ i ^ ": I. Failed to unify\n  " ^
-                    Pretty.printf e1 ^ "\nwith\n  " ^ Pretty.printf ei0 ^ "≡ " ^ Pretty.printf e ^ "[i0/" ^ i ^ "]" ^ "\n" ^
-                    goal_msg ctx (Pabs (i, e')) ty) 
-          | _ ->
-            Error (sa, "Failed to unify\n  " ^ 
-                    Pretty.printf e2 ^ "\nwith\n  " ^ Pretty.printf ei1 ^ "≡ " ^ Pretty.printf e ^ "[i1/" ^ i ^ "]" ^ "\n" ^
-                    goal_msg ctx (Pabs (i, e')) ty)
+          | _ , Ok _ -> Error (sa, Msg.pabs_unify_i0 v1 e1 ei0 e e' ty ctx) 
+          | _ -> Error (sa, Msg.pabs_unify_i1 v1 e2 ei1 e e' ty ctx)
           end
-        | Error (_, msg), _| _, Error (_, msg) -> 
-          Error (sa, "Failed synthetization of type placeholder for i0-endpoint in path abstraction.\n" ^ msg)
+        | Error (_, msg), _| _, Error (_, msg) -> Error (sa, Msg.pabs_syn msg)
         end
-      | Error (sa, msg) -> 
-        Error (sa, "Failed synthetization of type placeholder for i0-endpoint in path abstraction.\n" ^ msg)
+      | Error (sa, msg) -> Error (sa, Msg.pabs_syn msg)
       end
     | Ok (Pathd (ty1, e1, e2), _, _) ->
       let v1 = Expr.mk_fresh i ctx in
-      (* let v1 = Expr.init_fresh vars in *)
       let ei = Expr.open_var 0 (Global v1) e in
       let ty1' = eval ind_env (App(ty1, Global v1)) in
       let elab = elaborate global ind_env ((v1, Int(), true) :: ctx) lvl sl ty1'  (vars+1) ei in
@@ -499,22 +389,12 @@ let rec elaborate global ind_env ctx lvl sl ty  vars = function
               | Ok (_, Pathd(sty, sa, _), _) ->
                 let u = unify global ind_env ctx lvl sl  vars (s, sa, eval ind_env (App(sty, I0()))) false in
                 begin match u with
-                | Ok _ ->
-                  Ok (Pabs (v1, e_closed), Pathd (ty1, ei0, ei1), saa)
-                | Error (_, msg) ->
-                  Error (saa, "Error in path abstraction over " ^ v1 ^ " : I when attempting unification at the i0-endpoint. Failed to unify\n  " ^
-                  Pretty.printf e1 ^ "\nwith\n  " ^ Pretty.printf ei0 ^ "≡ " ^ Pretty.printf e' ^ "[i0/" ^ i ^ "]" ^ "\n" ^
-                  msg ^ "\n" ^ goal_msg ctx (Pabs (v1, e')) ty )
+                | Ok _ -> Ok (Pabs (v1, e_closed), Pathd (ty1, ei0, ei1), saa)
+                | Error (_, msg) -> Error (saa, Msg.pabs_unify_i0_2 v1 e1 ei0 e' ty ctx msg)
                 end
-              | _ -> 
-                Error (saa, "Error in path abstraction over " ^ v1 ^ " : I when attempting unification at the i0-endpoint. Failed to unify\n  " ^ 
-                        Pretty.printf e1 ^ "\nwith\n  " ^ Pretty.printf ei0 ^ "≡ " ^ Pretty.printf e' ^ "[i0/" ^ i ^ "]" ^ "\n" ^
-                        msg ^ "\n" ^ goal_msg ctx (Pabs (v1, e')) ty)
+              | _ -> Error (saa, Msg.pabs_unify_i0_2 v1 e1 ei0 e' ty ctx msg)
               end
-            | _ ->
-              Error (saa, "Failed to unify\n  " ^ 
-                    Pretty.printf e1 ^ "\nwith\n  " ^ Pretty.printf ei0 ^ "≡ " ^ Pretty.printf e' ^ "[i0/" ^ i ^ "]" ^ "\n" ^
-                    msg ^ "\n" ^ goal_msg ctx (Pabs (i, e')) ty)
+            | _ -> Error (saa, Msg.pabs_unify_i0_3 v1 e1 ei0 e' ty ctx msg)
             end
           | _ , Error ((s,s'), msg) ->
             begin match s, s' with
@@ -527,48 +407,25 @@ let rec elaborate global ind_env ctx lvl sl ty  vars = function
                 begin match u with
                 | Ok _ -> 
                   Ok (Pabs (i, e_closed), Pathd (ty1, ei0, ei1), saa)
-                | Error (_, msg) ->
-                  Error (saa, "Error in path abstraction over " ^ i ^ " : I when attempting unification at the i1-endpoint. Failed to unify\n  " ^ 
-                    Pretty.printf e2 ^ "\nwith\n  " ^ Pretty.printf ei1 ^ "≡ " ^ Pretty.printf e' ^ "[i1/" ^ i ^ "]" ^ "\n" ^
-                    msg ^ "\n" ^ goal_msg ctx (Pabs (i, e')) ty )
+                | Error (_, msg) -> Error (saa, Msg.pabs_unify_i1_2 v1 e2 ei1 e' ty ctx msg)
                 end
-
-              | _ -> 
-                Error (saa, "Failed to unify\n  " ^ 
-                        Pretty.printf e2 ^ "\nwith\n  " ^ Pretty.printf ei1 ^ "≡ " ^ Pretty.printf e' ^ "[i1/" ^ i ^ "]" ^ "\n" ^
-                        msg ^ "\n" ^ goal_msg ctx (Pabs (i, e')) ty )
+              | _ -> Error (saa, Msg.pabs_unify_i1_3 v1 e2 ei1 e' ty ctx msg)
               end
             | _ ->
-              Error (saa, "Unification error at path abstraction. Failed to unify\n  " ^
-                    Pretty.printf e2 ^ "\nwith\n  " ^ Pretty.printf ei1 ^ "≡ " ^ Pretty.printf e' ^ "[i1/" ^ i ^ "]" ^ 
-                    "\n" ^  Pretty.printf ei1' ^ "\n" ^  Pretty.printf e2' ^
-                    "\n" ^ msg ^ "\n" ^ goal_msg ctx (Pabs (i, e')) ty )
+              Error (saa, Msg.pabs_unify_i1_4 v1 e2 e2' ei1 ei1' e' ty ctx msg)
             end
           end
-
-        | Error (_, msg), _ ->
-          Error (saa, "Error when checking that the path abstracted term\n  " ^ 
-            Pretty.printf (Pabs(i, eval ind_env e)) ^ "\nhas type\n  " ^ Pretty.printf ty ^ 
-            "\nThe i0-endpoint\n  " ^ Pretty.printf (eval ind_env (Expr.open_var 0 (I0()) e')) ^ 
-            "\ndoes not have type\n  " ^ Pretty.printf (eval ind_env (App(ty1, I0()))) ^
-            "\n" ^ msg)
-        | _, Error (_, msg) -> 
-          Error (saa, "Error when checking that the path abstracted term\n  " ^ 
-            Pretty.printf (Pabs(i, eval ind_env e)) ^ "\nhas type\n  " ^ Pretty.printf ty ^ 
-            "\nThe i1-endpoint\n  " ^ Pretty.printf (eval ind_env (Expr.open_var 0 (I1()) e')) ^ 
-            "\ndoes not have type\n  " ^ Pretty.printf (eval ind_env (App(ty1, I1()))) ^ 
-            "\n" ^ msg)
+        | Error (_, msg), _ -> Error (saa, Msg.pabs_i0_ty ind_env v1 e ty e' ty1 msg)
+        | _, Error (_, msg) -> Error (saa, Msg.pabs_i1_ty ind_env v1 e ty e' ty1 msg)
         end
-      | Error (sa, msg) -> 
-        Error (sa, "Error in the body of path abstraction: failed to check that the body " ^ 
-          Pretty.printf ei ^ "\nhas type\n  " ^ Pretty.printf ty1' ^ "\n" ^ msg)
+      | Error (sa, msg) -> Error (sa, Msg.pabs_ty_fail ei ty1' msg)
       end
     | Ok (Meta _, _, _) ->
       let h1 = Placeholder.generate () in
       let ei0 = Expr.open_var 0 (I0()) e in
       let ei1 = Expr.open_var 0 (I1()) e in
-      let elab0 = elaborate global ind_env ctx lvl sl h1  vars ei0 in
-      let elab1 = elaborate global ind_env ctx lvl sl h1  vars ei1 in
+      let elab0 = elaborate global ind_env ctx lvl sl h1 vars ei0 in
+      let elab1 = elaborate global ind_env ctx lvl sl h1 vars ei1 in
       begin match elab0, elab1 with
       | Ok (_, tyi0, _), Ok (_, tyi1, _) ->
         let v1 = Expr.init_fresh vars in
@@ -580,19 +437,14 @@ let rec elaborate global ind_env ctx lvl sl ty  vars = function
           begin match u with
           | Ok st ->
             elaborate global ind_env ctx lvl sl (Pathd(Lam(v1,st), ei0, ei1))  (vars+1) (Pabs (i, e))
-          | Error (_, msg) ->
-            Error (sl, "Failed to unify the types\n  " ^ Pretty.printf ty' ^ "\nand\n  " ^ Pretty.printf ty'' ^ "\n" ^ msg)
-            
+          | Error (_, msg) -> Error (sl, Msg.pabs_meta_unify ty' ty'' msg)
           end
-        | Error msg -> (* This case never occurs *)
-          Error msg
+        | Error msg -> Error msg
         end
       | Error msg, _ | _, Error msg -> Error msg
       end
-    | Ok (ty', _, sa) -> 
-      Error (sa, "The expression\n  <" ^ i ^ "> " ^ Pretty.printf e ^ "\nchecked against type " ^ Pretty.printf ty ^ " is expected to have type\n  pathd ?0? ?1? ?2?\nbut has type\n  " ^ Pretty.printf ty')
-    | Error (sa, msg) -> 
-      Error (sa, "Failed to prove that\n  " ^ Pretty.printf (eval ind_env ty) ^ "\nis a type\n" ^ msg)
+    | Ok (ty', _, sa) -> Error (sa, Msg.pabs_unexpected i e ty ty')
+    | Error (sa, msg) -> Error (sa, Msg.pabs_not_ty ind_env ty msg)
     end
   
   | At (e1, e2) ->
@@ -635,13 +487,9 @@ let rec elaborate global ind_env ctx lvl sl ty  vars = function
               let u = unify global ind_env ctx lvl sl  vars (ty2', ty, tTy) false in
               begin match u with
               | Ok tty -> Ok (At (e1', e2'), tty, Stack.append sa1 sa2)
-              | _ -> 
-                Error (Stack.append sa1 sa2, 
-                  "Failed to unify\n  " ^ 
-                  Pretty.printf ty2' ^ "\nwith\n  " ^ Pretty.printf ty)
+              | _ -> Error (Stack.append sa1 sa2, Msg.at_unify ty2' ty)
               end
-            | Error msg -> (* This case is impossible *)
-              Error msg
+            | Error msg -> Error msg
             end
             
           | _ -> 
@@ -654,13 +502,9 @@ let rec elaborate global ind_env ctx lvl sl ty  vars = function
                 begin match u, e2 = i with 
                 | Ok tty, true -> 
                   Ok (At (e1', e2'), App(tty, i), Stack.append sa1 sa2)
-                | _ -> 
-                  Error (Stack.append sa1 sa2, 
-                    "Failed to unify\n  " ^ 
-                    Pretty.printf ty' ^ "\nwith\n  " ^ Pretty.printf ty)
+                | _ -> Error (Stack.append sa1 sa2, Msg.at_unify ty' ty)
                 end
-              | Error msg -> (* This case is impossible *)
-                Error msg
+              | Error msg -> Error msg
               end
             | ty ->
               let elabTy = elaborate global ind_env ctx lvl sl h1  vars ty' in
@@ -671,21 +515,15 @@ let rec elaborate global ind_env ctx lvl sl ty  vars = function
                 | Ok tty -> 
                   Ok (At (e1', e2'), tty, Stack.append sa1 sa2) 
                 | _ -> 
-                  Error (Stack.append sa1 sa2, "Failed to unify\n  " ^ 
-                  Pretty.printf ty' ^ "\nwith\n  " ^ Pretty.printf ty)
+                  Error (Stack.append sa1 sa2, Msg.at_unify ty' ty)
                 end
-              | Error msg -> (* This case is impossible *)
-                Error msg
+              | Error msg -> Error msg
               end
             end
           end
-      | _ -> 
-        Error (Stack.append sa1 sa2, 
-          "Type mismatch when checking that\n  " ^ Pretty.printf e1' ^ 
-          "\nof type\n  " ^ Pretty.printf ty1' ^ "\nhas type\n  pathd ?0? ?1? ?2? ")
+      | _ -> Error (Stack.append sa1 sa2, Msg.path_mismatch e1' ty1')
       end
-    | Error msg, _ | _, Error msg -> 
-      Error msg
+    | Error msg, _ | _, Error msg -> Error msg
     end
 
   | Pi(x, ty1, ty2) ->
