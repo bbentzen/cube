@@ -104,23 +104,50 @@ let has term =
   in
   helper [term]
 
-let rec solve = function
+let rec bind count e = function
+  | [] -> e
+  | x :: env -> bind (count + 1) (Expr.close_var count x e) env
+
+let rec solve env = function
   | Meta n -> 
     begin match Hashtbl.find_opt Data.meta_store n with
     | Some stored ->
-      stored.solution
+      bind 0 stored.solution env
     | None -> Meta n
     end
   | Coe (i, j, e1, e2) ->
-    Coe (solve i, solve j, solve e1, solve e2)
+    Coe (solve env i, solve env j, solve env e1, solve env e2)
   | Hcom (i, j, e, e1, e2) ->
-    Hcom (solve i, solve j, solve e, solve e1, solve e2)
-  | Lam (x, e) -> Lam (x, solve e)
-  | App (e1, e2) -> App (solve e1, solve e2)
-  | Pi (x, e1, e2) -> Pi (x, solve e1, solve e2)
-  | Abort e -> Abort (solve e)
-  | Pabs (x, e) -> Pabs (x, solve e)
-  | At (e1, e2) -> At (solve e1, solve e2)
+    Hcom (solve env i, solve env j, solve env e, solve env e1, solve env e2)
+  | Lam (x, e) -> 
+    Lam (x, solve (x :: env) e)
+    (* Lam (x, Expr.close_bound x (solve env e)) *)
+    (* Lam (x, Expr.close_bound x (solve env e)) *)
+    (* Lam (x, Expr.shift 1 1 (Expr.close_bound x (solve env e))) *)
+  | Pabs (x, e) -> 
+    Pabs (x, solve (x :: env) e)
+    (* Pabs (x, Expr.shift 1 1 (Expr.close_bound x (solve env e))) *)
+    (* Pabs (x, Expr.close_bound x (solve env e)) *)
+  | App (e1, e2) -> App (solve env e1, solve env e2)
+  | Pi (x, e1, e2) -> Pi (x, solve env e1, solve env e2)
+  | Abort e -> Abort (solve env e)
+  | At (e1, e2) -> At (solve env e1, solve env e2)
   | Pathd (e, e1, e2) ->
-    Pathd (solve e, solve e1, solve e2)
+    Pathd (solve env e, solve env e1, solve env e2)
   | Local _ | Global _ | Int _ | I1 _ | I0 _ | Void _ | Type _ | Wild _ | Subgoal _ as e -> e
+
+(* Assigns unique positive metas to negative metas *)
+
+let rec unique = function
+  | Meta _ -> generate ()
+  | Coe (i, j, e1, e2) -> Coe (unique i, unique j, unique e1, unique e2)
+  | Hcom (i, j, e, e1, e2) ->
+    Hcom (unique i, unique j, unique e, unique e1, unique e2)
+  | Lam (x, e) -> Lam (x, unique e)
+  | App (e1, e2) -> App (unique e1, unique e2)
+  | Pi (x, e1, e2) -> Pi (x, unique e1, unique e2)
+  | Abort e -> Abort (unique e)
+  | Pabs (x, e) -> Pabs (x, unique e)
+  | At (e1, e2) -> At (unique e1, unique e2)
+  | Pathd (e, e1, e2) -> Pathd (unique e, unique e1, unique e2)
+  | e -> e

@@ -110,8 +110,7 @@ let rec unfold_all env vars = function
         "'\nIt occurs as definition/theorem identifier but is used as a variable name ")
     else
       begin match unfold_all env vars e with
-      | Ok e' -> 
-        Ok (Lam (x, e'))
+      | Ok e' -> Ok (Lam (x, e'))
       | Error msg -> Error msg
       end
 
@@ -121,8 +120,7 @@ let rec unfold_all env vars = function
         "'\nIt occurs as definition/theorem identifier but is used as a variable name ")
     else
       begin match unfold_all env vars e with
-      | Ok e' -> 
-        Ok (Pabs (x, e'))
+      | Ok e' -> Ok (Pabs (x, e'))
       | Error msg -> Error msg
       end
 

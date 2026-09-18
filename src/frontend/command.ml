@@ -48,6 +48,7 @@ let rec compile global ind_env ind lopen filename lvl next_location = function
         begin 
           match h1, h2 with
           | Ok ctx, Ok (ty', _) -> 
+            Placeholder.restore 0;
             let ctx' = List.rev ctx in
             begin 
               match Env.unfold_all global 0 (Implicit.convert e) with
@@ -57,6 +58,7 @@ let rec compile global ind_env ind lopen filename lvl next_location = function
                     ("Naming conflict with the identifier '" ^ id ^
                      "'\nName already exists in the environment (try 'infer " ^ id ^ "' for more information)")
                 else
+                  let e' = Placeholder.unique e' in
                   begin
                     (* Evaluate expressions and temporarily add inductive types to the context for type checking *)
                     let ictx = Inductive.add ind ctx' in
