@@ -104,14 +104,17 @@ let has term =
   in
   helper [term]
 
-let rec bind count e = function
-  | [] -> e
-  | x :: env -> bind (count + 1) (Expr.close_var count x e) env
+(* Zonks an expression with the solved metavariables *)
 
 let rec solve env = function
   | Meta n -> 
     begin match Hashtbl.find_opt Data.meta_store n with
     | Some stored ->
+      (* Close any open variables the solved meta might contain *)
+      let rec bind count e = function
+        | [] -> e
+        | x :: env -> bind (count + 1) (Expr.close_var count x e) env 
+      in
       bind 0 stored.solution env
     | None -> Meta n
     end
@@ -119,15 +122,8 @@ let rec solve env = function
     Coe (solve env i, solve env j, solve env e1, solve env e2)
   | Hcom (i, j, e, e1, e2) ->
     Hcom (solve env i, solve env j, solve env e, solve env e1, solve env e2)
-  | Lam (x, e) -> 
-    Lam (x, solve (x :: env) e)
-    (* Lam (x, Expr.close_bound x (solve env e)) *)
-    (* Lam (x, Expr.close_bound x (solve env e)) *)
-    (* Lam (x, Expr.shift 1 1 (Expr.close_bound x (solve env e))) *)
-  | Pabs (x, e) -> 
-    Pabs (x, solve (x :: env) e)
-    (* Pabs (x, Expr.shift 1 1 (Expr.close_bound x (solve env e))) *)
-    (* Pabs (x, Expr.close_bound x (solve env e)) *)
+  | Lam (x, e) -> Lam (x, solve (x :: env) e)
+  | Pabs (x, e) -> Pabs (x, solve (x :: env) e)
   | App (e1, e2) -> App (solve env e1, solve env e2)
   | Pi (x, e1, e2) -> Pi (x, solve env e1, solve env e2)
   | Abort e -> Abort (solve env e)

@@ -145,7 +145,7 @@ let mk_fresh var ctx =
   let used = Hashtbl.create (List.length ctx * 2) in
   List.iter (fun (y, _, _) -> Hashtbl.replace used y ()) ctx;
   let rec loop i =
-    let cand = if i = 0 then var else var ^ string_of_int (i + 1) in
+    let cand = if i = 0 then var else var ^ string_of_int i in
     if Hashtbl.mem used cand then loop (i + 1) else cand
   in
   loop 0
