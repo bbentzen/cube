@@ -58,6 +58,7 @@ let rec compile global ind_env ind lopen filename lvl next_location = function
                     ("Naming conflict with the identifier '" ^ id ^
                      "'\nName already exists in the environment (try 'infer " ^ id ^ "' for more information)")
                 else
+                  (* Remove negative placeholders *)
                   let e' = Placeholder.unique e' in
                   begin
                     (* Evaluate expressions and temporarily add inductive types to the context for type checking *)
