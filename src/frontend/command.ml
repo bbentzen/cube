@@ -28,69 +28,74 @@ let failwith_at location msg =
 
   (* Ind_env is a pair with inductive families in hasthtable and context forms *)
 
-let rec compile global ind_env ind lopen filename lvl next_location = function
-  | Thm (cmd, Prf (id, l, ty_raw, e_raw, attrb)) ->
-    let location = next_location () in
-    begin
-      (* Convert expressions storing the index of available fresh variable *)
-      let ty, v = of_raw_expr_with_vars [] ty_raw in
-      let e, v' = of_raw_expr_with_vars [] e_raw in
-      let fresh_vars = fresh_var_list (v @ v') + 1 in
-      (* Unfold all used global environtment identifiers *)
-      match Env.unfold_all global 0 (Implicit.convert ty) with
-      | Ok hty ->
-        let ctx = Global.create_ctx l in
-        let (h1, h2) = 
-          Ctx.check global ind_env ind ctx lvl,
-          let ind_ctx = Inductive.add ind ctx in
-          Type.check global ind_env ind_ctx lvl (eval ind_env hty)
-        in
-        begin 
-          match h1, h2 with
-          | Ok ctx, Ok (ty', _) -> 
-            Placeholder.restore 0;
-            let ctx' = List.rev ctx in
-            begin 
-              match Env.unfold_all global 0 (Implicit.convert e) with
-              | Ok e' ->
-                if Env.is_declared id global || Env.is_declared id ind then 
-                  failwith_at location
-                    ("Naming conflict with the identifier '" ^ id ^
-                     "'\nName already exists in the environment (try 'infer " ^ id ^ "' for more information)")
-                else
-                  (* Remove negative placeholders *)
-                  let e' = Placeholder.unique e' in
-                  begin
-                    (* Evaluate expressions and temporarily add inductive types to the context for type checking *)
-                    let ictx = Inductive.add ind ctx' in
-                    let e' = eval ind_env e' and ty' = eval ind_env ty' in
-                    let res = Synthesize.init global ind_env ictx lvl e' ty' fresh_vars in
-                    match res with 
-                    | Ok (e1, ty1) ->
-                      if id = "infer" then
-                        Ok (global, ind_env, ind, ("infer := " ^ Pretty.printf e1 ^ ": \n" ^ "         " ^ Pretty.printf ty1 ^ "\n", lopen))
+let rec compile_proof global ind_env ind lopen filename lvl next_location cmd (id, l, ty_raw, e_raw, attrb) =
+  let location = next_location () in
+  begin
+    (* Convert expressions storing the index of available fresh variable *)
+    let ty, v = of_raw_expr_with_vars [] ty_raw in
+    let e, v' = of_raw_expr_with_vars [] e_raw in
+    let fresh_vars = fresh_var_list (v @ v') + 1 in
+    (* Unfold all used global environtment identifiers *)
+    match Env.unfold_all global 0 (Implicit.convert ty) with
+    | Ok hty ->
+      let ctx = Global.create_ctx l in
+      let (h1, h2) = 
+        Ctx.check global ind_env ind ctx lvl,
+        let ind_ctx = Inductive.add ind ctx in
+        Type.check global ind_env ind_ctx lvl (eval ind_env hty)
+      in
+      begin 
+        match h1, h2 with
+        | Ok ctx, Ok (ty', _) -> 
+          Placeholder.restore 0;
+          let ctx' = List.rev ctx in
+          begin 
+            match Env.unfold_all global 0 (Implicit.convert e) with
+            | Ok e' ->
+              if id <> "infer" && (Env.is_declared id global || Env.is_declared id ind) then 
+                failwith_at location
+                  ("Naming conflict with the identifier '" ^ id ^
+                   "'\nName already exists in the environment (try 'infer " ^ id ^ "' for more information)")
+              else
+                (* Remove negative placeholders *)
+                let e' = Placeholder.unique e' in
+                begin
+                  (* Evaluate expressions and temporarily add inductive types to the context for type checking *)
+                  let ictx = Inductive.add ind ctx' in
+                  let e' = eval ind_env e' and ty' = eval ind_env ty' in
+                  let res = Synthesize.init global ind_env ictx lvl e' ty' fresh_vars in
+                  match res with 
+                  | Ok (e1, ty1) ->
+                    if id = "infer" then
+                      Ok (global, ind_env, ind, ("infer := " ^ Pretty.printf e1 ^ ": \n" ^ "         " ^ Pretty.printf ty1 ^ "\n", lopen))
+                    else
+                      (* Definition/ Theorem/ Lemma *)
+                      if attrb = 0 then
+                        compile (Env.add global id ctx' (e1, ty1)) ind_env ind lopen filename lvl next_location cmd
                       else
-                        (* Definition/ Theorem/ Lemma *)
-                        if attrb = 0 then
-                          compile (Env.add global id ctx' (e1, ty1)) ind_env ind lopen filename lvl next_location cmd
-                        else
-                          (* Abbreviation *)
-                          let global' = Env.add global id ctx' (e', ty1) in
-                          compile global' ind_env ind lopen filename lvl next_location cmd
-                    | Error msg -> 
-                      failwith_at location ("The following error was found at '" ^ id ^ "'\n" ^ msg)
-                  end
-              | Error msg -> 
-                failwith_at location msg
-            end
-          | Error msg, _ -> 
-            failwith_at location ("Error found at '" ^ id ^ "' when validating its context. \n" ^ msg)
-          | _, Error msg  -> 
-            failwith_at location ("Error found at '" ^ id ^ "' when checking typehood for the target type. \n" ^ msg)
-        end
-      | Error msg -> 
-        failwith_at location msg
-    end
+                        (* Abbreviation *)
+                        let global' = Env.add global id ctx' (e', ty1) in
+                        compile global' ind_env ind lopen filename lvl next_location cmd
+                  | Error msg -> 
+                    failwith_at location ("The following error was found at '" ^ id ^ "'\n" ^ msg)
+                end
+            | Error msg -> 
+              failwith_at location msg
+          end
+        | Error msg, _ -> 
+          failwith_at location ("Error found at '" ^ id ^ "' when validating its context. \n" ^ msg)
+        | _, Error msg  -> 
+          failwith_at location ("Error found at '" ^ id ^ "' when checking typehood for the target type. \n" ^ msg)
+      end
+    | Error msg -> 
+      failwith_at location msg
+  end
+
+and compile global ind_env ind lopen filename lvl next_location = function
+  | Thm (cmd, Prf (id, l, ty_raw, e_raw, attrb)) ->
+    compile_proof global ind_env ind lopen filename lvl next_location cmd (id, l, ty_raw, e_raw, attrb)
+  | Infer (cmd, l, e_raw) ->
+    compile_proof global ind_env ind lopen filename lvl next_location cmd ("infer", l, RMeta 0, e_raw, 2)
 
   | Print (cmd, id) -> 
     let location = next_location () in

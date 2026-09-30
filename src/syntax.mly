@@ -98,6 +98,7 @@ let single_id = function
 
 command:  
   | decl command                                            {Thm($2, $1)}
+  | INFER ctx expr command                                  {Infer($4, $2, $3)}
   | IND ID ctx expr COLONEQ constr command                  {Ind($7, $2, $3, $4, $6)}
   | IMPORT FILENAME command                                 {Import($3, $2)}
   | UNIVERSE ids command                                    {Level($3, $2)}
@@ -108,7 +109,6 @@ command:
 decl:
   | DEF ID ctx expr COLONEQ expr                            {Prf($2, $3, $4, $6, 0)}
   | ABBREV ID ctx expr COLONEQ expr                         {Prf($2, $3, $4, $6, 1)}
-  | INFER ctx expr                                          {Prf("infer", $2, RMeta(0), $3, 2)}
 
 constr: 
   | BAR ID COLON expr                                       {[($2, $4)]}

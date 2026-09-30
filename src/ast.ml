@@ -70,6 +70,7 @@ type proof =
 type command = 
     | Import of command * string
     | Thm of command * proof
+    | Infer of command * (((string list * rawexpr) * bool) list) * rawexpr
     | Ind of command * string * (((string list * rawexpr) * bool) list) * rawexpr * ((string * rawexpr) list)
     | Print of command * string
     | Eval of command * rawexpr
