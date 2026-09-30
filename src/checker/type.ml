@@ -10,13 +10,13 @@ open Basis
 open Ast
 open Eval
 
-let check global ind_env ctx lvl ty =
+let check global ctx lvl ty =
   match ty with
   | Meta _ -> Ok (Meta 0, ty)
   | _ ->
-    let ty' = eval ind_env ty in
+    let ty' = eval ty in
     Placeholder.restore 0;
-    let elab = Elab.elaborate global ind_env ctx lvl ([], []) (Meta 0) 1 ty' in
+    let elab = Elab.elaborate global ctx lvl ([], []) (Meta 0) 1 ty' in
     match elab with
     | Ok (ty', tTy, _) ->
       begin

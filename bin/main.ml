@@ -20,12 +20,10 @@ let () =
   )
   in
   (* Initialize the hasthtable of inductive families *)
-  let rec_env : (string, Data.ind_spec) Hashtbl.t = Hashtbl.create 16 in
-  let cons_env : (string, Data.con_spec) Hashtbl.t = Hashtbl.create 48 in
-  let ind_env = (rec_env, cons_env) in
+  Data.init_ind_env ();
   (* Parse and compile file and print the output *)
-  match checkfile [] ind_env [] [] filename [] with 
-  | Ok (env, _, _, (s, _)) ->
+  match checkfile [] [] [] filename [] with 
+  | Ok (env, _, (s, _)) ->
     let n = String.length s in
     let s' = 
       if n > 0 && s.[n-1] = '\n' then 

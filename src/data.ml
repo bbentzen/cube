@@ -32,6 +32,17 @@ type con_spec = {
   num_params : int;
 }
 
+(* Global inductive environment shared by evaluation and elaboration *)
+
+let rec_env : (string, ind_spec) Hashtbl.t ref = ref (Hashtbl.create 16)
+let cons_env : (string, con_spec) Hashtbl.t ref = ref (Hashtbl.create 48)
+
+let init_ind_env () =
+  rec_env := Hashtbl.create 16;
+  cons_env := Hashtbl.create 48
+
+let get_ind_env () = (!rec_env, !cons_env)
+
 (* Unifier constraints *)
 
 type meta_entry = {
@@ -41,6 +52,7 @@ type meta_entry = {
 }
 
 let meta_store : (int, meta_entry) Hashtbl.t = Hashtbl.create 100
+
 
 type constraints = {
   (* lhs : Ast.expr; *)

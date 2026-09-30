@@ -104,7 +104,7 @@ let reduce_recursor rec_spec args =
    coercions and compositions either since users can only input atoms in 
    the raw syntax *)
 
-let rec reduce ind_env = function
+let rec reduce = function
   | Coe (i, j, Lam(k, Pi(x, ty1, ty2)), e) ->  
     let v1 = (create_fresh [Pi(x, ty1, ty2); e] 1).(0) in (* TODO: replace, passing vars param *)
     let i' = shift 0 1 i and j' = shift 0 1 j in
@@ -133,7 +133,7 @@ let rec reduce ind_env = function
     if i = j then
       e2
     else
-      let e1' = reduce ind_env e1 in
+      let e1' = reduce e1 in
       begin match e1' with
       | Lam(_, e) ->
         if occurs_index 0 0 e then
@@ -152,29 +152,28 @@ let rec reduce ind_env = function
 
   | Lam (x, App (e , Local 0)) -> 
     if not (occurs_index 0 0 e) && not (Placeholder.has e) then
-      reduce ind_env (shift 0 (-1) e) (* eta reduction *)
+      reduce (shift 0 (-1) e) (* eta reduction *)
     else
       Lam (x, App (e , Local 0))
   
   | App (e1, e2) -> 
-    let e1' = reduce ind_env e1 in
+    let e1' = reduce e1 in
     (* First we attempt beta reduction *)
     begin match e1' with
     | Lam (_, e) ->
-        reduce ind_env (beta e e2)
+        reduce (beta e e2)
     | _ ->
       (* Then we attempt reduce recursor *)
-      let e2' = reduce ind_env e2 in
+      let e2' = reduce e2 in
       let full_app = App (e1', e2') in
       let head, args = break_args [] full_app in
       let recursor_opt =
         begin match head with
         | Global rec_name ->
-            let rec_env, _ = ind_env in
-            begin match Hashtbl.find_opt rec_env rec_name with
+            begin match Hashtbl.find_opt (fst (Data.get_ind_env ())) rec_name with
             | Some rec_spec ->
                 begin match reduce_recursor rec_spec args with
-                | Some reduced -> Some (reduce ind_env reduced)
+                | Some reduced -> Some (reduce reduced)
                 | None -> None
                 end
             | None -> None
@@ -187,8 +186,8 @@ let rec reduce ind_env = function
       | Some reduced -> reduced
       | None ->
         begin match full_app with
-        | App (Hcom (_, j, _, e1, _), I0()) -> reduce ind_env (App (e1, j))
-        | App (Hcom (_, j, _, _, e2), I1()) -> reduce ind_env (App (e2, j))
+        | App (Hcom (_, j, _, e1, _), I0()) -> reduce (App (e1, j))
+        | App (Hcom (_, j, _, _, e2), I1()) -> reduce (App (e2, j))
         | _ -> full_app
         end
       end
@@ -196,18 +195,18 @@ let rec reduce ind_env = function
   
   | Pabs (x, At (e , Local 0)) -> 
     if not (occurs_index 0 0 e) && not (Placeholder.has e) then
-      reduce ind_env (shift 0 (-1) e) (* eta reduction *)
+      reduce (shift 0 (-1) e) (* eta reduction *)
     else
       Pabs (x, At (e , Local 0))
 
   | At (e1, e2) -> 
     begin
-      let e1' = reduce ind_env e1 in
+      let e1' = reduce e1 in
       match e1' with
       | Pabs (_ , e) ->
-          reduce ind_env (beta e e2)
+          reduce (beta e e2)
       | _ ->
-        let e2' = reduce ind_env e2 in
+        let e2' = reduce e2 in
         At (e1', e2')
     end
 
@@ -216,4 +215,4 @@ let rec reduce ind_env = function
     
   | e -> e
 
-let eval ind_env = reduce ind_env
+let eval = reduce

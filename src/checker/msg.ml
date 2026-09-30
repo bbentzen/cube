@@ -83,11 +83,11 @@ let pi_universe_1 x ty1 ty2 max m =
 let pi_universe_2 x ty1 ty2 ty =
   "Type mismatch when checking that\n  " ^ Pretty.printf (Pi(x, ty1, ty2)) ^ "\nhas type\n  " ^ Pretty.printf ty
 
-let pi_codomain ind_env ty2' msg =
-  "Failed to check that the codomain\n  " ^ Pretty.printf (Eval.eval ind_env ty2') ^ "\nis a type\n" ^ msg
+let pi_codomain ty2' msg =
+  "Failed to check that the codomain\n  " ^ Pretty.printf (Eval.eval ty2') ^ "\nis a type\n" ^ msg
 
-let pi_domain ind_env ty1 msg =
-  "Failed to check that the domain\n  " ^ Pretty.printf (Eval.eval ind_env ty1) ^ "\nis a type\n" ^ msg
+let pi_domain ty1 msg =
+  "Failed to check that the domain\n  " ^ Pretty.printf (Eval.eval ty1) ^ "\nis a type\n" ^ msg
 
 let pi_unexpected x ty1 ty2 ty ty1' u1 ty2' u2 =
   "Failed to show that the dependent function " ^ Pretty.printf (Pi(x, ty1, ty2)) ^ " has the expected type " ^ Pretty.printf ty ^ ". Can only check that\n  " ^ 
@@ -130,59 +130,59 @@ let coercion_error_ty tyi_expr i msg =
 
 (* Homogeneous composition *)
 
-let lid_unify ind_env ei0 i1 e1i0 msg =
+let lid_unify ei0 i1 e1i0 msg =
   "Invalid composition scenario: Error when unifying the i0-endpoint of the lid \n  " ^ 
-  Pretty.printf (Eval.eval ind_env ei0) ^ "\nwith the " ^ Pretty.printf i1 ^ 
-  "-endpoint of the i0-tube \n  " ^ Pretty.printf (Eval.eval ind_env e1i0) ^ "\n" ^ msg
+  Pretty.printf (Eval.eval ei0) ^ "\nwith the " ^ Pretty.printf i1 ^ 
+  "-endpoint of the i0-tube \n  " ^ Pretty.printf (Eval.eval e1i0) ^ "\n" ^ msg
 
-let tube_i1_unify ind_env ei1 i1 e2i0 msg =
+let tube_i1_unify ei1 i1 e2i0 msg =
   "Invalid composition scenario: Error when unifying the terms\n  " ^ 
-  Pretty.printf (Eval.eval ind_env ei1) ^ "\nwith the " ^ Pretty.printf i1 ^ 
-  "-endpoint of the i1-tube \n  " ^ Pretty.printf (Eval.eval ind_env e2i0) ^ "\n" ^ msg
+  Pretty.printf (Eval.eval ei1) ^ "\nwith the " ^ Pretty.printf i1 ^ 
+  "-endpoint of the i1-tube \n  " ^ Pretty.printf (Eval.eval e2i0) ^ "\n" ^ msg
 
-let lid_i0 ind_env i1 j1 e' e1' e2' ty' msg =
+let lid_i0 i1 j1 e' e1' e2' ty' msg =
   "Error when checking that the homogeneous composition  " ^ Pretty.printf (Hcom(i1, j1, e', e1', e2')) ^ 
   "\nhas type\n  I → " ^ Pretty.printf ty' ^ "\nThe i0-face of the lid\n  " ^ 
-  Pretty.printf (Eval.eval ind_env (App(e', I0()))) ^ "\ndoes not have the expected type\n  " ^ 
+  Pretty.printf (Eval.eval (App(e', I0()))) ^ "\ndoes not have the expected type\n  " ^ 
   Pretty.printf ty' ^ "\n" ^ msg
 
-let lid_i1 ind_env i1 j1 e' e1' e2' ty' msg =
+let lid_i1 i1 j1 e' e1' e2' ty' msg =
   "Error when checking that the homogeneous composition\n  " ^ Pretty.printf (Hcom(i1, j1, e', e1', e2')) ^ 
   "\nhas type\n  I → " ^ Pretty.printf ty' ^ "\nThe i1-face of the lid\n  " ^ 
-  Pretty.printf (Eval.eval ind_env (App(e', I1()))) ^ "\ndoes not have the expected type\n  " ^ 
+  Pretty.printf (Eval.eval (App(e', I1()))) ^ "\ndoes not have the expected type\n  " ^ 
   Pretty.printf ty' ^ "\n" ^ msg
 
-let tube_i0 ind_env i1 j1 e' e1' e2' ty' msg =
+let tube_i0 i1 j1 e' e1' e2' ty' msg =
   "Error when checking that the homogeneous composition\n  " ^ Pretty.printf (Hcom(i1, j1, e', e1', e2')) ^ 
   "\nhas type\n  I → " ^ Pretty.printf ty' ^ "\nThe i0-face of the i0-tube\n  " ^ 
-  Pretty.printf (Eval.eval ind_env (App(e1', I0()))) ^ "\ndoes not have the expected type\n  " ^ 
+  Pretty.printf (Eval.eval (App(e1', I0()))) ^ "\ndoes not have the expected type\n  " ^ 
   Pretty.printf ty' ^ "\n" ^ msg
 
-let tube_i1 ind_env i1 j1 e' e1' e2' ty' msg =
+let tube_i1 i1 j1 e' e1' e2' ty' msg =
   "Error when checking that the homogeneous composition\n  " ^ Pretty.printf (Hcom(i1, j1, e', e1', e2')) ^ 
   "\nhas type\n  I → " ^ Pretty.printf ty' ^ "\nThe i0-face of the i1-tube\n  " ^ 
-  Pretty.printf (Eval.eval ind_env (App(e2', I0()))) ^ "\ndoes not have the expected type\n  " ^ 
+  Pretty.printf (Eval.eval (App(e2', I0()))) ^ "\ndoes not have the expected type\n  " ^ 
   Pretty.printf ty' ^ "\n" ^ msg
 
 let hcom_error msg =
   "Failed to typecheck the lid or tubes of the homogeneous composition: " ^ msg
 
-let tube_i0_meta ind_env i1 j1 e' e1' e2' ty0 msg =
+let tube_i0_meta i1 j1 e' e1' e2' ty0 msg =
   "Error when synthesizing type for the homogeneous composition\n  " ^ 
   Pretty.printf (Hcom(i1, j1, e', e1', e2')) ^ "\nThe i0-face of the i0-tube\n  " ^ 
-  Pretty.printf (Eval.eval ind_env (App(e1', I0()))) ^ "\ndoes not have the expected type\n  " ^ 
+  Pretty.printf (Eval.eval (App(e1', I0()))) ^ "\ndoes not have the expected type\n  " ^ 
   Pretty.printf ty0 ^ "\n" ^ msg
 
-let tube_i1_meta ind_env i1 j1 e' e1' e2' ty0 msg =
+let tube_i1_meta i1 j1 e' e1' e2' ty0 msg =
   "Error when synthesizing type for the homogeneous composition\n  " ^ 
   Pretty.printf (Hcom(i1, j1, e', e1', e2')) ^ "\nThe i0-face of the i1-tube\n  " ^ 
-  Pretty.printf (Eval.eval ind_env (App(e1', I0()))) ^ "\ndoes not have the expected type\n  " ^ 
+  Pretty.printf (Eval.eval (App(e1', I0()))) ^ "\ndoes not have the expected type\n  " ^ 
   Pretty.printf ty0 ^ "\n" ^ msg
 
-let lid_meta ind_env e' ety e1' e2' ty' msg =
+let lid_meta e' ety e1' e2' ty' msg =
   "Failed to synthesize placeholder type. The lid " ^ Pretty.printf e' ^ " has type " ^ 
   Pretty.printf ety ^ ", but could not check that the line\n  " ^ 
-  Pretty.printf (Eval.eval ind_env (App(e', I1()))) ^ "\nhas type\n  " ^ 
+  Pretty.printf (Eval.eval (App(e', I1()))) ^ "\nhas type\n  " ^ 
   Pretty.printf ty' ^ "\nin the homogeneous composition\n  
   hfill (" ^ Pretty.printf e' ^ ")\n    | i0 → " ^ Pretty.printf e1' ^
   "\n    | i1 → " ^ Pretty.printf e2' ^ "\n" ^ msg
@@ -249,18 +249,18 @@ let pabs_unify_i1_4 v1 e2 e2' ei1 ei1' e' ty ctx msg =
   "\n" ^  Pretty.printf ei1' ^ "\n" ^  Pretty.printf e2' ^
   "\n" ^ msg ^ "\n" ^ goal_msg ctx (Pabs (v1, e')) ty
 
-let pabs_i0_ty ind_env v1 e ty e' ty1 msg =
+let pabs_i0_ty v1 e ty e' ty1 msg =
   "Error when checking that the path abstracted term\n  " ^ 
-  Pretty.printf (Pabs(v1, Eval.eval ind_env e)) ^ "\nhas type\n  " ^ Pretty.printf ty ^ 
-  "\nThe i0-endpoint\n  " ^ Pretty.printf (Eval.eval ind_env (Expr.open_var 0 (I0()) e')) ^ 
-  "\ndoes not have type\n  " ^ Pretty.printf (Eval.eval ind_env (App(ty1, I0()))) ^
+  Pretty.printf (Pabs(v1, Eval.eval e)) ^ "\nhas type\n  " ^ Pretty.printf ty ^ 
+  "\nThe i0-endpoint\n  " ^ Pretty.printf (Eval.eval (Expr.open_var 0 (I0()) e')) ^ 
+  "\ndoes not have type\n  " ^ Pretty.printf (Eval.eval (App(ty1, I0()))) ^
   "\n" ^ msg
 
-let pabs_i1_ty ind_env v1 e ty e' ty1 msg =
+let pabs_i1_ty v1 e ty e' ty1 msg =
   "Error when checking that the path abstracted term\n  " ^ 
-  Pretty.printf (Pabs(v1, Eval.eval ind_env e)) ^ "\nhas type\n  " ^ Pretty.printf ty ^ 
-  "\nThe i1-endpoint\n  " ^ Pretty.printf (Eval.eval ind_env (Expr.open_var 0 (I1()) e')) ^ 
-  "\ndoes not have type\n  " ^ Pretty.printf (Eval.eval ind_env (App(ty1, I1()))) ^ 
+  Pretty.printf (Pabs(v1, Eval.eval e)) ^ "\nhas type\n  " ^ Pretty.printf ty ^ 
+  "\nThe i1-endpoint\n  " ^ Pretty.printf (Eval.eval (Expr.open_var 0 (I1()) e')) ^ 
+  "\ndoes not have type\n  " ^ Pretty.printf (Eval.eval (App(ty1, I1()))) ^ 
   "\n" ^ msg
 
 let pabs_ty_fail ei ty1' msg =
@@ -273,8 +273,8 @@ let pabs_meta_unify ty' ty'' msg =
 let pabs_unexpected i e ty ty' = 
   "The expression\n  <" ^ i ^ "> " ^ Pretty.printf e ^ "\nchecked against type " ^ Pretty.printf ty ^ " is expected to have type\n  pathd ?0? ?1? ?2?\nbut has type\n  " ^ Pretty.printf ty'
 
-let pabs_not_ty ind_env ty msg =
-  "Failed to prove that\n  " ^ Pretty.printf (Eval.eval ind_env ty) ^ "\nis a type\n" ^ msg
+let pabs_not_ty ty msg =
+  "Failed to prove that\n  " ^ Pretty.printf (Eval.eval ty) ^ "\nis a type\n" ^ msg
 
 let at_unify ty2' ty =
   "Failed to unify\n  " ^ 
@@ -320,9 +320,9 @@ let type_mismatch n ty =
 
 (* Wildcard *)
 
-let synthesis_error ind_env ty n ctx =
+let synthesis_error ty n ctx =
   "Failed to synthesize placeholder for ?" ^ string_of_int n ^ "? in the current goal:\n" ^ 
-  Global.printf ctx ^ "-------------------------------------------\n ⊢ " ^ Pretty.printf (Eval.eval ind_env ty)
+  Global.printf ctx ^ "-------------------------------------------\n ⊢ " ^ Pretty.printf (Eval.eval ty)
 
 let display_goal ctx ty =
   "The current goal:\n" ^ Global.printf ctx ^ 
@@ -345,10 +345,10 @@ let endpoint_unify e x e' x' msg =
   "[" ^ x ^ "/i0]\nwith\n  " ^ Pretty.printf e' ^ "[" ^ x' ^ "/i0]\nand\n  " ^ Pretty.printf e ^ 
   "[" ^ x ^ "/i1]\nwith\n  " ^ Pretty.printf e' ^ "[" ^ x' ^ "/i1]\n" ^ msg
 
-let app_unify_i0 ind_env e0 e0' msg =
+let app_unify_i0 e0 e0' msg =
   "Don't know how to unify the application i0-endpoint\n  " ^ 
   Pretty.printf e0 ^ "\nwith\n  " ^ Pretty.printf e0' ^ "\n" ^ 
-  Pretty.printf (Eval.eval ind_env e0') ^ "\n" ^ msg
+  Pretty.printf (Eval.eval e0') ^ "\n" ^ msg
 
 let app_unify_i1 e1 e1' msg =
   "Don't know how to unify the application i1-endpoint\n  " ^ 
