@@ -11,12 +11,47 @@
 open Syntax
 }
 
+let greek_lower =
+  "α" | "β" | "γ" | "δ" | "ε" | "ζ" | "η" | "θ" | "ι" | "κ" | "μ" | "ν" |
+  "ξ" | "ο" | "π" | "ρ" | "σ" | "τ" | "υ" | "φ" | "χ" | "ψ" | "ω"
+
+let greek_upper =
+  "Α" | "Β" | "Γ" | "Δ" | "Ε" | "Ζ" | "Η" | "Θ" | "Ι" | "Κ" | "Λ" | "Μ" | "Ν" |
+  "Ξ" | "Ο" | "Ρ" | "Τ" | "Υ" | "Φ" | "Χ" | "Ψ" | "Ω"
+
+let subscript_digit =
+  "₀" | "₁" | "₂" | "₃" | "₄" | "₅" | "₆" | "₇" | "₈" | "₉"
+
+let subscript_letter =
+  "ₐ" | "ₑ" | "ₕ" | "ᵢ" | "ⱼ" | "ₖ" | "ₗ" | "ₘ" | "ₙ" | "ₚ" | "ₛ" | "ₜ" | "ᵥ" | "ₓ"
+
+let superscript_digit =
+  "⁰" | "¹" | "²" | "³" | "⁴" | "⁵" | "⁶" | "⁷" | "⁸" | "⁹"
+
+let superscript_letter =
+  "ᵃ" | "ᵇ" | "ᶜ" | "ᵈ" | "ᵉ" | "ᶠ" | "ᵍ" | "ʰ" | "ⁱ" | "ʲ" | "ᵏ" | "ˡ" |
+  "ᵐ" | "ⁿ" | "ᵒ" | "ᵖ" | "ʳ" | "ˢ" | "ᵗ" | "ᵘ" | "ᵛ" | "ʷ" | "ˣ" | "ʸ" | "ᶻ"
+
+let ident_start =
+  ['A'-'Z' 'a'-'z']
+| greek_lower
+| greek_upper
+| subscript_digit
+| subscript_letter
+| superscript_digit
+| superscript_letter
+
+let ident_continue =
+  ident_start
+| ['0'-'9' '_']
+| "'"
+
 let identifier =
-  ['A'-'Z' 'a'-'z']['A'-'Z' 'a'-'z' '0'-'9' '_' ''']* as str
+  ident_start ident_continue* as str
 
 let idlistcolon =
-  ['A'-'Z' 'a'-'z']['A'-'Z' 'a'-'z' '0'-'9' '_' ''']*
-  ([' ' '\t']+ ['A'-'Z' 'a'-'z']['A'-'Z' 'a'-'z' '0'-'9' '_' ''']*)*
+  ident_start ident_continue*
+  ([' ' '\t']+ ident_start ident_continue*)*
   [' ' '\t']* ':' [' ' '\t']+ as str
 
 let filename =

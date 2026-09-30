@@ -4,11 +4,11 @@ Before preparing a pull request (PR), please test your changes beforehand, runni
 
 Here are some items on our TODO list:
 
+- hcom boundary separation at unification
 - Delay unification (in progress)
 - Clearly separate elaboration, type inference, checking, and look for global identifier conflict when opening a binder only at elaboration stage
 - Add explicit @ handling of implicit arguments
 - Fix universe polymorphism bug when universe level occurs in proof
-- Clean elaborator with a dedicated module for error messages
 - Clearer notation for hcom
 - Improve global boundary separation
 - Improve stack overflow error at synthetization attempts
@@ -19,7 +19,6 @@ Here are some items on our TODO list:
 - Let-in local definitions
 - Introduce Quotients types
 - Opening of modules for referring to module.foo as foo
-- Parse unicode subscript, superscript, Greek letters properly
 - Proper handling of Infer in command apart from Thm
 - Wildcard printing: user should not see inductive data as part of context when _ is entered in a proof (remove ind@ctx hack)
 - Parse numbers in applied exprs (but not as levels) as sss...s0, e.g 2 as ss0
