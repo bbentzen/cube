@@ -131,7 +131,7 @@ let rec reduce = function
 
   | Coe (i, j, e1, e2) ->
     if i = j then
-      e2
+      e2 (* coercion boundary *)
     else
       let e1' = reduce e1 in
       begin match e1' with
@@ -139,14 +139,14 @@ let rec reduce = function
         if occurs_index 0 0 e then
           Coe (i, j, e1', e2)
         else
-          e2  (* coercion regularity *)
+          e2 (* coercion regularity *)
       | _ ->
         Coe (i, j, e1', e2)
       end
 
   | Hcom (i, j, e, e1, e2) -> 
     if i = j then
-      e
+      e (* composition cap boundary *)
     else
       Hcom (i, j, e, e1, e2)
 
@@ -181,7 +181,7 @@ let rec reduce = function
         | _ -> None
         end
       in
-      (* Lastly check for composition endpoint reduction *)
+      (* Lastly check for composition tube boundary *)
       begin match recursor_opt with
       | Some reduced -> reduced
       | None ->
