@@ -7,7 +7,7 @@ We recommend using the cube-vscode extension for verification support.
 The Cube VS Code Extension extension will soon be available on the VS Code marketplace. Simply search for `bbentzen.cube-vscode` on the VS Code Extensions view and click on the Install buttom. Alternativelly, you can install the extension manually from source. To do this, assuming you have already cloned the cube repository, you can run:
 
 ```
-$ cd cube-vscode
+$ cd vscode
 $ npm install
 $ npm run compile
 ```
@@ -25,7 +25,7 @@ If you see a message "Cube binary cannot be located", this is most likely becaus
 
 ### Features 
 
-The Cube VS Code Extension extension supports syntax highlighting, snippet completion, bracket matching, bracket autoclosing, bracket autosurrounding, comment toggling (`Ctrl` + `/`), and various LaTeX-style abbreviations for Unicode characters, including
+The Cube VS Code Extension extension supports syntax highlighting, snippet completion, bracket matching, bracket autoclosing, bracket autosurrounding, comment toggling (`Ctrl` + `/`), Go to Definition, and various LaTeX-style abbreviations for Greek letters, letter and numerical super and subscripts, mathematical and logical operators, including
 
 * λ as `\lambda` or `\let`
 

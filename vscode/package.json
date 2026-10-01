@@ -11,9 +11,7 @@
     "Programming Languages"
   ],
   "repository": { "type": "git", "url": "https://github.com/bbentzen/cube" },
-  "activationEvents": [
-    "onLanguage:cube"
-  ],
+  "activationEvents": [],
   "main": "./out/extension.js",
   "contributes": {
     "languages": [
