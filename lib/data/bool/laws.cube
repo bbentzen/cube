@@ -7,8 +7,6 @@
 import ../unit.cube 
 import ./basic.cube
 
-universe l
-
 /* Boolean equations */
 
 def bool_neq :

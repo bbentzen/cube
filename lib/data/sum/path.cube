@@ -8,32 +8,32 @@ import ../sigma/lemmas.cube
 import ../unit/basic.cube
 import ./lemmas.cube
 
-universe l k
+universe ℓ
 
 /* Paths over sums */
 
-def sum_eq_inl {A B : type l} {a a' : A} :
+def sum_eq_inl {A B : type ℓ} {a a' : A} :
   path (A + B) (inl A B a) (inl A B a') → path A a a' :=
 λ p, <i> sumrec _ _ _ id (λ _, a) (p @ i)
 
-def sum_eq_inr {A B : type l} {b b' : B} :
+def sum_eq_inr {A B : type ℓ} {b b' : B} :
   path (A + B) (inr A B b) (inr A B b') → path B b b' :=
 λ p, <i> sumrec _ _ _ (λ _, b) id (p @ i)
 
-def sum_neq {A B : type l} {a : A} {b : B} :
+def sum_neq {A B : type ℓ} {a : A} {b : B} :
   ¬ path (A + B) (inl A B a) (inr A B b) :=
 λ p, coe i0 i1 (λ i, sumrec _ _ _ (λ _, unit) (λ _, void) (p @ i)) ()
 
-def sum_neq' {A B : type l} {a : A} {b : B} :
+def sum_neq' {A B : type ℓ} {a : A} {b : B} :
   ¬ path (A + B) (inr A B b) (inl A B a) :=
 λ p, coe i1 i0 (λ i, sumrec _ _ _ (λ _, unit) (λ _, void) (p @ i)) ()
 
-def sum_code (A B : type l) (v v' : A + B) :
-  type l :=
+def sum_code (A B : type ℓ) (v v' : A + B) :
+  type ℓ :=
 sumrec _ _ _ (λ x, sumrec _ _ _ (λ x', path (A + B) (inl A B x) (inl A B x')) (λ _, void) v') 
 (λ y, sumrec _ _ _ (λ _, void) (λ y', path (A + B) (inr A B y) (inr A B y')) v') v
 
-def sum_eq {A B : type l} (v v' : A + B) :
+def sum_eq {A B : type ℓ} (v v' : A + B) :
   path (A + B) v v' ↔ sum_code A B v v' :=
 sumrec _ _ _
   (λ y, sumrec _ _ _  (λ y', id_iff_id) (λ y', (sum_neq, absurd)) v') 

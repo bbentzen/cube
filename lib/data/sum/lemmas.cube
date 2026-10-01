@@ -7,113 +7,113 @@
 import ../sigma/basic.cube
 import ./basic.cube
 
-universe l k
+universe ℓ
 
 /* Sum type */
 
-def de_morgan_prod_1 {A B : type l} :
+def de_morgan_prod_1 {A B : type ℓ} :
   (A × B) → ¬ (¬A + ¬B) :=
 λ w v, sumrec _ _ _ (λ f, f (fst w)) (λ g, g (snd w)) v
 
-def de_morgan_prod_2 {A B : type l} :
+def de_morgan_prod_2 {A B : type ℓ} :
    (¬ A × ¬ B) → ¬ (A + B) :=
 λ w v, sumrec _ _ _ (λ x, (fst w) x) (λ y, (snd w) y) v
 
-def prod_elim_sum {A B C : type l} :
+def prod_elim_sum {A B C : type ℓ} :
    (A × B) → ((A → C) + (B → C)) → C :=
 λ w v, sumrec _ _ _ (λ f, f (fst w)) (λ g, g (snd w)) v
 
-def weak_1 {A B : type l} :
+def weak_1 {A B : type ℓ} :
   A → A + B :=
 λ x, inl A B x
 
-def weak_2 {A B : type l} :
+def weak_2 {A B : type ℓ} :
   B → A + B :=
 λ y, inr A B y
 
-def sum_swap {A B : type l}  :
+def sum_swap {A B : type ℓ}  :
   (A + B) → (B + A) :=
 λ v, sumrec _ _ _ (λ x, inr B A x) (λ y, inl B A y) v
 
-def sum_assoc {A B C : type l} :
+def sum_assoc {A B C : type ℓ} :
   (A + (B + C)) ↔ ((A + B) + C) :=
 (λ v, sumrec A (B + C) _ (λ x, inl (A + B) C (inl A B x)) (λ v', sumrec B C _ (λ y, inl (A + B) C (inr A B y)) (λ z, inr (A + B) C z) v') v,
  λ v, sumrec _ _ _ (λ v', sumrec A B _ (λ x, inl A (B + C) x) (λ y, inr A (B + C) (inl B C y)) v') (λ z, inr A (B + C) (inr B C z)) v)
 
-def sum_distrib_1 {A B C : type l}  :
+def sum_distrib_1 {A B C : type ℓ}  :
   ((A + B) → C) → ((A → C) + (B → C)) :=
 λ f, inl (A → C) (B → C) (λ x, f (inl A B x))
 
-def sum_distrib_2 {A B C : type l}  :
+def sum_distrib_2 {A B C : type ℓ}  :
   ((A + B) → C) → ((A → C) + (B → C)) :=
 λ f, inr (A → C) (B → C) (λ y, f (inr A B y))
 
-def disj_syll_1 {A B C : type l}  :
+def disj_syll_1 {A B C : type ℓ}  :
   (A + B) → (¬A) → B  :=
 λ v f, sumrec _ _ _ (λ x, abort (f x)) (λ y, y) v
 
-def disj_syll_2 {A B : type l} :
+def disj_syll_2 {A B : type ℓ} :
   (A + B) → (¬B) → A  :=
 λ v g, sumrec _ _ _ (λ x, x) (λ y, abort (g y)) v
 
-def not_not_lem {A : type l} :
+def not_not_lem {A : type ℓ} :
   ¬¬ (A + ¬A) :=
 λ f, f (inr A (¬A) (λ x, f (inl _ _ x)))
 
-def lem_implies_dne {A : type l} (v : A + ¬A) :
+def lem_implies_dne {A : type ℓ} (v : A + ¬A) :
   ¬¬A → A :=
 λ f, sumrec _ _ _ id (λ nx, abort (f nx)) v
 
-def dne_implies_lem {A : type l} (dne : ¬¬(A + ¬A) → (A + ¬A)) :
+def dne_implies_lem {A : type ℓ} (dne : ¬¬(A + ¬A) → (A + ¬A)) :
   A + ¬A :=
 dne (λ f, f (inr _ _ (λ x, f (inl _ _ x))))
 
-def sum_up_1 {A B C : type l} :
+def sum_up_1 {A B C : type ℓ} :
   (A → C) → (B → C) → ((A + B) → C) :=
 λ f g v, sumrec _ _ _ f g v
 
-def sum_up_2 {A B C : type l} :
+def sum_up_2 {A B C : type ℓ} :
   ((A + B) → C) → (A → C) :=
 λ f x, f (inl _ _ x)
 
-def sum_up_3 {A B C : type l} :
+def sum_up_3 {A B C : type ℓ} :
   ((A + B) → C) → (B → C) :=
 λ f y, f (inr _ _ y) 
 
-def sum_to_fun {A B : type l} :
+def sum_to_fun {A B : type ℓ} :
   (A + B) → (¬ A → B) :=
 λ v, sumrec _ _ _  (λ x, (λ f, abort (f x))) (λ y f, y) v
 
-def sum_neg_to_fun {A B : type l} :
+def sum_neg_to_fun {A B : type ℓ} :
   (¬ A + B) → (A → B) :=
 λ v x, sumrec _ _ _ (λ nx, abort (nx x)) (λ y, y) v
 
-def de_morgan_sum_1 {A B : type l} :
+def de_morgan_sum_1 {A B : type ℓ} :
   (A + B) → ¬ (¬ A × ¬ B) :=
 λ v w, sumrec _ _ _ (λ x, (fst w) x) (λ y, (snd w) y) v
 
-def de_morgan_sum_2 {A B : type l} :
+def de_morgan_sum_2 {A B : type ℓ} :
   ¬(A + B) → (¬A × ¬B) :=
 λ f, (λ x, f (inl _ _ x) , λ y, f (inr A B y))
 
-def de_morgan_sum_3 {A B : type l} :
+def de_morgan_sum_3 {A B : type ℓ} :
   (¬ A + ¬ B) → (¬ (A × B)) :=
 λ v w, sumrec _ _ _ (λ f, f (fst w)) (λ g, g (snd w)) v
 
-def sum_elim {A B C : type l} :
+def sum_elim {A B C : type ℓ} :
   (A + B) → ((A → C) × (B → C)) → C :=
 λ v f, sumrec _ _ _ (λ x, (fst f) x) (λ y, (snd f) y) v
 
 /* Distribution over dependent types */
 
-def sigma_sum_distrb {A B : type l} {C : A → type l} :
+def sigma_sum_distrb {A B : type ℓ} {C : A → type ℓ} :
   (Σ (x : A), B + C x) → (B + Σ (x : A), C x) :=
 λ w, sumrec _ _ _ (λ x, inl B _ x) (λ y, inr _ _ (fst w, y)) (snd w)
 
-theorem pi_sum_distr {A : type l} {B C : A → type l} :
+theorem pi_sum_distr {A : type ℓ} {B C : A → type ℓ} :
   ((Π (x : A), B x) + (Π (x : A), C x)) → (Π (x : A), B x + C x) :=
 λ w x, sumrec _ _ _ (λ f, inl _ _ (f x)) (λ g, inr (B x) (C x) (g x)) w
 
-theorem pi_sum_distrb {A B : type l} {C : A → type l} :
+theorem pi_sum_distrb {A B : type ℓ} {C : A → type ℓ} :
   (B + (Π (x : A), C x)) → (Π (x : A), B + C x) :=
 λ w x, sumrec _ _ _ (λ y, inl _ _ y) (λ f, inr _ _ (f x)) w

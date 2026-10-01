@@ -7,8 +7,6 @@
 import ./laws.cube
 import ../sigma/lemmas.cube
 
-universe l
-
 /* Path structure (code-decode) */
 
 def bool_code (b b' : bool) :

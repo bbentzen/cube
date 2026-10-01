@@ -6,11 +6,11 @@
 
 import ../function.cube
 
-universe l
+universe ℓ
 
 /* Connections for paths */
 
-def meet {A : type l} {a b : A} (p : path A a b) :
+def meet {A : type ℓ} {a b : A} (p : path A a b) :
   pathd (λ i, path A a (p @ i)) (<_> a) p  := 
 <j> <i> (hcom i0 j (λ _, a) 
  | i0 → λ _, a 
@@ -29,7 +29,7 @@ def meet {A : type l} {a b : A} (p : path A a b) :
                 p @ i
 */
  
-def join {A : type l} {a b : A} (p : path A a b) :
+def join {A : type ℓ} {a b : A} (p : path A a b) :
   pathd (λ i, path A (p @ i) b) p (<_> b)  := 
 <j> <i> (hcom i0 j (λ i, p @ i) 
  | i0 → λ j, p @ j 
@@ -48,7 +48,7 @@ def join {A : type l} {a b : A} (p : path A a b) :
                  b
 */
  
-def both {A : type l} {a b c : A} (p : path A a b) (q : path A b c) :
+def both {A : type ℓ} {a b c : A} (p : path A a b) (q : path A b c) :
   pathd (λ i, path A (p @ i) (q @ i)) p q := 
 <j> <i> (hcom i0 j (λ i, p @ i) 
  | i0 → λ j, p @ j 
@@ -67,7 +67,7 @@ def both {A : type l} {a b c : A} (p : path A a b) (q : path A b c) :
                  q @ i
 */
 
-def single {A : type l} {a : A} (p : path A a a) :
+def single {A : type ℓ} {a : A} (p : path A a a) :
   pathd (λ i, path A (p @ i) (p @ i)) p p := 
 <j> <i> (hcom i0 j (λ i, p @ i) 
  | i0 → λ j, p @ j 

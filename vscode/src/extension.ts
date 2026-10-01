@@ -33,6 +33,15 @@ const UNICODE_ABBREVIATIONS: { [key: string]: string } = {
     'rho': 'ρ', 'sigma': 'σ', 'tau': 'τ', 'upsilon': 'υ', 'phi': 'φ', 'chi': 'χ', 'psi': 'ψ', 'omega': 'ω',
     'Gamma': 'Γ', 'Delta': 'Δ', 'Theta': 'Θ', 'Lambda': 'Λ', 'Xi': 'Ξ', 'Upsilon': 'Υ', 'Phi': 'Φ', 'Psi': 'Ψ', 'Omega': 'Ω',
     '^+': '⁺', '^-': '⁻', '^=': '⁼', '^(': '⁽', '^)': '⁾',
+    'ell': 'ℓ', 'mathcalA': '𝓐', 'mathcalB': '𝓑', 'mathcalC': '𝓒', 'mathcalD': '𝓓', 'mathcalE': '𝓔', 'mathcalF': '𝓕', 'mathcalG': '𝓖',
+    'mathcalH': '𝓗', 'mathcalI': '𝓘', 'mathcalJ': '𝓙', 'mathcalK': '𝓚', 'mathcalL': '𝓛', 'mathcalM': '𝓜', 'mathcalN': '𝓝',
+    'mathcalO': '𝓞', 'mathcalP': '𝓟', 'mathcalQ': '𝓠', 'mathcalR': '𝓡', 'mathcalS': '𝓢', 'mathcalT': '𝓣', 'mathcalU': '𝓤',
+    'mathcalV': '𝓥', 'mathcalW': '𝓦', 'mathcalX': '𝓧', 'mathcalY': '𝓨', 'mathcalZ': '𝓩',
+    'infty': '∞', 'partial': '∂', 'nabla': '∇', 'angle': '∠', 'perp': '⊥', 'therefore': '∴', 'because': '∵',
+    'approx': '≈', 'cong': '≅', 'equiv': '≡', 'sim': '∼', 'simeq': '≃', 'asymp': '≍',
+    'leq': '≤', 'geq': '≥', 'll': '≪', 'gg': '≫', 'prec': '≺', 'succ': '≻',
+    'subsetneq': '⊊', 'supsetneq': '⊋', 
+    '+-': '±', '-+': '∓',
     // Add more abbreviations and symbols as needed
 };
 

@@ -6,18 +6,18 @@
 
 import ../../core/function.cube
 
-universe l k
+universe ℓ₁ ℓ₂
 
 /* Sum type former, constructors and eliminator */
 
-inductive sum (A B : type l) : type l :=
+inductive sum (A B : type ℓ₁) : type ℓ₁ :=
 | inl : A → sum A B
 | inr : B → sum A B
 
-def case {A B : type l} {C : A + B → type k} (v : A + B) (cl : Π (x : A), C (inl A B x)) (cr : Π (x : B), C (inr A B x)) :
+def case {A B : type ℓ₁} {C : A + B → type ℓ₂} (v : A + B) (cl : Π (x : A), C (inl A B x)) (cr : Π (x : B), C (inr A B x)) :
   C v :=
 sumrec _ _ _ cl cr v
 
-def sum_type {A : type l} {B : type k} :
-  type (max l k) :=
+def sum_type {A : type ℓ₁} {B : type ℓ₂} :
+  type (max ℓ₁ ℓ₂) :=
 A + B

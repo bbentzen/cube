@@ -4,13 +4,13 @@
  * Author: Bruno Bentzen
  */
 
-universe l
+universe ℓ
 
 /* Unit type, constructors and eliminator */
 
 inductive unit : type 0 :=
 | star : unit
 
-abbrev let {C : unit → type l} (u : unit) (c : C ()) :
+abbrev let {C : unit → type ℓ} (u : unit) (c : C ()) :
   C u :=
 unitrec _ c u

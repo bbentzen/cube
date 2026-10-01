@@ -4,41 +4,41 @@
  * Author: Bruno Bentzen
  */
 
-universe k
+universe ℓ
 
 /* Sigma type former, constructors and eliminator */
 
-inductive sigma (A : type k) (B : A → type k) : type k :=
+inductive sigma (A : type ℓ) (B : A → type ℓ) : type ℓ :=
 | pair : Π (x : A), B x → sigma A B
 
 /* Σ (x : A), B x and (x, y) are syntactic sugar for sigma A B and pair _ _ x y */
 
-def pairing {A : type k} {B : A → type k} :
+def pairing {A : type ℓ} {B : A → type ℓ} :
   Π (x : A) (y : B x), Σ (x : A), B x :=
 λ x, λ y, (x, y)
 
 /* Sigma type projections and eliminator (as abbreviations) */
 
-abbrev fst {A : type k} {B : A → type k} :
+abbrev fst {A : type ℓ} {B : A → type ℓ} :
   (Σ (x : A), B x) → A :=
 λ w, sigmarec _ _ (λ _, A) (λ x _, x) w
 
-abbrev snd {A : type k} {B : A → type k} :
+abbrev snd {A : type ℓ} {B : A → type ℓ} :
   Π (w : Σ (x : A), B x), B (fst w) :=
 λ w, sigmarec _ _ (λ w, B (fst w)) (λ _ y, y) w
 
-abbrev spread {A : type k} {B : A → type k} {C : (Σ (x : A), B x) → type k} :
+abbrev spread {A : type ℓ} {B : A → type ℓ} {C : (Σ (x : A), B x) → type ℓ} :
   Π (w : Σ (x : A), B x) (c : Π (x : A) (y : B x), C (x, y)), C w :=
 λ w c, sigmarec _ _ _ c w
 
 /* Type formation (the product type is defined as sigma A (λ x, B)) */
 
-universe l
+universe ℓ'
 
-def sigma_form {A : type k} {B : A → type l} :
-  type (max k l) :=
+def sigma_form {A : type ℓ} {B : A → type ℓ'} :
+  type (max ℓ ℓ') :=
 Σ (x : A), B x
 
-def prod_type {A B : type k} :
-  type k :=
+def prod_type {A B : type ℓ} :
+  type ℓ :=
 A × B

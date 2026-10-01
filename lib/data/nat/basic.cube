@@ -6,7 +6,7 @@
 
 import ../../core/function.cube
 
-universe k
+universe ℓ
 
 /* The natural number type */
 
@@ -14,7 +14,7 @@ inductive nat : type 0 :=
 | zero : nat
 | succ : nat → nat
 
-def rec {C : nat → type k} (n : nat)  :
+def rec {C : nat → type ℓ} (n : nat)  :
   Π (c : C zero) (d : Π (k : nat), C k → C (succ k)), C n :=
 λ c d, natrec _ c d n
 

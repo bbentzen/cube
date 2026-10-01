@@ -19,6 +19,10 @@ let greek_upper =
   "Α" | "Β" | "Γ" | "Δ" | "Ε" | "Ζ" | "Η" | "Θ" | "Ι" | "Κ" | "Λ" | "Μ" | "Ν" |
   "Ξ" | "Ο" | "Ρ" | "Τ" | "Υ" | "Φ" | "Χ" | "Ψ" | "Ω"
 
+let mathcal_letter =
+  "𝓐" | "𝓑" | "𝓒" | "𝓓" | "𝓔" | "𝓕" | "𝓖" | "𝓗" | "𝓘" | "𝓙" | "𝓚" | "𝓛" | "𝓜" | "𝓝" |
+  "𝓞" | "𝓟" | "𝓠" | "𝓡" | "𝓢" | "𝓣" | "𝓤" | "𝓥" | "𝓦" | "𝓧" | "𝓨" | "𝓩" | "ℓ"
+
 let subscript_digit =
   "₀" | "₁" | "₂" | "₃" | "₄" | "₅" | "₆" | "₇" | "₈" | "₉"
 
@@ -36,6 +40,7 @@ let ident_start =
   ['A'-'Z' 'a'-'z']
 | greek_lower
 | greek_upper
+| mathcal_letter
 | subscript_digit
 | subscript_letter
 | superscript_digit

@@ -7,8 +7,6 @@
 import ../sigma/basic.cube
 import ./laws.cube
 
-universe k
-
 /* Some numerical inequalities */
  
 def leq (m n : ℕ) :

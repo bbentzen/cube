@@ -4,22 +4,22 @@
  * Author: Bruno Bentzen
  */
 
-universe l1 l2
+universe ℓ₁ ℓ₂
 
 /** Lifting **/
 
-def lift {f : type (max l1 l2) → type l2} {A : type l1} :
-  type l2 := 
+def lift {f : type (max ℓ₁ ℓ₂) → type ℓ₂} {A : type ℓ₁} :
+  type ℓ₂ := 
 f A
 
 def next_lvl :
-  type (next l2) :=
-type l2
+  type (next ℓ₂) :=
+type ℓ₂
 
 def max_left :
-  type (max l1 l2) :=
-type l1
+  type (max ℓ₁ ℓ₂) :=
+type ℓ₁
 
 def max_right :
-  type (max l1 l2) :=
-type l2
+  type (max ℓ₁ ℓ₂) :=
+type ℓ₂

@@ -4,22 +4,22 @@
  * Author: Bruno Bentzen
  */
 
-universe l1 l2
+universe ℓ₁ ℓ₂
  
 /* Formation rules for type formers */
 
-def pi_form {A : type l1} {B : A → type l2} :
-  type (max l1 l2) :=
+def pi_form {A : type ℓ₁} {B : A → type ℓ₂} :
+  type (max ℓ₁ ℓ₂) :=
 Π (x : A), B x
 
-def path_form {A : type l1} (a b : A) :
-  type l1 :=
+def path_form {A : type ℓ₁} (a b : A) :
+  type ℓ₁ :=
 path A a b
 
-def pathd_form {A : I → type l1} (a : A i0) (b : A i1) :
-  type l1 :=
+def pathd_form {A : I → type ℓ₁} (a : A i0) (b : A i1) :
+  type ℓ₁ :=
 pathd A a b
 
-def pathd_type {A : I → type l1} (p : Π (i : I), A i) :
-  type l1 :=
+def pathd_type {A : I → type ℓ₁} (p : Π (i : I), A i) :
+  type ℓ₁ :=
 pathd A (p i0) (p i1)

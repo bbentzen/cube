@@ -6,19 +6,19 @@
  
 import ./basic.cube
 
-universe l
+universe ℓ
 
 /** Regularity **/
 
-def coe_boundary {C : I → type l} (i : I) (c : C i) :
+def coe_boundary {C : I → type ℓ} (i : I) (c : C i) :
   path (C i) (coe i i C c) c :=
 <_> c
 
-def coe_regularity {A : type l} (i j : I) (a : A) :
+def coe_regularity {A : type ℓ} (i j : I) (a : A) :
   path A (coe i j (λ _, A) a) a :=
 <_> a
 
-def hcom_regularity {A : type l} {a b : A} (p : path A a b) :
+def hcom_regularity {A : type ℓ} {a b : A} (p : path A a b) :
   path (path A a b) p 
   (<k> (hcom i0 i1 (λ i, p @ i)
    | i0 → λ j, a 

@@ -9,8 +9,6 @@ import ../sigma/lemmas.cube
 import ../unit.cube
 import ./basic.cube
 
-universe k
-
 /* Some numerical equations */
 
 def add_zero (m : nat) :

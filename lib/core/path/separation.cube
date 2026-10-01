@@ -6,33 +6,33 @@
 
 import ./basic.cube
 
-universe l
+universe ℓ
 
 /** Boundary separation proof irrelevance **/
 
-def irrel_uip {A : type l} {a b : A} (p q : path A a b) :
+def irrel_uip {A : type ℓ} {a b : A} (p q : path A a b) :
   path (path A a b) p q :=
 <_> _
 
-def irrel_line {A : type l} {a b : A} (p q : path A a b) :
+def irrel_line {A : type ℓ} {a b : A} (p q : path A a b) :
   path (Π (x : I), A) (λ i, p @ i) (λ j, q @ j) :=
 <_> (λ i, p @ i)
 
-def irrel_k {A : type l} {a : A} (p : path A a a) :
+def irrel_k {A : type ℓ} {a : A} (p : path A a a) :
   path (path A a a) p (<_> a) :=
 <_> _
 
-def irrel_example {A : type l} {a b : A} {B : path A a b → (Π (x : I), A) → type l} (p q : path A a b)  :
+def irrel_example {A : type ℓ} {a b : A} {B : path A a b → (Π (x : I), A) → type ℓ} (p q : path A a b)  :
   B p (λ i, p @ i) → B q (λ j, q @ j) :=
 id
 
-def irrel_example2 {A : type l} (i j : I) {a b : A} (p q : I → path A a b) :
+def irrel_example2 {A : type ℓ} (i j : I) {a b : A} (p q : I → path A a b) :
   path (path A a b) (p i) (q j) :=
 <_> _ i
 
 /* Forming two-dimensional paths from one-dimensional composition */
 
-def get_square {A : type l} {a b c d : A} (p : path A a b) (q : path A c d) (r : path A a c) (s : path A b d) :
+def get_square {A : type ℓ} {a b c d : A} (p : path A a b) (q : path A c d) (r : path A a c) (s : path A b d) :
   pathd (λ i, path A (r @ i) (s @ i)) p q := 
 <j> <i> (hcom i0 j (λ i, p @ i) 
   | i0 → λ j, r @ j 

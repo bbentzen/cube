@@ -8,41 +8,41 @@ import ../core/function.cube
 import ../core/path.cube
 import ../data/sum.cube
 
-universe k
+universe ℓ
 
 /* Basic algebraic notions */
 
-definition is_associative {A : type k} (f : A → A → A) : type k :=
+definition is_associative {A : type ℓ} (f : A → A → A) : type ℓ :=
   Π (x y z : A), path A (f (f x y) z) (f x (f y z))
 
-definition is_right_identity {A : type k} (f : A → A → A) (e : A) : type k :=
+definition is_right_identity {A : type ℓ} (f : A → A → A) (e : A) : type ℓ :=
   Π (x : A), path A (f x e) x
 
-definition is_left_identity {A : type k} (f : A → A → A) (e : A) : type k :=
+definition is_left_identity {A : type ℓ} (f : A → A → A) (e : A) : type ℓ :=
   Π (x : A), path A (f e x) x
 
-definition is_identity {A : type k} (f : A → A → A) (e : A) : type k :=
+definition is_identity {A : type ℓ} (f : A → A → A) (e : A) : type ℓ :=
   is_right_identity f e × is_left_identity f e
 
-definition has_inverse {A : type k} (f : A → A → A) (e : A) : type k :=
+definition has_inverse {A : type ℓ} (f : A → A → A) (e : A) : type ℓ :=
   Π (x : A), Σ (y : A), path A (f x y) e
 
-definition is_commutative {A : type k} (f : A → A → A) : type k :=
+definition is_commutative {A : type ℓ} (f : A → A → A) : type ℓ :=
   Π (x y : A), path A (f x y) (f y x)
 
 /* Uniqueness of identity */
 
-/* theorem identity_is_unique {A : type k} {f : A → A → A} (e e' : A) :
+/* theorem identity_is_unique {A : type ℓ} {f : A → A → A} (e e' : A) :
   Π (p : is_identity f e) (q : is_identity f e'), path A e e' :=
 λ p q, ((fst q) e)⁻¹ · ((snd p) e') */
 
 /* Monoids */
 
-inductive monoid (A : type k) : type k :=
+inductive monoid (A : type ℓ) : type ℓ :=
 | mk : Π  (f : A → A → A) (e : A) (p : is_identity f e) (q : is_associative f), monoid A
 
-definition get_op (A : type k) : monoid A → (A → A → A) :=
+definition get_op (A : type ℓ) : monoid A → (A → A → A) :=
 monoidrec A (λ _, A → A → A) (λ f e p q, f)
 
-definition preserves_mult {A B : type k} (h : A → B) (M : monoid A) (N : monoid B) : type k :=
+definition preserves_mult {A B : type ℓ} (h : A → B) (M : monoid A) (N : monoid B) : type ℓ :=
 Π (x y : A), path B (h (get_op A M x y)) (get_op B N (h x) (h y)) /* improve implicit arg handling */

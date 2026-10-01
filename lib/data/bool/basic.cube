@@ -6,7 +6,7 @@
 
 import ../../core/function.cube
 
-universe l
+universe ℓ
 
 /* Boolean type, constructors and eliminator */
 
@@ -14,7 +14,7 @@ inductive bool : type 0 :=
 | true : bool
 | false : bool
 
-abbrev if {C : bool → type l} (b : bool) (ct : C true) (cf : C false) :
+abbrev if {C : bool → type ℓ} (b : bool) (ct : C true) (cf : C false) :
   C b :=
 boolrec _ ct cf b
 
