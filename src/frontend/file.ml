@@ -2,26 +2,19 @@
   (c) Copyright 2019 Bruno Bentzen. All rights reserved.
   Released under Apache 2.0 license as described in the file LICENSE.
 
-  Desc: Performs basic file operations, including reading files, parsing strings and files, and handling directories. 
-        It also provides functions for resolving import paths relative to the current file.
+  Desc: Performs basic file operations, including reading files, parsing strings and files, and handling directories.
+        Also tracks the locations of symbols in the source code for the "Go to Definition" VS Code Extension feature.
+        Also provides functions for resolving import paths relative to the current file.
  **)
 
 open Basis
 
-type command_location = {
-  line : int;
-  col_start : int;
-  col_end : int;
-}
+(* Basic file reading functions *)
 
-let current_location lb =
-  let startp = Lexing.lexeme_start_p lb in
-  let endp = Lexing.lexeme_end_p lb in
-  {
-    line = startp.pos_lnum;
-    col_start = startp.pos_cnum - startp.pos_bol;
-    col_end = endp.pos_cnum - endp.pos_bol;
-  }
+let rec concat_string_list = function
+  | [] -> ""
+  | [s] -> s
+  | s :: l -> s ^ "\n" ^ concat_string_list l
 
 let read_file filename = 
   let lines = ref [] in
@@ -34,10 +27,76 @@ let read_file filename =
     close_in chan;
     List.rev !lines ;;
 
-let rec concat_string_list = function
-  | [] -> ""
-  | [s] -> s
-  | s :: l -> s ^ "\n" ^ concat_string_list l
+(* Track the location of symbols for "Go to Definition" feature *)
+
+type command_location = {
+  line : int;
+  col_start : int;
+  col_end : int;
+}
+
+type symbol_info = {
+  name : string;
+  kind : string;
+  sym_line : int;
+  sym_col_start : int;
+  sym_col_end : int;
+}
+
+let current_location lb =
+  let startp = Lexing.lexeme_start_p lb in
+  let endp = Lexing.lexeme_end_p lb in
+  {
+    line = startp.pos_lnum;
+    col_start = startp.pos_cnum - startp.pos_bol;
+    col_end = endp.pos_cnum - endp.pos_bol;
+  }
+
+let symbol_kind_of_token = function
+  | Syntax.DEF -> "def"
+  | Syntax.ABBREV -> "abbrev"
+  | Syntax.IND -> "inductive"
+  | _ -> "other"
+
+let symbol_locations_of_string s =
+  let lb = Lexing.from_string s in
+  let rec helper acc =
+    try
+      let token = Scanner.token lb in
+      match token with
+      | Syntax.EOF -> List.rev acc
+      | Syntax.DEF | Syntax.ABBREV | Syntax.IND as kind ->
+          let next = Scanner.token lb in
+          begin match next with
+          | Syntax.ID name ->
+              let location = current_location lb in
+              helper ({
+                name;
+                kind = symbol_kind_of_token kind;
+                sym_line = location.line;
+                sym_col_start = location.col_start;
+                sym_col_end = location.col_end;
+              } :: acc)
+          | _ -> helper acc
+          end
+      | _ -> helper acc
+    with
+    | Failure _ -> List.rev acc
+  in
+  helper []
+
+let symbol_locations_of_file filename =
+  symbol_locations_of_string (concat_string_list (read_file filename))
+
+let symbol_locations_to_json filename symbols =
+  let items =
+    List.map (fun symbol ->
+      Printf.sprintf
+        "{\"name\":%S,\"kind\":%S,\"file\":%S,\"line\":%d,\"col_start\":%d,\"col_end\":%d}"
+        symbol.name symbol.kind filename symbol.sym_line symbol.sym_col_start symbol.sym_col_end)
+      symbols
+  in
+  "[" ^ String.concat "," items ^ "]"
 
 (* Parses a string *)
 

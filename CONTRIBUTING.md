@@ -21,6 +21,5 @@ Here are some items on our TODO list:
 - Opening of modules for referring to module.foo as foo
 - Wildcard printing: user should not see inductive data as part of context when _ is entered in a proof (remove ind@ctx hack)
 - Pretty print numbers in applied exprs (but not as levels) as sss...s0, e.g 2 as ss0
-- Go to definition VS code extension feature
 - Publish VS Code extension
 - Proper readthedocs documentation

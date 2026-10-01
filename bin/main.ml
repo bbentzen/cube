@@ -10,28 +10,42 @@ open Command
 open Basis
 
 let () =
-  let start = Sys.time() in
-  let filename =
-  if Array.length Sys.argv > 1 then
-    Sys.argv.(1)
-  else (
-    print_endline "Usage: cube <filename>";
-    exit 1
-  )
+  let print_usage () =
+    print_endline "Usage: cube <filename> | cube --dump-symbols <filename>"
   in
-  (* Initialize the hasthtable of inductive families *)
-  Data.init_ind_env ();
-  (* Parse and compile file and print the output *)
-  match checkfile [] [] [] filename [] with 
-  | Ok (env, _, (s, _)) ->
-    let n = String.length s in
-    let s' = 
-      if n > 0 && s.[n-1] = '\n' then 
-        String.sub s 0 (n-1)
-      else 
-        s
+  if Array.length Sys.argv > 1 && Sys.argv.(1) = "--dump-symbols" then
+    begin
+      if Array.length Sys.argv > 2 then
+        let filename = Sys.argv.(2) in
+        let symbols = File.symbol_locations_of_file filename in
+        print_endline (File.symbol_locations_to_json filename symbols)
+      else
+        print_usage ();
+        exit 1
+    end
+  else
+    let start = Sys.time() in
+    let filename =
+      if Array.length Sys.argv > 1 then
+        Sys.argv.(1)
+      else (
+        print_usage ();
+        exit 1
+      )
     in
-    print_endline s';
-    let time = string_of_float (Sys.time() -. start) in
-    print_endline (string_of_int (List.length env) ^ " theorem(s) compiled successfully in " ^ time ^ " seconds");
-  | Error msg -> print_endline ("Error: " ^ msg);
+    (* Initialize the hasthtable of inductive families *)
+    Data.init_ind_env ();
+    (* Parse and compile file and print the output *)
+    match checkfile [] [] [] filename [] with 
+    | Ok (env, _, (s, _)) ->
+      let n = String.length s in
+      let s' = 
+        if n > 0 && s.[n-1] = '\n' then 
+          String.sub s 0 (n-1)
+        else 
+          s
+      in
+      print_endline s';
+      let time = string_of_float (Sys.time() -. start) in
+      print_endline (string_of_int (List.length env) ^ " theorem(s) compiled successfully in " ^ time ^ " seconds");
+    | Error msg -> print_endline ("Error: " ^ msg);

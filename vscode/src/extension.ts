@@ -36,9 +36,142 @@ const UNICODE_ABBREVIATIONS: { [key: string]: string } = {
     // Add more abbreviations and symbols as needed
 };
 
+type CubeSymbol = {
+    name: string;
+    kind: string;
+    file: string;
+    line: number;
+    col_start: number;
+    col_end: number;
+};
+
+function getCubeExecutablePath(): string {
+    const config = vscode.workspace.getConfiguration('cube');
+    let cubePath = config.get<string>('executablePath') || 'cube';
+
+    if (cubePath === 'cube' && vscode.workspace.workspaceFolders) {
+        const workspaceDir = vscode.workspace.workspaceFolders[0].uri.fsPath;
+        const siblingCubeRoot = path.resolve(workspaceDir, '..', 'cube');
+
+        const possiblePaths = [
+            path.join(siblingCubeRoot, 'cube'),
+            path.join(siblingCubeRoot, '_build', 'default', 'src', 'main.exe'),
+            path.join(siblingCubeRoot, '_build', 'default', 'src', 'cube.exe'),
+            path.join(siblingCubeRoot, '_build', 'default', 'bin', 'main.exe')
+        ];
+
+        for (const p of possiblePaths) {
+            if (fs.existsSync(p)) {
+                cubePath = p;
+                break;
+            }
+        }
+    }
+
+    return cubePath;
+}
+
+async function loadCubeSymbolsForFile(filePath: string): Promise<CubeSymbol[]> {
+    const cubePath = getCubeExecutablePath();
+
+    return new Promise((resolve) => {
+        exec(`"${cubePath}" --dump-symbols "${filePath}"`, (error, stdout, stderr) => {
+            const output = (stdout + '\n' + stderr).trim();
+            if (error && !output) {
+                resolve([]);
+                return;
+            }
+
+            if (!output) {
+                resolve([]);
+                return;
+            }
+
+            try {
+                const parsed = JSON.parse(output);
+                if (!Array.isArray(parsed)) {
+                    resolve([]);
+                    return;
+                }
+                resolve(parsed as CubeSymbol[]);
+            } catch {
+                resolve([]);
+            }
+        });
+    });
+}
+
+async function collectCubeSymbolsForFile(filePath: string, visited = new Set<string>()): Promise<CubeSymbol[]> {
+    if (visited.has(filePath)) {
+        return [];
+    }
+    visited.add(filePath);
+
+    const symbols = await loadCubeSymbolsForFile(filePath);
+    try {
+        const source = fs.readFileSync(filePath, 'utf8');
+        const importRegex = /(^|\s)import\s+([^\r\n]+)/gm;
+        let match: RegExpExecArray | null;
+
+        while ((match = importRegex.exec(source)) !== null) {
+            const importPath = (match[2] || '').trim();
+            if (!importPath) {
+                continue;
+            }
+
+            const resolved = path.resolve(path.dirname(filePath), importPath);
+            if (fs.existsSync(resolved)) {
+                const nested = await collectCubeSymbolsForFile(resolved, visited);
+                symbols.push(...nested);
+            }
+        }
+    } catch {
+        // Ignore missing or unreadable imported files; the current file still contributes its own definitions.
+    }
+
+    return symbols;
+}
+
+async function findCubeDefinitionAtPosition(document: vscode.TextDocument, position: vscode.Position): Promise<vscode.Location | undefined> {
+    const range = document.getWordRangeAtPosition(position);
+    if (!range) {
+        return undefined;
+    }
+
+    const name = document.getText(range);
+    if (!name) {
+        return undefined;
+    }
+
+    const symbols = await collectCubeSymbolsForFile(document.uri.fsPath);
+    const matches = symbols.filter((symbol) => symbol.name === name);
+    if (matches.length === 0) {
+        return undefined;
+    }
+
+    const symbol = matches[0];
+    const targetUri = vscode.Uri.file(symbol.file);
+    const line = Math.max(0, symbol.line - 1);
+    const startColumn = Math.max(0, symbol.col_start);
+    const endColumn = Math.max(startColumn, symbol.col_end);
+
+    return new vscode.Location(targetUri, new vscode.Range(
+        new vscode.Position(line, startColumn),
+        new vscode.Position(line, endColumn)
+    ));
+}
+
 export function activate(context: vscode.ExtensionContext) {
     diagnosticCollection = vscode.languages.createDiagnosticCollection('cube');
     context.subscriptions.push(diagnosticCollection);
+
+    context.subscriptions.push(
+        vscode.languages.registerDefinitionProvider('cube', {
+            provideDefinition(document: vscode.TextDocument, position: vscode.Position) {
+                return findCubeDefinitionAtPosition(document, position);
+            }
+        })
+    );
 
     // 1. Diagnostics on Save
     context.subscriptions.push(
