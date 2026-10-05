@@ -1,6 +1,10 @@
 # The Cube documentation
 
-Cube runs on a cubical reconstruction of extensional type theory <a id="1">[2]</a><a id="1">[3]</a> that enjoys a judgmental version of the unicity of identity proofs principle (UIP), meaning that any two elements of the same path type are the same up to judgmental identity. Below you will find a short reference manual on the basics of Cube. Here we assume that the user is relatively familiar with cubical type theory. See <a id="1">[3]</a> for a friendly introduction. 
+Cube runs on a cubical reconstruction of extensional type theory that enjoys a judgmental version of the unicity of identity proofs principle (UIP), meaning that any two elements of the same path type are the same up to judgmental identity. Below you will find a short reference manual on the basics of Cube. Here we assume that the user is relatively familiar with cubical type theory. See <a id="1">[3]</a> for a friendly introduction. 
+
+## The type theory of Cube
+
+To be more precise, Cube implements a version of XTT <a id="1">[2]</a><a id="1">[3]</a>. Currently, the main difference between the type theory of Cube and XTT is that the latter is essentially formulated with built-in dependent function types, dependent pair types, dependent path types, booleans, and closed notion of universe that rests on a type-case operator. In XTT, type-case allows pattern-matching on type formers, and, as a consequence, universes cannot remain open-ended. By contrast, the type theory of Cube supports user-defined inductive type families and is committed to an open-ended notion of universe, meaning that it does not have a type-case operator. It runs on built-in dependent function types, dependent pair types, dependent path types, a cumulative hierarchy of universes à la Russell, and inductive type families. Thus, the type theory of Cube is less extensional than that of XTT <a id="1">[3]</a>. 
 
 ## Usage
 
