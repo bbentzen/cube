@@ -815,9 +815,11 @@ and find n global ctx ty lvl sl vars =
   in
   search ctx
 
-(* Unifies two expressions at type *)
+(* Unifies two expressions at type up to global boundary separation *)
 
 and unify global ctx lvl sl vars x lift =
+  (* First we attempt unification locally without boundary separation in the context *)
+  let local_unify global ctx lvl sl vars x lift =
   match x with
   | e, e', ty ->
     if e = e' then
@@ -1223,3 +1225,68 @@ and unify global ctx lvl sl vars x lift =
           Ok e 
         else 
           Error ((e, e'), Msg.not_syntactically_equal e e')
+  in
+  begin match local_unify global ctx lvl sl vars x lift with
+  | Ok s -> Ok s
+  | Error (ex, msg) ->
+    begin match x with
+    | e, e', ty ->
+      (* Store all intervals from ctx that occur in the expressions in a separate list *)
+      let rec ints_of ctx = 
+        begin match ctx with
+        | [] -> []
+        | (i, ity, _) :: ctx ->
+          if Expr.free_occurs_name i e || Expr.free_occurs_name i e' || Expr.free_occurs_name i ty then
+            begin match unify global ctx lvl sl vars (ity, Int(), Type(Var("_?"))) lift with
+            | Ok _ -> i :: ints_of ctx
+            | Error _ -> ints_of ctx
+            end
+          else ints_of ctx
+        end
+      in
+      (* Run through the list and attempt boundary separation for each *)
+      begin match ints_of ctx with
+      | [] -> Error (ex, "No available boundary separation in the context. \n" ^ msg)
+      | i :: _ ->
+        (* For now we ignore the list above, but for more than one intervals we'll better pass it as argument everywhere *)
+        (* Compute the endpoints of both expressions and their types *)
+        let ty0 = eval (Expr.fullsubst 0 (Global i) (I0()) true ty) in
+        let ty1 = eval (Expr.fullsubst 0 (Global i) (I1()) true ty) in
+        let elty0 = elaborate global ctx lvl sl (Type(Var("_?"))) vars ty0 in
+        let elty1 = elaborate global ctx lvl sl (Type(Var("_?"))) vars ty1 in
+        begin match elty0, elty1 with
+        | Ok (ty0, _, _), Ok (ty1, _, _) ->
+          (* First, evaluate the i0- and i1-endpoints of e and e' *)
+          let e0 = eval (Expr.fullsubst 0 (Global i) (I0()) true e) in
+          let e1 = eval (Expr.fullsubst 0 (Global i) (I1()) true e) in
+          let e0' = eval (Expr.fullsubst 0 (Global i) (I0()) true e') in
+          let e1' = eval (Expr.fullsubst 0 (Global i) (I1()) true e') in
+          (* Next, elaborate them to ensure that they ε-reduce *)
+          let ele0 = elaborate global ctx lvl sl ty0 vars e0 in
+          let ele1 = elaborate global ctx lvl sl ty1 vars e1 in
+          let ele0' = elaborate global ctx lvl sl ty0 vars e0' in
+          let ele1' = elaborate global ctx lvl sl ty1 vars e1' in
+          begin match ele0, ele1, ele0', ele1' with
+          | Ok (e0, _, _), Ok (e1, _, _), Ok (e0', _, _), Ok (e1', _, _) ->
+            (* Finally, we unify the endpoints *)
+            let u0 = unify global ctx lvl sl vars (e0, e0', ty) lift in
+            let u1 = unify global ctx lvl sl vars (e1, e1', ty) lift in
+            (* Either success or fail depending on endpoint unification *)
+            begin match u0, u1 with
+            | Ok _, Ok _ ->
+              Ok e
+            | Error (ex, msg) , _ | _ , Error (ex, msg) ->
+              Error (ex, "Failed boundary separation: " ^ msg)
+            end
+          | Error (_, msg), _, _, _ ->
+          Error ((e, e'), "Failed boundary separation: could not typecheck e0 endpoints. " ^ Pretty.printf e0 ^ Pretty.printf ty0 ^ "\n"
+          ^ msg)
+          | _, Error (_, msg), _, _| _, _, Error (_, msg), _ | _, _, _, Error (_, msg) ->
+          Error ((e, e'), "Failed boundary separation: could not typecheck e' endpoints. " ^ msg)
+        end
+        | Error (_, msg), _ | _, Error (_, msg) ->
+          Error ((e, e'), "Failed boundary separation: not a type" ^ msg)
+        end
+      end
+    end
+  end

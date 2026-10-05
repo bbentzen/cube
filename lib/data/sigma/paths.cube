@@ -8,7 +8,20 @@ import ./lemmas.cube
 
 universe ℓ
 
-/* Paths over products */
+/* Paths over product types */
+
+def prod_eq {A A' B B' : type 0} (p : path (type 0) (A × B) (A' × B')) 
+  (p₁ : path (type 0) A A') (p₂ : path (type 0) B B') (i : I) :
+  path (type 0) (p @ i) ((p₁ @ i) × (p₂ @ i)) :=
+<_> (p @ i)
+
+def prod_pair_eq {A A' B B' : type 0} {a : A} {a' : A'} {b : B} {b' : B'} (p : path (type 0) (A × B) (A' × B')) 
+    (p₁ : path (type 0) A A') (p₂ : path (type 0) B B') 
+    (u : pathd (λ i, p₁ @ i) a a') (v : pathd (λ i, p₂ @ i) b b') (i : I) :
+  p @ i :=
+pair (p₁ @ i) (λ _, p₂ @ i) (u @ i) (v @ i)
+
+/* Paths over pairs */
 
 def prod_eta (A B : type ℓ) (w : A × B) :
   path (A × B) w (fst w, snd w) :=

@@ -115,6 +115,17 @@ let rec occurs_name s hint = function
   | Pathd (e, e1, e2) ->
     occurs_name s hint e || occurs_name s hint e1 || occurs_name s hint e2
 
+let rec free_occurs_name s = function
+  | Global t -> t = s  
+  | Local _ | Int _ | I1 _ | I0 _ | Void _ | Type _ | Wild _ | Subgoal _ | Meta _ -> false
+  | Lam (x, e) | Pabs (x, e) -> free_occurs_name x e
+  | Pi (x, e1, e2) -> free_occurs_name x e1 || free_occurs_name x e2
+  | Coe (i, j, e1, e2) -> free_occurs_name s i || free_occurs_name s j || free_occurs_name s e1 || free_occurs_name s e2
+  | Hcom (i, j, e, e1, e2) -> free_occurs_name s i || free_occurs_name s j || free_occurs_name s e || free_occurs_name s e1 || free_occurs_name s e2
+  | App (e1, e2) | At (e1, e2) -> free_occurs_name s e1 || free_occurs_name s e2
+  | Abort e -> free_occurs_name s e
+  | Pathd (e, e1, e2) -> free_occurs_name s e || free_occurs_name s e1 || free_occurs_name s e2
+
 (* Converts a list of expressions into a single expression by application *)
 
 let rec list_to_expr l =
