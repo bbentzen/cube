@@ -10,7 +10,7 @@
 </p>
 
 
-Cube is an experimental interactive theorem prover for the formalization of constructive mathematics as developed in the informal cubically-flavored style advocated by Bentzen <a id="1">[1]</a>. It implements a version of the cubical type theory with reflection-free extensional equality proposed by Sterling, Angiuli, and Gratzer <a id="1">[2]</a><a id="1">[3]</a>, facilitating formalization with proof irrelevance while maintaining core cubical features. Please see the documentation for more information on the underlying formal system.
+Cube is an experimental interactive theorem prover for the formalization of constructive mathematics as developed in the informal cubically-flavored style advocated by Bentzen [[1](#BEN21)]. It implements a version of the cubical type theory with reflection-free extensional equality proposed by Sterling, Angiuli, and Gratzer [[2](#SAG19), [3](#SAG19)], facilitating formalization with proof irrelevance while maintaining core cubical features. Please see the documentation for more information on the underlying formal system.
 
 ## Installation
 
@@ -47,18 +47,18 @@ This work was partly supported by the US Air Force Office of Scientific Research
 
 ## References
 
-<a id="1">[1]</a> 
+<a name="BEN19">[1]</a>
 Bruno Bentzen. Naive cubical type theory. 
 Mathematical Structures in Computer Science, 31, pp. 1205–1231, 2021.
 [doi:10.1017/S096012952200007X](https://doi.org/10.1017/S096012952200007X), [arXiv:1911.05844](https://arxiv.org/abs/1911.05844).
 
-<a id="1">[2]</a> 
+<a name="SAG19">[2]</a>
 Jonathan Sterling, Carlo Angiuli, Daniel Gratzer. 
 Cubical syntax for reflection-free extensional equality. 
 In Herman Geuvers (ed.), 4th International Conference on Formal Structures for Computation and Deduction (FSCD 2019), volume 131 of Leibniz International Proceedings in Informatics (LIPIcs), pages 31:1-31:25.
 [doi:10.4230/LIPIcs.FSCD.2019.31](https://doi.org/10.4230/LIPIcs.FSCD.2019.31), [arXiv:1904.08562](https://arxiv.org/abs/1904.08562).
 
-<a id="1">[3]</a> 
+<a name="SAG22">[3]</a>
 Jonathan Sterling, Carlo Angiuli, Daniel Gratzer. 
 A Cubical Language for Bishop Sets. 
 Logical Methods in Computer Science, 18 (1), 2022.
