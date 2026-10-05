@@ -16,7 +16,7 @@ open Checker
 let rec check global ctx lvl sl e ty max vars =
   let e' = eval e in
   let ty' = eval ty in
-  let elab = Elab.elaborate global ctx lvl sl ty' vars e' in
+  let elab = Elab.elaborate global ctx lvl sl ty' vars [] e' in
   begin
     match elab with
     | Ok (e', ty', sl') ->

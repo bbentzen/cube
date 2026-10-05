@@ -27,7 +27,7 @@ let generate_ind_pl name num_idx_params =
 
 (* Infer the motive and indices of a well-applied recursor *)
 
-let rec_motive_idx elaborate global ctx lvl sl vars rec_env ty args = function
+let rec_motive_idx elaborate global ctx lvl sl vars bs rec_env ty args = function
   | Global rec_name ->
     begin match Hashtbl.find_opt rec_env rec_name with
     | Some rec_spec ->
@@ -60,7 +60,7 @@ let rec_motive_idx elaborate global ctx lvl sl vars rec_env ty args = function
             | 0 -> ty
             | n -> let extra_arg = List.nth args (expected_args + n - 1) in
               let h1 = Placeholder.generate () in
-              begin match elaborate global ctx lvl sl h1 vars extra_arg with
+              begin match elaborate global ctx lvl sl h1 vars bs extra_arg with
               | Ok (_, extra_arg_ty, _) -> 
                 Pi("v?", extra_arg_ty, Expr.shift 1 0 (append_ty_extra ty (n - 1)))
               | _ -> (* this might happen if the extra argument is another recursor *)
@@ -77,7 +77,7 @@ let rec_motive_idx elaborate global ctx lvl sl vars rec_env ty args = function
             let name = rec_spec.ind_name in
             (* let ph = num_extra_args + ph in  *)(* ensures uniqueness *)
             let h1 = generate_ind_pl name (num_idx + num_params) in
-            begin match elaborate global ctx lvl sl h1 vars major_arg with
+            begin match elaborate global ctx lvl sl h1 vars bs major_arg with
             | Ok (_, xty, _) ->
               let _, ind_args = Eval.break_args [] xty in
               let num_args = List.length ind_args in

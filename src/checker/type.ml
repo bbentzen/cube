@@ -16,7 +16,7 @@ let check global ctx lvl ty =
   | _ ->
     let ty' = eval ty in
     Placeholder.restore 0;
-    let elab = Elab.elaborate global ctx lvl ([], []) (Meta 0) 1 ty' in
+    let elab = Elab.elaborate global ctx lvl ([], []) (Meta 0) 1 [] ty' in
     match elab with
     | Ok (ty', tTy, _) ->
       begin
