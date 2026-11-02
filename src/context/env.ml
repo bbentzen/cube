@@ -23,7 +23,7 @@ let is_declared x env =
       else 
         helper x env
   in
-  helper x (List.rev env)
+  helper x env
 
 (* Generates a triple id * term * type from a successfully elaborated triple id * ctx * elab *)
 
