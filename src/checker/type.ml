@@ -14,9 +14,12 @@ let check global ctx lvl ty =
   match ty with
   | Meta _ -> Ok (Meta 0, ty)
   | _ ->
-    let ty' = eval ty in
+    (* Imported implicit-argument templates must be instantiated in targets
+       too; distinct uses of a definition must not share its holes. *)
+    let ty' = eval (Placeholder.unique ty) in
     Placeholder.restore 0;
-    let elab = Elab.elaborate global ctx lvl ([], []) (Meta 0) 1 [] ty' in
+    let sort = Placeholder.generate () in
+    let elab = Elab.elaborate global ctx lvl ([], []) sort 1 [] ty' in
     match elab with
     | Ok (ty', tTy, _) ->
       begin
