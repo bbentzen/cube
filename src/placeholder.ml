@@ -147,3 +147,7 @@ let rec unique = function
   | At (e1, e2) -> At (unique e1, unique e2)
   | Pathd (e, e1, e2) -> Pathd (unique e, unique e1, unique e2)
   | e -> e
+
+let escaping s e =
+  Error ("Warning: The definition or theorem should not be trusted.  After 10 successive failed attempts, the kernel still could not synthesize all metavariables in the elaborated " ^ s ^"\n  " 
+        ^ Pretty.printf e)
