@@ -47,7 +47,7 @@ let rec leq k l =
 
 let rec reduce = function
   | Suc (Num n) -> Num (n + 1)
-  | Max (Num n, Num m) -> Num (n + m)
+  | Max (Num n, Num m) -> if n <= m then Num m else Num n
   | Suc n -> Suc (reduce n)
   | Max (Suc n, m) | Max (m, Suc n) -> 
     Suc (reduce (Max (n, m)))

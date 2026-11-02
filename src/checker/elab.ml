@@ -14,16 +14,35 @@ open Eval
 
 let st = Constraints.empty ()
 
-let solve_meta_application args vars body = function
+let solve_meta_application args _vars body = function
   | Meta n ->
-    let rec build_lam vars body = function
-      | [] -> body
-      | _ :: args -> 
-        let v1 = Expr.init_fresh vars in
-        Lam (v1, build_lam (vars + 1) (Expr.shift 1 0 body) args)
-    in
-    if Placeholder.has_placeholder_name n body then None else 
-      Some (build_lam vars body args)
+    let args = List.map (Placeholder.solve []) args in
+    let body = Placeholder.solve [] body in
+    if Placeholder.has_placeholder_name n body ||
+       List.exists (Placeholder.has_placeholder_name n) args then None
+    else
+      let instantiate solution = eval (Eval.build_app solution args) in
+      begin match Hashtbl.find_opt Data.meta_store n with
+      | Some stored ->
+        if instantiate (Placeholder.solve [] stored.solution) = eval body
+        then Some body else None
+      | None ->
+        (* Abstract the actual arguments, including projection expressions.
+           Work with fresh names before closing, so occurrences under a Pi or
+           lambda receive the appropriate de Bruijn index. *)
+        let names = Array.to_list (Expr.create_fresh (body :: args) (List.length args)) in
+        let bindings = List.combine args names in
+        let abstracted = List.fold_left (fun body (arg, name) ->
+          Expr.fullsubst 0 arg (Global name) true body) body bindings in
+        let solution = List.fold_right (fun (_, name) body ->
+          Lam (name, Expr.close_bound name body)) bindings abstracted in
+        (* This is a conservative structural solution, not general higher-order
+           unification. Only accept it when substitution recovers the equation. *)
+        if instantiate solution = eval body then begin
+          Hashtbl.replace Data.meta_store n { Data.solution = solution };
+          Some body
+        end else None
+      end
   | _ -> None
 
 (* Checks whether the type of a given expression is the given type *)
@@ -32,14 +51,35 @@ let rec elaborate global ctx lvl sl ty vars bs = function
   | Global x ->
     begin match Global.var_type x ctx with
     | Ok xty ->
-      let ty = eval ty in
+      let ty = eval (Placeholder.solve [] ty) in
+      let xty = eval (Placeholder.solve [] xty) in
       let c = Global.check_var_ty x ty ctx in
       let h = Placeholder.is ty in 
       let h' = Placeholder.is xty in 
       let d = Global.is_declared x ctx in
       begin match c, h, h', d with
-      | true , _, _ , _ | _ , _, true , _ -> Ok (Global x, ty, sl)
-      | _ , true, _ , _ -> Ok (Global x, xty, sl)
+      | true , _, _ , _ -> Ok (Global x, ty, sl)
+      | _ , _, true , _ ->
+        begin match xty with
+        | Meta _ ->
+          (* Both types can still be holes while checking a recursor branch.
+             Link them now so later inference of its domain also solves the
+             result-type hole retained in the motive. *)
+          begin match unify global ctx lvl sl vars bs
+            (ty, xty, Placeholder.generate ()) true with
+          | Ok inferred -> Ok (Global x, inferred, sl)
+          | Error (_, msg) -> Error (sl, Msg.var_type_mismatch x xty ty msg)
+          end
+        | _ -> Ok (Global x, ty, sl)
+        end
+      | _ , true, _ , _ ->
+        (* The enclosing application may retain its original expected type.
+           Record the inference as well as returning it, so holes in a motive
+           (for example fst's result type) are solved at every occurrence. *)
+        (match ty with
+        | Meta n -> Hashtbl.replace Data.meta_store n { Data.solution = xty }
+        | _ -> ());
+        Ok (Global x, xty, sl)
       | false , false, false , true ->
         let h1 = Placeholder.generate () in
         begin match elaborate global ctx lvl sl h1 vars bs xty with
@@ -211,7 +251,7 @@ let rec elaborate global ctx lvl sl ty vars bs = function
       let int = eval int in
       let ty' = eval ty' in
       begin match int, ty' with
-      | Int(), ty' ->
+      | Int(), ty' when not (Placeholder.is ty') ->
         (* Determine the target type for the lid and tubes *)
         let ty0 = Expr.open_var 0 (I0()) ty' in
         let ty1 = Expr.open_var 0 (I1()) ty' in
@@ -260,48 +300,42 @@ let rec elaborate global ctx lvl sl ty vars bs = function
         | Error (sa, msg), _, _ | _, Error (sa, msg), _ | _, _, Error (sa, msg) -> Error (sa, Msg.hcom_error msg)
         end
       
-      | Meta _, Meta _ -> 
-        (* Infer the type of the lid and the tubes *)
+      | (Int() | Meta _), Meta _ ->
+        (* Infer the lid's dependent function type before checking the tubes.
+           Sharing one bare codomain hole across all three checks incorrectly
+           equates the i0 and i1 fibers of a dependent family. *)
         let h0 = Placeholder.generate () in
-        let elab = elaborate global ctx lvl sl (Pi("v1", Int(), h0)) vars bs e in
-        let elab1 = elaborate global ctx lvl sl (Pi("v1", Int(), h0)) vars bs e1 in
-        let elab2 = elaborate global ctx lvl sl (Pi("v1", Int(), h0)) vars bs e2 in
-        begin match elab, elab1, elab2 with
-        | Ok (e', ety, ss), Ok (e1', _, _), Ok (e2', _, _) ->
-          (* Synthesize the face types based on what was inferred *)
-          begin match eval ety with
-          | Pi(i, Int(), ty') ->
-            let ty0 = Expr.open_var 0 (I0()) ty' in
-            let ty1 = Expr.open_var 0 (I1()) ty' in
-            let elabi0 = elaborate global ctx lvl sl ty0 vars bs (eval (App(e', I0()))) in
-            let elabi1 = elaborate global ctx lvl sl ty1 vars bs (eval (App(e', I1()))) in
-            begin match elabi0, elabi1 with
-            | Ok (ei0, _, sa), Ok (ei1, _, _) ->
-              (* Typecheck the i face of the tubes *)
-              let elab1i0 = elaborate global ctx lvl sl ty0 vars bs (eval (App(e1', i1))) in
-              let elab2i1 = elaborate global ctx lvl sl ty1 vars bs (eval (App(e2', i1))) in
-              begin match elab1i0, elab2i1 with
-              | Ok (e1i0, _, sa1), Ok (e2i0, _, sa2) ->
-                let u1 = unify global ctx lvl sl vars bs (eval ei0, e1i0, ty0) false in
-                let u2 = unify global ctx lvl sl vars bs (eval ei1, e2i0, ty1) false in
-                begin match u1, u2 with
-                | Ok _, Ok _ ->
-                  Ok (Hcom(i1, j1, e', e1', e2'), Pi(i, Int(), ty'), Stack.lappend sa sa1 sa2)
-                | Error (_, msg), _ ->
-                  Error (Stack.lappend sa sa1 sa2, Msg.lid_unify ei0 i1 e1i0 msg)
-                | _, Error (_, msg) -> 
-                  Error (Stack.lappend sa sa1 sa2, Msg.tube_i1_unify ei1 i1 e2i0 msg)
+        begin match elaborate global ctx lvl sl (Pi("v1", Int(), h0)) vars bs e with
+        | Ok (e', ety, ss) ->
+          begin match eval (Placeholder.solve [] ety) with
+          | Pi(_, Int(), codomain) as inferred when not (Placeholder.is codomain) ->
+            elaborate global ctx lvl ss inferred vars bs (Hcom(i1, j1, e', e1, e2))
+          | Pi(_, Int(), _) ->
+            (* A placeholder lid can instead obtain a constant family from a
+               tube. Infer the tubes independently: their composition variable
+               is not the lid's interval variable. A dependent tube alone does
+               not determine a family between the two lid endpoints. *)
+            let rec infer_from_tube = function
+              | [] -> Error (ss, Msg.lid_unexpected e ety)
+              | tube :: rest ->
+                let codomain = Placeholder.generate () in
+                begin match elaborate global ctx lvl ss
+                  (Pi("v1", Int(), codomain)) vars bs tube with
+                | Ok (_, tube_ty, attempts) ->
+                  begin match eval (Placeholder.solve [] tube_ty) with
+                  | Pi(_, Int(), codomain) as inferred
+                    when not (Placeholder.has_placeholder codomain) &&
+                         not (Expr.occurs_index 0 0 codomain) ->
+                    elaborate global ctx lvl attempts inferred vars bs
+                      (Hcom(i1, j1, e', e1, e2))
+                  | _ -> infer_from_tube rest
+                  end
+                | Error msg -> Error msg
                 end
-              | Error (sa, msg), _ -> Error (sa, Msg.tube_i0_meta i1 j1 e' e1' e2' ty0 msg)
-              | _, Error (sa, msg) -> Error (sa, Msg.tube_i1_meta i1 j1 e' e1' e2' ty0 msg)
-              end
-            | Error (sa', msg), _ -> Error (Stack.append ss sa', Msg.lid_meta e' ety e1' e2' ty' msg)
-            | _, Error msg -> Error msg
-            end
-          | _ -> Error (sl, Msg.lid_unexpected e ety)
+            in infer_from_tube [e1; e2]
+          | _ -> Error (ss, Msg.lid_unexpected e ety)
           end
-        | Error msg, _, _ | _, Error msg, _ | _, _, Error msg -> 
-          Error msg
+        | Error msg -> Error msg
         end
       | _, _ -> Error (sl, Msg.hcom_unexpected_1 i1 j1 e e1 e2 k int ty')
       end
@@ -336,7 +370,8 @@ let rec elaborate global ctx lvl sl ty vars bs = function
             let v2 = Expr.init_fresh vars in
             let ty' = Expr.fullsubst 0 (I0()) (Global v2) true tyi0 in
             let ty'' = Expr.fullsubst 0 (I1()) (Global v2) true tyi1 in
-            let elabTy = elaborate global ctx lvl sl h0 (vars+2) bs ty in
+            let family_sort = Placeholder.generate () in
+            let elabTy = elaborate global ctx lvl sl family_sort (vars+2) bs ty in
             begin match elabTy with
             | Ok (_, tTy, _) ->
               let u = unify global ctx lvl sl (vars+2) bs (ty', ty'', tTy) false in
@@ -425,7 +460,8 @@ let rec elaborate global ctx lvl sl ty vars bs = function
         let v1 = Expr.init_fresh vars in
         let ty' = Expr.fullsubst 0 (I0()) (Global v1) true tyi0 in
         let ty'' = Expr.fullsubst 0 (I1()) (Global v1) true tyi1 in
-        begin match elaborate global ctx lvl sl h1 (vars+1) bs ty' with
+        let family_sort = Placeholder.generate () in
+        begin match elaborate global ctx lvl sl family_sort (vars+1) bs ty' with
         | Ok (ty', tTy', _) ->
           let u = unify global ctx lvl sl (vars+1) bs (ty', ty'', tTy') false in
           begin match u with
@@ -445,6 +481,8 @@ let rec elaborate global ctx lvl sl ty vars bs = function
     let h1 = Placeholder.generate () in
     let h2 = Placeholder.generate () in
     let h3 = Placeholder.generate () in
+    (* The path family and the universe/type of that family are distinct holes. *)
+    let family_sort = Placeholder.generate () in
     let elab1 = elaborate global ctx lvl sl (Pathd(h1, h2, h3)) vars bs e1 in
     let elab2 = elaborate global ctx lvl sl (Int()) vars bs e2 in
     begin match elab1, elab2 with
@@ -475,7 +513,7 @@ let rec elaborate global ctx lvl sl ty vars bs = function
           begin match ty' with
           | Lam(_, ty') ->
             let ty2' = Expr.open_var 0 e2' ty' in
-            let elabTy = elaborate global ctx lvl sl h1 vars bs ty2' in
+            let elabTy = elaborate global ctx lvl sl family_sort vars bs ty2' in
             begin match elabTy with
             | Ok (_, tTy, _) ->
               let u = unify global ctx lvl sl vars bs (ty2', ty, tTy) false in
@@ -489,7 +527,7 @@ let rec elaborate global ctx lvl sl ty vars bs = function
           | _ -> 
             begin match ty with
             | App(ty, i) ->
-              let elabTy = elaborate global ctx lvl sl h1 vars bs ty' in
+              let elabTy = elaborate global ctx lvl sl family_sort vars bs ty' in
               begin match elabTy with
               | Ok (_, tTy, _) ->
                 let u = unify global ctx lvl sl vars bs (ty', ty, tTy) false in
@@ -501,7 +539,7 @@ let rec elaborate global ctx lvl sl ty vars bs = function
               | Error msg -> Error msg
               end
             | ty ->
-              let elabTy = elaborate global ctx lvl sl h1 vars bs ty' in
+              let elabTy = elaborate global ctx lvl sl family_sort vars bs ty' in
               begin match elabTy with
               | Ok (_, tTy, _) ->
                 let u = unify global ctx lvl sl vars bs (ty', ty, tTy) false in
@@ -524,9 +562,10 @@ let rec elaborate global ctx lvl sl ty vars bs = function
     let ty1 = eval ty1 in
     let h1 = Placeholder.generate () in
     let elab1 = elaborate global ctx lvl sl h1 vars bs ty1 in
+    let h2 = Placeholder.generate () in
     let ty2 = eval ty2 in
     let ty2' = (Expr.open_var 0 (Global x) ty2) in
-    let elab2 = elaborate global ((x, ty1, true) :: ctx) lvl sl h1 vars bs ty2'
+    let elab2 = elaborate global ((x, ty1, true) :: ctx) lvl sl h2 vars bs ty2'
     in
     begin match elab1, elab2 with
     | Ok (ty1', Type n1, sa1), Ok (ty2', Type n2, sa2) -> 
@@ -726,7 +765,8 @@ let rec elaborate global ctx lvl sl ty vars bs = function
       let elabi1 = elaborate global ctx lvl sl h1 vars bs (eval (App (ty1, I1()))) in
       begin match elabi0, elabi1 with
       | Ok (tyi0, tTyi0, _), Ok (tyi1, _, _) ->
-        let elab = elaborate global ctx lvl sl h1 vars bs (eval ty1) in
+        let family_type = Placeholder.generate () in
+        let elab = elaborate global ctx lvl sl family_type vars bs (eval ty1) in
         let elab1 = elaborate global ctx lvl sl tyi0 vars bs (eval e1) in
         let elab2 = elaborate global ctx lvl sl tyi1 vars bs (eval e2) in
         begin match elab, elab1, elab2 with
@@ -763,7 +803,7 @@ let rec elaborate global ctx lvl sl ty vars bs = function
     | Ok _ ->
       begin match ty with
       | Type m ->
-        if Level.leq n m then 
+        if Level.leq (Suc n) m then
           Ok (Type n, Type m, sl) 
         else if Level.is_arbitrary m then 
           Ok (Type n, Type m, sl)
@@ -819,6 +859,11 @@ and find n global ctx ty lvl sl vars bs =
 (* bs tracks the intervals that gbs operates over *)
 
 and unify global ctx lvl sl vars bs x lift =
+  (* Consult earlier assignments before comparing the application spines. A
+     solved function meta must be instantiated, not assigned a second time. *)
+  let x = match x with e, e', ty ->
+    eval (Placeholder.solve [] e), eval (Placeholder.solve [] e'),
+    eval (Placeholder.solve [] ty) in
   (* First we attempt unification locally without boundary separation in the context *)
   let local_unify global ctx lvl sl vars bs x lift =
   match x with
@@ -828,7 +873,9 @@ and unify global ctx lvl sl vars bs x lift =
     else
       match e, e', ty with
       | Meta n1, Meta n2, _ ->
-        if n1 <= n2 then Ok (Meta n1) else Ok (Meta n2)
+        let representative, alias = if n1 <= n2 then n1, n2 else n2, n1 in
+        Hashtbl.replace Data.meta_store alias { Data.solution = Meta representative };
+        Ok (Meta representative)
       
       | e , Meta n, Pathd(_, _, _) ->
         Hashtbl.add Data.meta_store n { Data.solution = e}; Ok e
@@ -875,12 +922,6 @@ and unify global ctx lvl sl vars bs x lift =
       | Lam (x, e), Lam (x', e'), Pi(_, ty1 , ty2) ->
         if e = e' then
           Ok (Lam (x, e))
-        else if Placeholder.is e' then
-          (* Probably want to add to hashtbl *)
-          Ok (Lam (x, e))
-        else if Placeholder.is e then
-          (* Here too *)
-          Ok (Lam (x, e'))
         else 
           begin match eval ty1 with
           | Int() | Meta _ ->
@@ -910,7 +951,7 @@ and unify global ctx lvl sl vars bs x lift =
                 let tyv1 = Expr.open_var 0 (Global v1) ty2 in
                 let u = unify global ((v1, ty1, true) :: ctx) lvl sl (vars+1) bs (ev1, ev1', tyv1) lift in
                 begin match u with
-                | Ok s -> Ok (Lam (v1, s))
+                | Ok s -> Ok (Lam (v1, Expr.close_bound v1 s))
                 | Error _ ->
                   Error ((Lam (x, e), Lam (x', e')), Msg.endpoint_unify e x e' x' msg)
                   end
@@ -925,7 +966,7 @@ and unify global ctx lvl sl vars bs x lift =
             let tyv1 = Expr.open_var 0 (Global v1) ty2 in
             let u = unify global ((v1, ty1, true) :: ctx) lvl sl (vars+1) bs (ev1, ev1', tyv1) lift in
             begin match u with
-            | Ok s -> Ok (Lam (v1, s))
+            | Ok s -> Ok (Lam (v1, Expr.close_bound v1 s))
             | Error msg -> Error msg
             end
           end
@@ -968,6 +1009,16 @@ and unify global ctx lvl sl vars bs x lift =
             end
 
       | App (e1, e2), App (e1', e2'), ty ->
+        let head, args = Eval.break_args [] (App (e1, e2)) in
+        let head', args' = Eval.break_args [] (App (e1', e2')) in
+        (* A flex-rigid equation is about the whole application. Decomposing
+           it first can assign its head even when argument comparison fails. *)
+        let solved = match solve_meta_application args vars (App (e1', e2')) head with
+          | Some _ as solution -> solution
+          | None -> solve_meta_application args' vars (App (e1, e2)) head' in
+        begin match solved with
+        | Some solution -> Ok solution
+        | None ->
         let h1 = Placeholder.generate () in
         let elab2 = elaborate global ctx lvl sl h1 vars bs e2 in
         begin match elab2 with
@@ -1035,6 +1086,7 @@ and unify global ctx lvl sl vars bs x lift =
         | Error (_, msg) -> (* This case is impossible *)
           Error ((App (e1, e2), App (e1', e2')), Msg.app_unify_arg e2 h1 msg)
         end
+        end
       
       | App (e, i), e', _ | e', App (e, i), _ ->
         (* Try endpoint unification *)
@@ -1054,11 +1106,10 @@ and unify global ctx lvl sl vars bs x lift =
             | _, Error (_, msg) -> Error ((e1, e1'), Msg.app_unify_i1 e1 e1' msg)
             end
           | _ ->
-            (* Needs more testing to confirm soundness *)
-            begin match e with
-            | Meta _ -> (* we take Meta to be (\lambda x. e') *)
-              Ok e'
-            | _ -> Error ((e, e'), Msg.app_unify_app e i e')
+            let head, args = Eval.break_args [] (App (e, i)) in
+            begin match solve_meta_application args vars e' head with
+            | Some solution -> Ok solution
+            | None -> Error ((e, e'), Msg.app_unify_app e i e')
             end
             (* Fallback case: try again after evaluating the second argument *)
             (* let i = eval i in

@@ -312,7 +312,7 @@ let type_unexpected_3 e1 n msg =
 let universe_inconsitency n m =
   "Universe inconsistency: the universe level of\n  " ^ Pretty.printf (Type n) ^ 
   "\nmust be inferior to the universe level of\n  " ^ Pretty.printf (Type m) ^ 
-  "\nFailed to prove that " ^ Pretty.print_level n ^ " ≤ " ^ Pretty.print_level m ^ "."
+  "\nFailed to prove that " ^ Pretty.print_level (Suc n) ^ " ≤ " ^ Pretty.print_level m ^ "."
 
 let type_mismatch n ty =
   "Type mismatch when checking that\n  " ^ Pretty.printf (Type n) ^ 
