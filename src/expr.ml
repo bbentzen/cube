@@ -126,6 +126,19 @@ let rec free_occurs_name s = function
   | Abort e -> free_occurs_name s e
   | Pathd (e, e1, e2) -> free_occurs_name s e || free_occurs_name s e1 || free_occurs_name s e2
 
+let rec occurs_meta = function
+  | Meta _ -> true
+  | Global _ | Local _ | Int _ | I0 _ | I1 _ | Subgoal _ | Void _ | Type _ | Wild _ -> false
+  | Lam (_, e) | Pabs (_, e) | Abort e -> occurs_meta e
+  | Pi (_, e1, e2) -> occurs_meta e1 || occurs_meta e2
+  | App (e1, e2) | At (e1, e2) -> occurs_meta e1 || occurs_meta e2
+  | Pathd (e, e1, e2) -> occurs_meta e || occurs_meta e1 || occurs_meta e2
+  | Coe (i, j, e1, e2)  -> occurs_meta i || occurs_meta j || occurs_meta e1 || occurs_meta e2
+  | Hcom (i, j, e, e1, e2) -> occurs_meta i || occurs_meta j || occurs_meta e || occurs_meta e1 || occurs_meta e2
+
+let escaping_metas e ty =
+  occurs_meta e || occurs_meta ty
+
 (* Converts a list of expressions into a single expression by application *)
 
 let rec list_to_expr l =
